@@ -1,0 +1,46 @@
+{
+    "expo": {
+        "name": "PSMS",
+        "slug": "psms-mobile",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#0f0f14"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#0f0f14"
+            },
+            "package": "com.psms.mobile",
+            "permissions": [
+                "android.permission.CAMERA"
+            ]
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.psms.mobile"
+        },
+        "plugins": [
+            [
+                "expo-camera",
+                {
+                    "cameraPermission": "Allow PSMS to access your camera to scan QR codes"
+                }
+            ],
+            [
+                "expo-barcode-scanner",
+                {
+                    "cameraPermission": "Allow PSMS to access your camera to scan QR codes"
+                }
+            ]
+        ]
+    }
+}
