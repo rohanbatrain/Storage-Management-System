@@ -1,20 +1,55 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
     Box,
     Package,
     Clock,
     AlertTriangle,
     Plus,
-    X
+    X,
+    Search,
+    Home,
+    Shirt,
+    FolderOpen,
+    ArrowRight,
+    Sparkles,
+    Layout,
+    Briefcase
 } from 'lucide-react';
 import { locationApi, itemApi } from '../services/api';
 
-function StatCard({ icon: Icon, value, label, color }) {
+// Visual type selector data
+const LOCATION_TYPES = [
+    { kind: 'room', icon: Home, label: 'Room', description: 'Bedroom, Kitchen, Bathroom', color: '#6366f1' },
+    { kind: 'furniture', icon: Box, label: 'Furniture', description: 'Wardrobe, Desk, Shelf', color: '#8b5cf6' },
+    { kind: 'container', icon: Package, label: 'Container', description: 'Box, Drawer, Bin', color: '#06b6d4' },
+    { kind: 'surface', icon: Layout, label: 'Surface', description: 'Countertop, Table', color: '#10b981' },
+    { kind: 'portable', icon: Briefcase, label: 'Portable', description: 'Bag, Suitcase', color: '#f59e0b' },
+];
+
+function StatCard({ icon: Icon, value, label, color, onClick }) {
     return (
-        <div className="stat-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                <Icon size={20} style={{ color }} />
+        <div
+            className="stat-card"
+            onClick={onClick}
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+        >
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+            }}>
+                <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 'var(--radius-md)',
+                    background: `${color}20`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    <Icon size={24} style={{ color }} />
+                </div>
                 <span className="stat-value">{value}</span>
             </div>
             <span className="stat-label">{label}</span>
@@ -22,24 +57,27 @@ function StatCard({ icon: Icon, value, label, color }) {
     );
 }
 
-function AddLocationModal({ onClose, onSuccess, parentId = null }) {
+function AddLocationModal({ onClose, onSuccess }) {
+    const [step, setStep] = useState(1);
     const [name, setName] = useState('');
     const [kind, setKind] = useState('room');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (step === 1) {
+            setStep(2);
+            return;
+        }
+
         setLoading(true);
         try {
-            await locationApi.create({
-                name,
-                kind,
-                parent_id: parentId,
-            });
+            await locationApi.create({ name, kind });
             onSuccess();
             onClose();
         } catch (error) {
             console.error('Failed to create location:', error);
+            alert(error.response?.data?.detail || 'Failed to create location');
         } finally {
             setLoading(false);
         }
@@ -47,52 +85,192 @@ function AddLocationModal({ onClose, onSuccess, parentId = null }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
                 <div className="modal-header">
-                    <h2 className="modal-title">Add New Location</h2>
+                    <h2 className="modal-title">
+                        {step === 1 ? '📍 Name Your Location' : '🏠 Choose Type'}
+                    </h2>
                     <button className="btn btn-ghost btn-icon" onClick={onClose}>
                         <X size={20} />
                     </button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
-                        <div className="form-group">
-                            <label className="form-label">Location Name</label>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder="e.g., Living Room, Wardrobe, Backpack"
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                required
-                                autoFocus
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Type</label>
-                            <select
-                                className="form-select"
-                                value={kind}
-                                onChange={e => setKind(e.target.value)}
-                            >
-                                <option value="room">🏠 Room (Bedroom, Bathroom)</option>
-                                <option value="furniture">🪑 Furniture (Almirah, Bed, Table)</option>
-                                <option value="container">📦 Container (Box, Drawer, Bin)</option>
-                                <option value="surface">📋 Surface (Shelf, Counter)</option>
-                                <option value="portable">🎒 Portable (Bag, Suitcase)</option>
-                            </select>
-                        </div>
+                        {step === 1 ? (
+                            <div className="form-group">
+                                <label className="form-label">What do you want to call this location?</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="e.g., Master Bedroom, Kitchen, Garage"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    required
+                                    autoFocus
+                                    style={{ fontSize: 'var(--font-size-lg)', padding: 'var(--space-md)' }}
+                                />
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 'var(--space-sm)' }}>
+                                {LOCATION_TYPES.map(type => (
+                                    <div
+                                        key={type.kind}
+                                        onClick={() => setKind(type.kind)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--space-md)',
+                                            padding: 'var(--space-md)',
+                                            borderRadius: 'var(--radius-md)',
+                                            border: kind === type.kind
+                                                ? `2px solid ${type.color}`
+                                                : '2px solid var(--color-border)',
+                                            background: kind === type.kind
+                                                ? `${type.color}15`
+                                                : 'var(--color-bg-tertiary)',
+                                            cursor: 'pointer',
+                                            transition: 'all var(--transition-fast)',
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 44,
+                                            height: 44,
+                                            borderRadius: 'var(--radius-md)',
+                                            background: `${type.color}25`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}>
+                                            <type.icon size={22} style={{ color: type.color }} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 600 }}>{type.label}</div>
+                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                                                {type.description}
+                                            </div>
+                                        </div>
+                                        {kind === type.kind && (
+                                            <div style={{ marginLeft: 'auto', color: type.color }}>✓</div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <div className="modal-footer">
+                        {step === 2 && (
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => setStep(1)}
+                            >
+                                ← Back
+                            </button>
+                        )}
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Cancel
                         </button>
-                        <button type="submit" className="btn btn-primary" disabled={loading}>
-                            {loading ? 'Creating...' : 'Create Location'}
+                        <button type="submit" className="btn btn-primary" disabled={loading || !name.trim()}>
+                            {loading ? 'Creating...' : step === 1 ? 'Next →' : 'Create Location'}
                         </button>
                     </div>
                 </form>
             </div>
+        </div>
+    );
+}
+
+function EmptyStateOnboarding({ onAddLocation }) {
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 'var(--space-2xl)',
+            textAlign: 'center',
+            background: 'var(--gradient-surface)',
+            backgroundColor: 'var(--color-bg-secondary)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--color-border)',
+        }}>
+            <div style={{
+                width: 80,
+                height: 80,
+                borderRadius: 'var(--radius-xl)',
+                background: 'var(--color-accent-glow)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 'var(--space-lg)',
+            }}>
+                <Sparkles size={40} style={{ color: 'var(--color-accent-primary)' }} />
+            </div>
+            <h2 style={{
+                fontSize: 'var(--font-size-2xl)',
+                fontWeight: 700,
+                marginBottom: 'var(--space-sm)'
+            }}>
+                Welcome to Your Storage Manager!
+            </h2>
+            <p style={{
+                color: 'var(--color-text-secondary)',
+                marginBottom: 'var(--space-xl)',
+                maxWidth: 400
+            }}>
+                Start by creating your first room. You can then add furniture, containers, and items to organize everything.
+            </p>
+            <button className="btn btn-primary" onClick={onAddLocation} style={{ padding: 'var(--space-md) var(--space-xl)', fontSize: 'var(--font-size-md)' }}>
+                <Plus size={20} />
+                Create Your First Room
+            </button>
+        </div>
+    );
+}
+
+function QuickActionCard({ icon: Icon, title, description, onClick, color }) {
+    return (
+        <div
+            onClick={onClick}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-md)',
+                padding: 'var(--space-lg)',
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-lg)',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={e => {
+                e.currentTarget.style.borderColor = color;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.transform = 'translateY(0)';
+            }}
+        >
+            <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 'var(--radius-md)',
+                background: `${color}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+            }}>
+                <Icon size={24} style={{ color }} />
+            </div>
+            <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>{title}</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                    {description}
+                </div>
+            </div>
+            <ArrowRight size={18} style={{ color: 'var(--color-text-muted)' }} />
         </div>
     );
 }
@@ -119,13 +297,8 @@ function Dashboard() {
 
     const loadDashboardData = async () => {
         try {
-            // Load locations
             const locationsRes = await locationApi.list();
-
-            // Load all items
             const itemsRes = await itemApi.list({});
-
-            // Load temporary items
             const tempRes = await itemApi.list({ temporary_only: true });
 
             setStats({
@@ -137,7 +310,6 @@ function Dashboard() {
 
             setTemporaryItems(tempRes.data.slice(0, 5));
 
-            // Sort by last moved and take recent
             const sorted = [...itemsRes.data]
                 .filter(i => i.last_moved_at)
                 .sort((a, b) => new Date(b.last_moved_at) - new Date(a.last_moved_at));
@@ -148,15 +320,53 @@ function Dashboard() {
         }
     };
 
+    // Show onboarding if no locations
+    if (stats.locations === 0 && !showAddModal) {
+        return (
+            <div>
+                <EmptyStateOnboarding onAddLocation={() => setShowAddModal(true)} />
+                {showAddModal && (
+                    <AddLocationModal
+                        onClose={() => setShowAddModal(false)}
+                        onSuccess={() => {
+                            loadDashboardData();
+                            window.location.reload();
+                        }}
+                    />
+                )}
+            </div>
+        );
+    }
+
     return (
         <div>
-            <div style={{ marginBottom: 'var(--space-xl)' }}>
-                <h1 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, marginBottom: 'var(--space-sm)' }}>
-                    Dashboard
-                </h1>
-                <p style={{ color: 'var(--color-text-secondary)' }}>
-                    Overview of your storage organization
-                </p>
+            {/* Hero Section */}
+            <div style={{
+                marginBottom: 'var(--space-xl)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+            }}>
+                <div>
+                    <h1 style={{
+                        fontSize: 'var(--font-size-3xl)',
+                        fontWeight: 700,
+                        marginBottom: 'var(--space-xs)'
+                    }}>
+                        Welcome Back! 👋
+                    </h1>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>
+                        Here's what's happening in your storage space
+                    </p>
+                </div>
+                <button
+                    className="btn btn-primary"
+                    onClick={() => setShowAddModal(true)}
+                    style={{ padding: 'var(--space-sm) var(--space-lg)' }}
+                >
+                    <Plus size={18} />
+                    Add Location
+                </button>
             </div>
 
             {/* Stats Grid */}
@@ -187,6 +397,34 @@ function Dashboard() {
                 />
             </div>
 
+            {/* Quick Actions */}
+            <div style={{ marginBottom: 'var(--space-xl)' }}>
+                <h3 style={{ marginBottom: 'var(--space-md)', fontWeight: 600 }}>Quick Actions</h3>
+                <div className="grid grid-3">
+                    <QuickActionCard
+                        icon={Plus}
+                        title="Add New Room"
+                        description="Create a new storage location"
+                        color="var(--color-accent-primary)"
+                        onClick={() => setShowAddModal(true)}
+                    />
+                    <QuickActionCard
+                        icon={Search}
+                        title="Find Something"
+                        description="Search your items and locations"
+                        color="var(--color-info)"
+                        onClick={() => navigate('/search')}
+                    />
+                    <QuickActionCard
+                        icon={Shirt}
+                        title="Wardrobe"
+                        description="Manage your clothing items"
+                        color="var(--color-success)"
+                        onClick={() => navigate('/wardrobe')}
+                    />
+                </div>
+            </div>
+
             <div className="grid grid-2">
                 {/* Temporary Items Alert */}
                 <div className="card">
@@ -195,11 +433,14 @@ function Dashboard() {
                             <AlertTriangle size={18} style={{ color: 'var(--color-warning)' }} />
                             Temporary Placements
                         </h3>
+                        {temporaryItems.length > 0 && (
+                            <span className="badge badge-warning">{temporaryItems.length}</span>
+                        )}
                     </div>
                     {temporaryItems.length === 0 ? (
                         <div className="empty-state" style={{ padding: 'var(--space-lg)' }}>
                             <p style={{ color: 'var(--color-text-muted)' }}>
-                                No items in temporary locations ✓
+                                ✓ No items in temporary locations
                             </p>
                         </div>
                     ) : (
@@ -269,20 +510,6 @@ function Dashboard() {
                 </div>
             </div>
 
-            {/* Quick Actions */}
-            <div style={{ marginTop: 'var(--space-xl)' }}>
-                <h3 style={{ marginBottom: 'var(--space-md)' }}>Quick Actions</h3>
-                <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-                        <Plus size={16} />
-                        Add Location
-                    </button>
-                    <button className="btn btn-secondary" onClick={() => navigate('/search')}>
-                        Find Item
-                    </button>
-                </div>
-            </div>
-
             {showAddModal && (
                 <AddLocationModal
                     onClose={() => {
@@ -291,7 +518,7 @@ function Dashboard() {
                     }}
                     onSuccess={() => {
                         loadDashboardData();
-                        window.location.reload(); // Refresh sidebar tree
+                        window.location.reload();
                     }}
                 />
             )}

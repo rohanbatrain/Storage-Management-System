@@ -128,24 +128,29 @@ const VALID_CHILD_KINDS = {
     laundry_dirty: [],
 };
 
-const KIND_OPTIONS = {
-    room: '🏠 Room (Bedroom, Bathroom)',
-    furniture: '🪑 Furniture (Almirah, Bed, Table)',
-    container: '📦 Container (Box, Drawer, Bin)',
-    surface: '📋 Surface (Shelf, Counter)',
-    portable: '🎒 Portable (Bag, Suitcase)',
-    laundry_worn: '👕 Worn Clothes Basket',
-    laundry_dirty: '🧺 Dirty Laundry Basket',
+const KIND_DETAILS = {
+    furniture: { icon: Box, label: 'Furniture', description: 'Wardrobe, Desk, Shelf', color: '#8b5cf6' },
+    container: { icon: Package, label: 'Container', description: 'Box, Drawer, Bin', color: '#06b6d4' },
+    surface: { icon: Layout, label: 'Surface', description: 'Shelf, Counter', color: '#10b981' },
+    portable: { icon: Briefcase, label: 'Portable', description: 'Bag, Suitcase', color: '#f59e0b' },
+    laundry_worn: { icon: Package, label: 'Worn Basket', description: 'Rewearable clothes', color: '#10b981' },
+    laundry_dirty: { icon: Package, label: 'Dirty Basket', description: 'Needs washing', color: '#ef4444' },
 };
 
 function AddSubLocationModal({ parentId, parentKind, onClose, onSuccess }) {
     const validKinds = VALID_CHILD_KINDS[parentKind] || ['container'];
+    const [step, setStep] = useState(1);
     const [name, setName] = useState('');
     const [kind, setKind] = useState(validKinds[0] || 'container');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (step === 1 && validKinds.length > 1) {
+            setStep(2);
+            return;
+        }
+
         setLoading(true);
         try {
             await locationApi.create({
@@ -165,46 +170,94 @@ function AddSubLocationModal({ parentId, parentKind, onClose, onSuccess }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
                 <div className="modal-header">
-                    <h2 className="modal-title">Add Sub-Location</h2>
+                    <h2 className="modal-title">
+                        {step === 1 ? '📍 Add Sub-Location' : '📦 Choose Type'}
+                    </h2>
                     <button className="btn btn-ghost btn-icon" onClick={onClose}>
                         <X size={20} />
                     </button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
-                        <div className="form-group">
-                            <label className="form-label">Location Name</label>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder="e.g., Drawer 1, Top Shelf, Front Pocket"
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                required
-                                autoFocus
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Type</label>
-                            <select
-                                className="form-select"
-                                value={kind}
-                                onChange={e => setKind(e.target.value)}
-                            >
-                                {validKinds.map(k => (
-                                    <option key={k} value={k}>{KIND_OPTIONS[k]}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {step === 1 ? (
+                            <div className="form-group">
+                                <label className="form-label">What's inside this location?</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="e.g., Top Drawer, Left Shelf, Main Compartment"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    required
+                                    autoFocus
+                                    style={{ fontSize: 'var(--font-size-lg)', padding: 'var(--space-md)' }}
+                                />
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 'var(--space-sm)' }}>
+                                {validKinds.map(k => {
+                                    const details = KIND_DETAILS[k];
+                                    if (!details) return null;
+                                    const IconComponent = details.icon;
+                                    return (
+                                        <div
+                                            key={k}
+                                            onClick={() => setKind(k)}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 'var(--space-md)',
+                                                padding: 'var(--space-md)',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: kind === k
+                                                    ? `2px solid ${details.color}`
+                                                    : '2px solid var(--color-border)',
+                                                background: kind === k
+                                                    ? `${details.color}15`
+                                                    : 'var(--color-bg-tertiary)',
+                                                cursor: 'pointer',
+                                                transition: 'all var(--transition-fast)',
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: 42,
+                                                height: 42,
+                                                borderRadius: 'var(--radius-md)',
+                                                background: `${details.color}25`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}>
+                                                <IconComponent size={20} style={{ color: details.color }} />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 600 }}>{details.label}</div>
+                                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                                                    {details.description}
+                                                </div>
+                                            </div>
+                                            {kind === k && (
+                                                <div style={{ marginLeft: 'auto', color: details.color, fontWeight: 'bold' }}>✓</div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                     <div className="modal-footer">
+                        {step === 2 && (
+                            <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>
+                                ← Back
+                            </button>
+                        )}
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Cancel
                         </button>
-                        <button type="submit" className="btn btn-primary" disabled={loading}>
-                            {loading ? 'Creating...' : 'Create'}
+                        <button type="submit" className="btn btn-primary" disabled={loading || !name.trim()}>
+                            {loading ? 'Creating...' : (step === 1 && validKinds.length > 1) ? 'Next →' : 'Create'}
                         </button>
                     </div>
                 </form>
