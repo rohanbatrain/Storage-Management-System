@@ -117,9 +117,31 @@ function AddItemModal({ locationId, onClose, onSuccess }) {
     );
 }
 
-function AddSubLocationModal({ parentId, onClose, onSuccess }) {
+// Valid child kinds based on parent kind (matching backend validation)
+const VALID_CHILD_KINDS = {
+    room: ['furniture', 'container', 'surface', 'portable', 'laundry_worn', 'laundry_dirty'],
+    furniture: ['container', 'surface'],
+    container: ['container'],
+    surface: ['container', 'portable'],
+    portable: ['container'],
+    laundry_worn: [],
+    laundry_dirty: [],
+};
+
+const KIND_OPTIONS = {
+    room: '🏠 Room (Bedroom, Bathroom)',
+    furniture: '🪑 Furniture (Almirah, Bed, Table)',
+    container: '📦 Container (Box, Drawer, Bin)',
+    surface: '📋 Surface (Shelf, Counter)',
+    portable: '🎒 Portable (Bag, Suitcase)',
+    laundry_worn: '👕 Worn Clothes Basket',
+    laundry_dirty: '🧺 Dirty Laundry Basket',
+};
+
+function AddSubLocationModal({ parentId, parentKind, onClose, onSuccess }) {
+    const validKinds = VALID_CHILD_KINDS[parentKind] || ['container'];
     const [name, setName] = useState('');
-    const [kind, setKind] = useState('container');
+    const [kind, setKind] = useState(validKinds[0] || 'container');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -135,6 +157,7 @@ function AddSubLocationModal({ parentId, onClose, onSuccess }) {
             onClose();
         } catch (error) {
             console.error('Failed to create sub-location:', error);
+            alert(error.response?.data?.detail || 'Failed to create sub-location');
         } finally {
             setLoading(false);
         }
@@ -170,11 +193,9 @@ function AddSubLocationModal({ parentId, onClose, onSuccess }) {
                                 value={kind}
                                 onChange={e => setKind(e.target.value)}
                             >
-                                <option value="room">🏠 Room (Bedroom, Bathroom)</option>
-                                <option value="furniture">🪑 Furniture (Almirah, Bed, Table)</option>
-                                <option value="container">📦 Container (Box, Drawer, Bin)</option>
-                                <option value="surface">📋 Surface (Shelf, Counter)</option>
-                                <option value="portable">🎒 Portable (Bag, Suitcase)</option>
+                                {validKinds.map(k => (
+                                    <option key={k} value={k}>{KIND_OPTIONS[k]}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -433,6 +454,7 @@ function LocationDetail() {
             {showAddSub && (
                 <AddSubLocationModal
                     parentId={id}
+                    parentKind={location?.kind}
                     onClose={() => setShowAddSub(false)}
                     onSuccess={() => {
                         loadLocation();
