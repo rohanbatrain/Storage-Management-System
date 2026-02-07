@@ -181,49 +181,159 @@ function AddLocationModal({ onClose, onSuccess }) {
 }
 
 function EmptyStateOnboarding({ onAddLocation }) {
+    const features = [
+        { icon: Home, label: 'Rooms', desc: 'Organize by space', color: '#6366f1' },
+        { icon: Briefcase, label: 'Bags', desc: 'Track portable items', color: '#f59e0b' },
+        { icon: Package, label: 'Containers', desc: 'Boxes & drawers', color: '#06b6d4' },
+    ];
+
     return (
         <div style={{
+            minHeight: 'calc(100vh - 120px)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 'var(--space-2xl)',
             textAlign: 'center',
-            background: 'var(--gradient-surface)',
-            backgroundColor: 'var(--color-bg-secondary)',
+            background: 'radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
             borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--color-border)',
+            position: 'relative',
+            overflow: 'hidden',
         }}>
+            {/* Decorative circles */}
             <div style={{
-                width: 80,
-                height: 80,
-                borderRadius: 'var(--radius-xl)',
-                background: 'var(--color-accent-glow)',
+                position: 'absolute',
+                top: -100,
+                right: -100,
+                width: 300,
+                height: 300,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
+                pointerEvents: 'none',
+            }} />
+            <div style={{
+                position: 'absolute',
+                bottom: -50,
+                left: -50,
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%)',
+                pointerEvents: 'none',
+            }} />
+
+            {/* Main icon */}
+            <div style={{
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 'var(--space-lg)',
+                marginBottom: 'var(--space-xl)',
+                boxShadow: '0 20px 60px rgba(99, 102, 241, 0.4)',
+                animation: 'pulse 2s ease-in-out infinite',
             }}>
-                <Sparkles size={40} style={{ color: 'var(--color-accent-primary)' }} />
+                <Box size={48} style={{ color: 'white' }} />
             </div>
-            <h2 style={{
-                fontSize: 'var(--font-size-2xl)',
-                fontWeight: 700,
-                marginBottom: 'var(--space-sm)'
+
+            <h1 style={{
+                fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
+                fontWeight: 800,
+                marginBottom: 'var(--space-sm)',
+                background: 'linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-accent-primary) 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
             }}>
-                Welcome to Your Storage Manager!
-            </h2>
+                Welcome to Storage Manager
+            </h1>
+
             <p style={{
                 color: 'var(--color-text-secondary)',
-                marginBottom: 'var(--space-xl)',
-                maxWidth: 400
+                fontSize: 'var(--font-size-lg)',
+                marginBottom: 'var(--space-2xl)',
+                maxWidth: 450,
+                lineHeight: 1.6,
             }}>
-                Start by creating your first location — a room, bag, or container.
+                Organize everything you own. Never lose track of where you put things again.
             </p>
-            <button className="btn btn-primary" onClick={onAddLocation} style={{ padding: 'var(--space-md) var(--space-xl)', fontSize: 'var(--font-size-md)' }}>
+
+            {/* Feature cards */}
+            <div style={{
+                display: 'flex',
+                gap: 'var(--space-md)',
+                marginBottom: 'var(--space-2xl)',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+            }}>
+                {features.map((f, i) => (
+                    <div key={i} style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        padding: 'var(--space-lg)',
+                        background: 'var(--color-bg-secondary)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-lg)',
+                        minWidth: 130,
+                        transition: 'all 0.3s ease',
+                    }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                            e.currentTarget.style.borderColor = f.color;
+                            e.currentTarget.style.boxShadow = `0 12px 30px ${f.color}20`;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    >
+                        <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 'var(--radius-md)',
+                            background: `${f.color}20`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: 'var(--space-sm)',
+                        }}>
+                            <f.icon size={24} style={{ color: f.color }} />
+                        </div>
+                        <span style={{ fontWeight: 600, marginBottom: 4 }}>{f.label}</span>
+                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{f.desc}</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* CTA Button */}
+            <button
+                className="btn btn-primary"
+                onClick={onAddLocation}
+                style={{
+                    padding: 'var(--space-md) var(--space-2xl)',
+                    fontSize: 'var(--font-size-md)',
+                    fontWeight: 600,
+                    background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
+                    boxShadow: '0 8px 30px rgba(99, 102, 241, 0.4)',
+                    border: 'none',
+                }}
+            >
                 <Plus size={20} />
-                Add Your First Location
+                Get Started
             </button>
+
+            <p style={{
+                marginTop: 'var(--space-lg)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--color-text-muted)'
+            }}>
+                Takes less than 30 seconds to add your first location
+            </p>
         </div>
     );
 }
