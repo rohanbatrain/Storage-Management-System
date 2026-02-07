@@ -52,7 +52,7 @@ class Item(Base):
     
     # Wardrobe Module Extensions
     item_type = Column(SQLEnum(ItemType), default=ItemType.GENERIC, nullable=False, index=True)
-    metadata = Column(JSONB, default={})  # Domain-specific data (clothing: category, wear_count, etc.)
+    item_data = Column(JSONB, default={})  # Domain-specific data (clothing: category, wear_count, etc.)
     
     # Relationships
     current_location = relationship(

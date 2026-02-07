@@ -31,15 +31,15 @@ router = APIRouter(prefix="/wardrobe", tags=["Wardrobe"])
 # ============== Helper Functions ==============
 
 def get_clothing_metadata(item: Item) -> dict:
-    """Extract clothing metadata from item.metadata JSONB."""
-    return item.metadata or {}
+    """Extract clothing metadata from item.item_data JSONB."""
+    return item.item_data or {}
 
 
 def update_clothing_metadata(item: Item, updates: dict) -> None:
-    """Update clothing metadata in item.metadata JSONB."""
-    current = item.metadata or {}
+    """Update clothing metadata in item.item_data JSONB."""
+    current = item.item_data or {}
     current.update(updates)
-    item.metadata = current
+    item.item_data = current
 
 
 def item_to_clothing_response(item: Item) -> ClothingItemResponse:
@@ -119,8 +119,8 @@ def create_clothing_item(
     category = item_data.clothing.category
     default_threshold = DEFAULT_WEAR_THRESHOLDS.get(category, 3)
     
-    # Build metadata
-    metadata = {
+    # Build clothing metadata
+    clothing_meta = {
         "category": item_data.clothing.category.value,
         "wear_count_since_wash": 0,
         "max_wears_before_wash": item_data.clothing.max_wears_before_wash or default_threshold,
@@ -139,7 +139,7 @@ def create_clothing_item(
         permanent_location_id=item_data.permanent_location_id or item_data.current_location_id,
         tags=item_data.tags,
         item_type=ItemType.CLOTHING,
-        metadata=metadata,
+        item_data=clothing_meta,
     )
     
     db.add(item)
