@@ -13,7 +13,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import { wardrobeApi, locationApi } from '../services/api';
-import FormModal, { FAB, LocationPicker } from '../components/FormModal';
+import { FAB, LocationPicker } from '../components/FormModal';
+import AddClothingModal from '../components/AddClothingModal';
 
 const styleLabels: { [key: string]: { label: string; icon: string; desc: string } } = {
     formal: { label: 'Formal', icon: '👔', desc: 'Office & Events' },
@@ -385,40 +386,11 @@ export default function WardrobeScreen() {
             <FAB icon="➕" onPress={() => setAddModalVisible(true)} color="#a855f7" />
 
             {/* Add Clothing Modal */}
-            <FormModal
+            <AddClothingModal
                 visible={addModalVisible}
                 onClose={() => setAddModalVisible(false)}
                 onSubmit={handleAddClothing}
-                title="Add Clothing"
-                icon="👕"
                 loading={actionLoading}
-                submitLabel="Add to Wardrobe"
-                accentColor="#a855f7"
-                fields={[
-                    { key: 'name', label: 'Item Name', placeholder: 'e.g., "Blue Polo Shirt"', required: true },
-                    {
-                        key: 'style',
-                        label: 'Style',
-                        type: 'select',
-                        options: Object.entries(styleLabels).map(([value, { label, icon }]) => ({
-                            value,
-                            label,
-                            icon,
-                        })),
-                    },
-                    {
-                        key: 'category',
-                        label: 'Category',
-                        type: 'select',
-                        options: Object.entries(categoryLabels).map(([value, label]) => ({
-                            value,
-                            label: label.replace(/^[^\s]+\s/, ''), // Remove emoji prefix
-                            icon: label.split(' ')[0], // Get emoji
-                        })),
-                    },
-                    { key: 'color', label: 'Color', placeholder: 'e.g., "Navy Blue"' },
-                ]}
-                initialValues={{ name: '', style: 'casual', category: 'tshirt', color: '' }}
             />
 
             {/* Location Picker for Add Modal */}
