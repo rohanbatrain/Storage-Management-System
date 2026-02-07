@@ -6,13 +6,13 @@ import {
     ScrollView,
     TouchableOpacity,
     RefreshControl,
-    Dimensions,
+    Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, borderRadius, typography, globalStyles } from '../styles/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import { locationApi } from '../services/api';
-
-const { width } = Dimensions.get('window');
+import FormModal, { FAB, ConfirmDialog } from '../components/FormModal';
 
 const kindIcons: { [key: string]: string } = {
     room: '🏠',
@@ -44,7 +44,7 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, onPress }) => {
             <View style={[styles.iconWrapper, { backgroundColor: color + '20' }]}>
                 <Text style={styles.icon}>{kindIcons[location.kind] || '📁'}</Text>
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={styles.locationInfo}>
                 <Text style={styles.locationName}>{location.name}</Text>
                 <Text style={styles.locationMeta}>
                     {location.item_count} items • {location.children_count} sub-locations
@@ -60,9 +60,15 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, onPress }) => {
 
 export default function LocationsScreen() {
     const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
     const [locations, setLocations] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    // Modal states
+    const [addModalVisible, setAddModalVisible] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [selectedKind, setSelectedKind] = useState<string>('container');
 
     const loadLocations = async () => {
         try {
@@ -80,6 +86,24 @@ export default function LocationsScreen() {
         await loadLocations();
         setRefreshing(false);
     }, []);
+
+    const handleAddLocation = async (data: Record<string, string>) => {
+        try {
+            setActionLoading(true);
+            await locationApi.create({
+                name: data.name,
+                kind: selectedKind,
+                description: data.description,
+            });
+            setAddModalVisible(false);
+            Alert.alert('Success', 'Location created successfully');
+            loadLocations();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to create location');
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     useEffect(() => {
         loadLocations();
@@ -103,65 +127,111 @@ export default function LocationsScreen() {
     }
 
     return (
-        <ScrollView
-            style={globalStyles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-                <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                    tintColor={colors.accentPrimary}
-                />
-            }
-        >
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerIcon}>🗂️</Text>
-                <Text style={styles.headerTitle}>Storage Locations</Text>
-                <Text style={styles.headerSubtitle}>{locations.length} locations organized</Text>
-            </View>
-
-            {/* Stats Summary */}
-            <View style={styles.statsRow}>
-                {Object.keys(kindIcons).map((kind) => {
-                    const count = groupedLocations[kind]?.length || 0;
-                    if (count === 0) return null;
-                    return (
-                        <View key={kind} style={styles.statPill}>
-                            <Text style={styles.statIcon}>{kindIcons[kind]}</Text>
-                            <Text style={styles.statCount}>{count}</Text>
-                        </View>
-                    );
-                })}
-            </View>
-
-            {locations.length === 0 ? (
-                <View style={styles.emptyState}>
-                    <Text style={styles.emptyIcon}>📦</Text>
-                    <Text style={styles.emptyTitle}>No Locations Yet</Text>
-                    <Text style={styles.emptyText}>
-                        Add your first storage location using the web app
-                    </Text>
+        <View style={globalStyles.container}>
+            <ScrollView
+                contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.accentPrimary}
+                    />
+                }
+            >
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.headerIcon}>🗂️</Text>
+                    <Text style={styles.headerTitle}>Storage Locations</Text>
+                    <Text style={styles.headerSubtitle}>{locations.length} locations organized</Text>
                 </View>
-            ) : (
-                <View style={styles.list}>
-                    {locations.map((location) => (
-                        <LocationCard
-                            key={location.id}
-                            location={location}
-                            onPress={() => navigation.navigate('LocationDetail', { id: location.id })}
-                        />
-                    ))}
+
+                {/* Stats Summary */}
+                <View style={styles.statsRow}>
+                    {Object.keys(kindIcons).map((kind) => {
+                        const count = groupedLocations[kind]?.length || 0;
+                        if (count === 0) return null;
+                        return (
+                            <View key={kind} style={styles.statPill}>
+                                <Text style={styles.statIcon}>{kindIcons[kind]}</Text>
+                                <Text style={styles.statCount}>{count}</Text>
+                            </View>
+                        );
+                    })}
+                </View>
+
+                {locations.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>📦</Text>
+                        <Text style={styles.emptyTitle}>No Locations Yet</Text>
+                        <Text style={styles.emptyText}>
+                            Tap the + button to add your first location
+                        </Text>
+                    </View>
+                ) : (
+                    <View style={styles.list}>
+                        {locations.map((location) => (
+                            <LocationCard
+                                key={location.id}
+                                location={location}
+                                onPress={() => navigation.navigate('LocationDetail', { id: location.id })}
+                            />
+                        ))}
+                    </View>
+                )}
+            </ScrollView>
+
+            {/* Add Location FAB */}
+            <FAB icon="➕" onPress={() => setAddModalVisible(true)} />
+
+            {/* Add Location Modal */}
+            <FormModal
+                visible={addModalVisible}
+                onClose={() => setAddModalVisible(false)}
+                onSubmit={handleAddLocation}
+                title="Add Location"
+                icon="📍"
+                loading={actionLoading}
+                submitLabel="Create Location"
+                fields={[
+                    { key: 'name', label: 'Location Name', placeholder: 'e.g., "Kitchen Drawer"', required: true },
+                    { key: 'description', label: 'Description', placeholder: 'What\'s stored here?', multiline: true },
+                ]}
+                initialValues={{ name: '', description: '' }}
+            >
+                {/* Kind selector is handled inside the modal header for now */}
+            </FormModal>
+
+            {/* Kind Selector (shown below the form) */}
+            {addModalVisible && (
+                <View style={styles.kindSelectorOverlay}>
+                    <Text style={styles.kindSelectorLabel}>Location Type:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kindSelector}>
+                        {Object.keys(kindIcons).map((kind) => (
+                            <TouchableOpacity
+                                key={kind}
+                                style={[
+                                    styles.kindOption,
+                                    selectedKind === kind && { backgroundColor: kindColors[kind] + '30', borderColor: kindColors[kind] }
+                                ]}
+                                onPress={() => setSelectedKind(kind)}
+                            >
+                                <Text style={styles.kindOptionIcon}>{kindIcons[kind]}</Text>
+                                <Text style={[styles.kindOptionText, selectedKind === kind && { color: kindColors[kind] }]}>
+                                    {kind}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
             )}
-        </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     content: {
-        paddingBottom: 120, // Extra padding for tab bar
+        paddingBottom: 120,
     },
     center: {
         justifyContent: 'center',
@@ -187,42 +257,43 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: '700',
         color: colors.textPrimary,
-        marginBottom: spacing.xs,
     },
     headerSubtitle: {
-        fontSize: typography.sm,
-        color: colors.textSecondary,
+        fontSize: 14,
+        color: colors.textMuted,
+        marginTop: spacing.xs,
     },
     // Stats
     statsRow: {
         flexDirection: 'row',
+        justifyContent: 'center',
         flexWrap: 'wrap',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
         gap: spacing.sm,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
     },
     statPill: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.bgSecondary,
+        paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.full,
-        borderWidth: 1,
-        borderColor: colors.border,
         gap: spacing.xs,
     },
     statIcon: {
         fontSize: 14,
     },
     statCount: {
-        fontSize: typography.sm,
+        fontSize: 13,
         fontWeight: '600',
-        color: colors.textPrimary,
+        color: colors.textSecondary,
     },
     // List
     list: {
-        paddingHorizontal: spacing.md,
+        padding: spacing.lg,
         gap: spacing.sm,
     },
     locationCard: {
@@ -231,7 +302,6 @@ const styles = StyleSheet.create({
         backgroundColor: colors.bgSecondary,
         borderRadius: borderRadius.lg,
         padding: spacing.md,
-        gap: spacing.md,
         borderWidth: 1,
         borderColor: colors.border,
     },
@@ -241,24 +311,29 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.md,
         alignItems: 'center',
         justifyContent: 'center',
+        marginRight: spacing.md,
     },
     icon: {
         fontSize: 22,
     },
+    locationInfo: {
+        flex: 1,
+    },
     locationName: {
-        fontSize: typography.md,
+        fontSize: 16,
         fontWeight: '600',
         color: colors.textPrimary,
-        marginBottom: 2,
     },
     locationMeta: {
-        fontSize: typography.xs,
+        fontSize: 12,
         color: colors.textMuted,
+        marginTop: 2,
     },
     kindBadge: {
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
-        borderRadius: borderRadius.full,
+        borderRadius: borderRadius.sm,
+        marginRight: spacing.sm,
     },
     kindBadgeText: {
         fontSize: 10,
@@ -266,32 +341,68 @@ const styles = StyleSheet.create({
         textTransform: 'capitalize',
     },
     chevron: {
-        fontSize: 24,
+        fontSize: 20,
         color: colors.textMuted,
     },
     // Empty State
     emptyState: {
-        marginHorizontal: spacing.md,
-        backgroundColor: colors.bgSecondary,
-        borderRadius: borderRadius.lg,
-        padding: spacing.xxl,
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.border,
+        paddingVertical: spacing.xxl * 2,
+        paddingHorizontal: spacing.xl,
     },
     emptyIcon: {
-        fontSize: 56,
+        fontSize: 64,
         marginBottom: spacing.md,
     },
     emptyTitle: {
-        fontSize: typography.lg,
-        fontWeight: '600',
+        fontSize: 20,
+        fontWeight: '700',
         color: colors.textPrimary,
         marginBottom: spacing.sm,
     },
     emptyText: {
-        fontSize: typography.sm,
+        fontSize: 14,
         color: colors.textMuted,
         textAlign: 'center',
+    },
+    // Kind Selector
+    kindSelectorOverlay: {
+        position: 'absolute',
+        bottom: 180,
+        left: 0,
+        right: 0,
+        backgroundColor: colors.bgSecondary,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    kindSelectorLabel: {
+        fontSize: 12,
+        color: colors.textMuted,
+        marginBottom: spacing.sm,
+    },
+    kindSelector: {
+        flexDirection: 'row',
+    },
+    kindOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginRight: spacing.sm,
+        gap: spacing.xs,
+    },
+    kindOptionIcon: {
+        fontSize: 16,
+    },
+    kindOptionText: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: colors.textSecondary,
+        textTransform: 'capitalize',
     },
 });

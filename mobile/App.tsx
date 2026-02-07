@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -52,13 +53,21 @@ const TabIcon = ({ icon, focused }: { icon: string; focused: boolean }) => (
     </View>
 );
 
-// Bottom Tab Navigator
+// Bottom Tab Navigator with safe area
 function MainTabs() {
+    const insets = useSafeAreaInsets();
+
     return (
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarStyle: styles.tabBar,
+                tabBarStyle: [
+                    styles.tabBar,
+                    {
+                        height: 65 + insets.bottom,
+                        paddingBottom: insets.bottom + 8,
+                    }
+                ],
                 tabBarActiveTintColor: colors.accentPrimary,
                 tabBarInactiveTintColor: colors.textMuted,
                 tabBarLabelStyle: styles.tabLabel,
@@ -159,14 +168,13 @@ function AnimatedSplash({ onFinish }: { onFinish: () => void }) {
     );
 }
 
-export default function App() {
+function AppContent() {
     const [appIsReady, setAppIsReady] = useState(false);
     const [showSplash, setShowSplash] = useState(true);
 
     useEffect(() => {
         async function prepare() {
             try {
-                // Pre-load any fonts or assets here if needed
                 await new Promise(resolve => setTimeout(resolve, 100));
             } catch (e) {
                 console.warn(e);
@@ -262,15 +270,21 @@ export default function App() {
     );
 }
 
+export default function App() {
+    return (
+        <SafeAreaProvider>
+            <AppContent />
+        </SafeAreaProvider>
+    );
+}
+
 const styles = StyleSheet.create({
     // Tab Bar
     tabBar: {
         backgroundColor: colors.bgSecondary,
         borderTopColor: colors.border,
         borderTopWidth: 1,
-        height: 80,
         paddingTop: 8,
-        paddingBottom: 20,
     },
     tabLabel: {
         fontSize: 11,
@@ -300,7 +314,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.accentPrimary,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: -20,
+        marginTop: -16,
         shadowColor: colors.accentPrimary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,

@@ -8,13 +8,12 @@ import {
     RefreshControl,
     Image,
     Alert,
-    Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, borderRadius, typography, globalStyles } from '../styles/theme';
-import { wardrobeApi } from '../services/api';
-
-const { width } = Dimensions.get('window');
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
+import { wardrobeApi, locationApi } from '../services/api';
+import FormModal, { FAB } from '../components/FormModal';
 
 const categoryLabels: { [key: string]: string } = {
     tshirt: '👕 T-Shirt',
@@ -162,19 +161,28 @@ const ClothingCard: React.FC<ClothingCardProps> = ({ item, onWear, onWash, onLau
 
 export default function WardrobeScreen() {
     const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
     const [refreshing, setRefreshing] = useState(false);
     const [items, setItems] = useState<ClothingItem[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [locations, setLocations] = useState<any[]>([]);
+
+    // Modal states
+    const [addModalVisible, setAddModalVisible] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState<string>('tshirt');
 
     const loadData = async () => {
         try {
-            const [itemsRes, statsRes] = await Promise.all([
+            const [itemsRes, statsRes, locRes] = await Promise.all([
                 wardrobeApi.list(),
                 wardrobeApi.stats(),
+                locationApi.list(),
             ]);
             setItems(itemsRes.data);
             setStats(statsRes.data);
+            setLocations(locRes.data);
         } catch (error) {
             console.error('Failed to load wardrobe:', error);
         } finally {
@@ -187,6 +195,25 @@ export default function WardrobeScreen() {
         await loadData();
         setRefreshing(false);
     }, []);
+
+    const handleAddClothing = async (data: Record<string, string>) => {
+        try {
+            setActionLoading(true);
+            await wardrobeApi.create({
+                name: data.name,
+                category: selectedCategory,
+                color: data.color,
+                max_wears_before_wash: parseInt(data.max_wears) || 3,
+            });
+            setAddModalVisible(false);
+            Alert.alert('Success', 'Clothing item added!');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to add clothing');
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     useEffect(() => {
         loadData();
@@ -229,61 +256,89 @@ export default function WardrobeScreen() {
     }
 
     return (
-        <ScrollView
-            style={globalStyles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-                <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                    tintColor={colors.accentPrimary}
-                />
-            }
-        >
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerIcon}>👕</Text>
-                <Text style={styles.headerTitle}>Your Wardrobe</Text>
-                <Text style={styles.headerSubtitle}>Track what you wear</Text>
-            </View>
-
-            {/* Stats */}
-            {stats && (
-                <View style={styles.statsRow}>
-                    <StatCard icon="👕" value={stats.total_items} label="Total" color={colors.accentPrimary} />
-                    <StatCard icon="✨" value={stats.fresh_count} label="Fresh" color={colors.success} />
-                    <StatCard icon="👔" value={stats.worn_count} label="Worn" color={colors.warning} />
-                    <StatCard icon="🧺" value={stats.dirty_count} label="Dirty" color={colors.error} />
+        <View style={globalStyles.container}>
+            <ScrollView
+                contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.accentPrimary}
+                    />
+                }
+            >
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.headerIcon}>👕</Text>
+                    <Text style={styles.headerTitle}>Your Wardrobe</Text>
+                    <Text style={styles.headerSubtitle}>Track what you wear</Text>
                 </View>
-            )}
 
-            {/* Items */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                    Your Clothes ({items.length})
-                </Text>
-                {items.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyIcon}>👕</Text>
-                        <Text style={styles.emptyTitle}>No clothes yet</Text>
-                        <Text style={styles.emptyText}>Add items from the web app</Text>
-                    </View>
-                ) : (
-                    <View style={styles.itemsList}>
-                        {items.map((item) => (
-                            <ClothingCard
-                                key={item.id}
-                                item={item}
-                                onWear={() => handleWear(item.id)}
-                                onWash={() => handleWash(item.id)}
-                                onLaundry={() => handleLaundry(item.id)}
-                            />
-                        ))}
+                {/* Stats */}
+                {stats && (
+                    <View style={styles.statsRow}>
+                        <StatCard icon="👕" value={stats.total_items} label="Total" color={colors.accentPrimary} />
+                        <StatCard icon="✨" value={stats.fresh_count} label="Fresh" color={colors.success} />
+                        <StatCard icon="👔" value={stats.worn_count} label="Worn" color={colors.warning} />
+                        <StatCard icon="🧺" value={stats.dirty_count} label="Dirty" color={colors.error} />
                     </View>
                 )}
-            </View>
-        </ScrollView>
+
+                {/* Items */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        Your Clothes ({items.length})
+                    </Text>
+                    {items.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyIcon}>👕</Text>
+                            <Text style={styles.emptyTitle}>No clothes yet</Text>
+                            <Text style={styles.emptyText}>Tap + to add your first item</Text>
+                            <TouchableOpacity
+                                style={styles.emptyButton}
+                                onPress={() => setAddModalVisible(true)}
+                            >
+                                <Text style={styles.emptyButtonText}>+ Add Clothing</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.itemsList}>
+                            {items.map((item) => (
+                                <ClothingCard
+                                    key={item.id}
+                                    item={item}
+                                    onWear={() => handleWear(item.id)}
+                                    onWash={() => handleWash(item.id)}
+                                    onLaundry={() => handleLaundry(item.id)}
+                                />
+                            ))}
+                        </View>
+                    )}
+                </View>
+            </ScrollView>
+
+            {/* Add Clothing FAB */}
+            <FAB icon="➕" onPress={() => setAddModalVisible(true)} color="#a855f7" />
+
+            {/* Add Clothing Modal */}
+            <FormModal
+                visible={addModalVisible}
+                onClose={() => setAddModalVisible(false)}
+                onSubmit={handleAddClothing}
+                title="Add Clothing"
+                icon="👕"
+                loading={actionLoading}
+                submitLabel="Add to Wardrobe"
+                accentColor="#a855f7"
+                fields={[
+                    { key: 'name', label: 'Item Name', placeholder: 'e.g., "Blue Polo Shirt"', required: true },
+                    { key: 'color', label: 'Color', placeholder: 'e.g., "Navy Blue"' },
+                    { key: 'max_wears', label: 'Max Wears Before Wash', keyboardType: 'numeric' },
+                ]}
+                initialValues={{ name: '', color: '', max_wears: '3' }}
+            />
+        </View>
     );
 }
 
@@ -318,7 +373,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xs,
     },
     headerSubtitle: {
-        fontSize: typography.sm,
+        fontSize: 14,
         color: colors.textSecondary,
     },
     // Stats
@@ -342,7 +397,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     statValue: {
-        fontSize: typography.xl,
+        fontSize: 18,
         fontWeight: '700',
     },
     statLabel: {
@@ -355,7 +410,7 @@ const styles = StyleSheet.create({
         marginTop: spacing.xl,
     },
     sectionTitle: {
-        fontSize: typography.lg,
+        fontSize: 16,
         fontWeight: '600',
         color: colors.textPrimary,
         marginBottom: spacing.md,
@@ -393,12 +448,12 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     itemName: {
-        fontSize: typography.md,
+        fontSize: 15,
         fontWeight: '600',
         color: colors.textPrimary,
     },
     itemCategory: {
-        fontSize: typography.xs,
+        fontSize: 12,
         color: colors.textMuted,
     },
     statusBadge: {
@@ -457,7 +512,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     actionText: {
-        fontSize: typography.sm,
+        fontSize: 13,
         fontWeight: '500',
         color: colors.textSecondary,
     },
@@ -475,13 +530,25 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
     },
     emptyTitle: {
-        fontSize: typography.lg,
+        fontSize: 18,
         fontWeight: '600',
         color: colors.textPrimary,
         marginBottom: spacing.sm,
     },
     emptyText: {
-        fontSize: typography.sm,
+        fontSize: 14,
         color: colors.textMuted,
+        marginBottom: spacing.md,
+    },
+    emptyButton: {
+        backgroundColor: '#a855f7' + '20',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+    },
+    emptyButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#a855f7',
     },
 });
