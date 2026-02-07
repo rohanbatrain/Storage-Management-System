@@ -15,23 +15,68 @@ import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import { wardrobeApi, locationApi } from '../services/api';
 import FormModal, { FAB, LocationPicker } from '../components/FormModal';
 
+const styleLabels: { [key: string]: { label: string; icon: string; desc: string } } = {
+    formal: { label: 'Formal', icon: '👔', desc: 'Office & Events' },
+    casual: { label: 'Casual', icon: '👕', desc: 'Everyday Wear' },
+    sports: { label: 'Sports', icon: '🏃', desc: 'Gym & Athletics' },
+    lounge: { label: 'Lounge', icon: '🛋️', desc: 'Home & Sleep' },
+    outerwear: { label: 'Outerwear', icon: '🧥', desc: 'Jackets & Coats' },
+    essentials: { label: 'Essentials', icon: '🩲', desc: 'Underwear & Basics' },
+};
+
 const categoryLabels: { [key: string]: string } = {
+    // Formal
+    dress_shirt: '👔 Dress Shirt',
+    blazer: '🎩 Blazer',
+    dress_pants: '👖 Dress Pants',
+    tie: '👔 Tie',
+    formal_shoes: '👞 Formal Shoes',
+    // Casual
     tshirt: '👕 T-Shirt',
-    shirt: '👔 Shirt',
-    pants: '👖 Pants',
+    polo: '👕 Polo',
+    casual_shirt: '👔 Casual Shirt',
     jeans: '👖 Jeans',
+    chinos: '👖 Chinos',
     shorts: '🩳 Shorts',
+    sneakers: '👟 Sneakers',
+    // Sports
+    sports_tshirt: '🏃 Sports T-Shirt',
+    track_pants: '🏃 Track Pants',
+    athletic_shorts: '🩳 Athletic Shorts',
+    sports_shoes: '👟 Sports Shoes',
+    gym_wear: '🏋️ Gym Wear',
+    // Lounge
+    pajamas: '🛌 Pajamas',
+    sweatpants: '👖 Sweatpants',
+    sleepwear: '🛌 Sleepwear',
+    // Outerwear
     jacket: '🧥 Jacket',
+    coat: '🧥 Coat',
     sweater: '🧶 Sweater',
     hoodie: '🧥 Hoodie',
-    dress: '👗 Dress',
-    skirt: '👗 Skirt',
+    windbreaker: '🧥 Windbreaker',
+    // Essentials
     underwear: '🩲 Underwear',
     socks: '🧦 Socks',
-    other: '👚 Other',
+    vest: '👕 Vest',
+    belt: '🔗 Belt',
+    // Other
+    accessories: '⌚ Accessories',
+    other: '📦 Other',
+};
+
+// Style to categories mapping
+const styleCategories: { [key: string]: string[] } = {
+    formal: ['dress_shirt', 'blazer', 'dress_pants', 'tie', 'formal_shoes'],
+    casual: ['tshirt', 'polo', 'casual_shirt', 'jeans', 'chinos', 'shorts', 'sneakers'],
+    sports: ['sports_tshirt', 'track_pants', 'athletic_shorts', 'sports_shoes', 'gym_wear'],
+    lounge: ['pajamas', 'sweatpants', 'sleepwear', 'hoodie'],
+    outerwear: ['jacket', 'coat', 'sweater', 'hoodie', 'windbreaker'],
+    essentials: ['underwear', 'socks', 'vest', 'belt'],
 };
 
 const cleanlinessColors: { [key: string]: string } = {
+    clean: colors.success,
     fresh: colors.success,
     worn: colors.warning,
     dirty: colors.error,
@@ -39,6 +84,7 @@ const cleanlinessColors: { [key: string]: string } = {
 };
 
 const cleanlinessIcons: { [key: string]: string } = {
+    clean: '✨',
     fresh: '✨',
     worn: '👕',
     dirty: '🧺',
@@ -216,6 +262,7 @@ export default function WardrobeScreen() {
                 current_location_id: selectedLocationId,
                 image_url: data.imageUrl || null,
                 clothing: {
+                    style: data.style || 'casual',
                     category: data.category || 'tshirt',
                     color: data.color || null,
                     season: 'all',
@@ -350,6 +397,16 @@ export default function WardrobeScreen() {
                 fields={[
                     { key: 'name', label: 'Item Name', placeholder: 'e.g., "Blue Polo Shirt"', required: true },
                     {
+                        key: 'style',
+                        label: 'Style',
+                        type: 'select',
+                        options: Object.entries(styleLabels).map(([value, { label, icon }]) => ({
+                            value,
+                            label,
+                            icon,
+                        })),
+                    },
+                    {
                         key: 'category',
                         label: 'Category',
                         type: 'select',
@@ -360,9 +417,8 @@ export default function WardrobeScreen() {
                         })),
                     },
                     { key: 'color', label: 'Color', placeholder: 'e.g., "Navy Blue"' },
-                    { key: 'imageUrl', label: 'Image URL (optional)', placeholder: 'https://...' },
                 ]}
-                initialValues={{ name: '', color: '', category: 'tshirt', imageUrl: '' }}
+                initialValues={{ name: '', style: 'casual', category: 'tshirt', color: '' }}
             />
 
             {/* Location Picker for Add Modal */}

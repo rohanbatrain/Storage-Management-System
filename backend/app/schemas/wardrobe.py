@@ -7,24 +7,96 @@ from enum import Enum
 
 # ============== Enums ==============
 
+class ClothingStyle(str, Enum):
+    """Style types for clothing categorization."""
+    FORMAL = "formal"       # Office, meetings, events
+    CASUAL = "casual"       # Everyday wear
+    SPORTS = "sports"       # Gym, athletics
+    LOUNGE = "lounge"       # Home, sleep, relaxed
+    OUTERWEAR = "outerwear" # Jackets, coats
+    ESSENTIALS = "essentials" # Underwear, socks, basics
+
+
 class ClothingCategory(str, Enum):
-    """Categories of clothing items."""
-    SHIRT = "shirt"
+    """Categories of clothing items (male-focused)."""
+    # Formal
+    DRESS_SHIRT = "dress_shirt"
+    BLAZER = "blazer"
+    DRESS_PANTS = "dress_pants"
+    TIE = "tie"
+    FORMAL_SHOES = "formal_shoes"
+    
+    # Casual
     TSHIRT = "tshirt"
-    PANTS = "pants"
+    POLO = "polo"
+    CASUAL_SHIRT = "casual_shirt"
     JEANS = "jeans"
+    CHINOS = "chinos"
     SHORTS = "shorts"
-    DRESS = "dress"
-    SKIRT = "skirt"
+    SNEAKERS = "sneakers"
+    
+    # Sports
+    SPORTS_TSHIRT = "sports_tshirt"
+    TRACK_PANTS = "track_pants"
+    ATHLETIC_SHORTS = "athletic_shorts"
+    SPORTS_SHOES = "sports_shoes"
+    GYM_WEAR = "gym_wear"
+    
+    # Lounge
+    PAJAMAS = "pajamas"
+    SWEATPANTS = "sweatpants"
+    SLEEPWEAR = "sleepwear"
+    
+    # Outerwear
     JACKET = "jacket"
+    COAT = "coat"
     SWEATER = "sweater"
     HOODIE = "hoodie"
-    COAT = "coat"
+    WINDBREAKER = "windbreaker"
+    
+    # Essentials
     UNDERWEAR = "underwear"
     SOCKS = "socks"
-    SHOES = "shoes"
+    VEST = "vest"
+    BELT = "belt"
+    
+    # Other
     ACCESSORIES = "accessories"
     OTHER = "other"
+
+
+# Style to Category mapping
+STYLE_CATEGORIES = {
+    ClothingStyle.FORMAL: [
+        ClothingCategory.DRESS_SHIRT, ClothingCategory.BLAZER,
+        ClothingCategory.DRESS_PANTS, ClothingCategory.TIE,
+        ClothingCategory.FORMAL_SHOES
+    ],
+    ClothingStyle.CASUAL: [
+        ClothingCategory.TSHIRT, ClothingCategory.POLO,
+        ClothingCategory.CASUAL_SHIRT, ClothingCategory.JEANS,
+        ClothingCategory.CHINOS, ClothingCategory.SHORTS,
+        ClothingCategory.SNEAKERS
+    ],
+    ClothingStyle.SPORTS: [
+        ClothingCategory.SPORTS_TSHIRT, ClothingCategory.TRACK_PANTS,
+        ClothingCategory.ATHLETIC_SHORTS, ClothingCategory.SPORTS_SHOES,
+        ClothingCategory.GYM_WEAR
+    ],
+    ClothingStyle.LOUNGE: [
+        ClothingCategory.PAJAMAS, ClothingCategory.SWEATPANTS,
+        ClothingCategory.SLEEPWEAR, ClothingCategory.HOODIE
+    ],
+    ClothingStyle.OUTERWEAR: [
+        ClothingCategory.JACKET, ClothingCategory.COAT,
+        ClothingCategory.SWEATER, ClothingCategory.HOODIE,
+        ClothingCategory.WINDBREAKER
+    ],
+    ClothingStyle.ESSENTIALS: [
+        ClothingCategory.UNDERWEAR, ClothingCategory.SOCKS,
+        ClothingCategory.VEST, ClothingCategory.BELT
+    ],
+}
 
 
 class CleanlinessStatus(str, Enum):
@@ -47,20 +119,43 @@ class Season(str, Enum):
 # ============== Default Wear Thresholds ==============
 
 DEFAULT_WEAR_THRESHOLDS = {
+    # Essentials - wash after every use
     ClothingCategory.UNDERWEAR: 1,
     ClothingCategory.SOCKS: 1,
+    ClothingCategory.VEST: 1,
+    # Casual tops
     ClothingCategory.TSHIRT: 1,
-    ClothingCategory.SHIRT: 2,
-    ClothingCategory.PANTS: 3,
+    ClothingCategory.POLO: 2,
+    ClothingCategory.CASUAL_SHIRT: 2,
+    ClothingCategory.SPORTS_TSHIRT: 1,
+    # Formal
+    ClothingCategory.DRESS_SHIRT: 2,
+    ClothingCategory.BLAZER: 5,
+    ClothingCategory.DRESS_PANTS: 3,
+    ClothingCategory.TIE: 10,
+    # Pants
     ClothingCategory.JEANS: 4,
+    ClothingCategory.CHINOS: 3,
     ClothingCategory.SHORTS: 2,
-    ClothingCategory.DRESS: 2,
-    ClothingCategory.SKIRT: 2,
+    ClothingCategory.TRACK_PANTS: 2,
+    ClothingCategory.ATHLETIC_SHORTS: 1,
+    ClothingCategory.SWEATPANTS: 3,
+    # Outerwear
     ClothingCategory.SWEATER: 3,
     ClothingCategory.HOODIE: 3,
-    ClothingCategory.JACKET: 5,
-    ClothingCategory.COAT: 7,
-    ClothingCategory.SHOES: 10,
+    ClothingCategory.JACKET: 7,
+    ClothingCategory.COAT: 10,
+    ClothingCategory.WINDBREAKER: 5,
+    # Lounge
+    ClothingCategory.PAJAMAS: 3,
+    ClothingCategory.SLEEPWEAR: 3,
+    # Shoes
+    ClothingCategory.FORMAL_SHOES: 15,
+    ClothingCategory.SNEAKERS: 10,
+    ClothingCategory.SPORTS_SHOES: 5,
+    ClothingCategory.GYM_WEAR: 1,
+    # Other
+    ClothingCategory.BELT: 20,
     ClothingCategory.ACCESSORIES: 10,
     ClothingCategory.OTHER: 3,
 }
@@ -70,6 +165,7 @@ DEFAULT_WEAR_THRESHOLDS = {
 
 class ClothingMetadata(BaseModel):
     """Metadata for clothing items stored in Item.metadata JSONB."""
+    style: ClothingStyle = ClothingStyle.CASUAL
     category: ClothingCategory
     wear_count_since_wash: int = 0
     max_wears_before_wash: int = 3  # Can be customized per item

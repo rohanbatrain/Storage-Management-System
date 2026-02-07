@@ -13,23 +13,64 @@ import {
 } from 'lucide-react';
 import { wardrobeApi, locationApi } from '../services/api';
 
+const styleLabels = {
+    formal: { label: 'Formal', icon: '👔', desc: 'Office & Events' },
+    casual: { label: 'Casual', icon: '👕', desc: 'Everyday Wear' },
+    sports: { label: 'Sports', icon: '🏃', desc: 'Gym & Athletics' },
+    lounge: { label: 'Lounge', icon: '🛋️', desc: 'Home & Sleep' },
+    outerwear: { label: 'Outerwear', icon: '🧥', desc: 'Jackets & Coats' },
+    essentials: { label: 'Essentials', icon: '🩲', desc: 'Underwear & Basics' },
+};
+
 const categoryLabels = {
-    shirt: 'Shirt',
+    // Formal
+    dress_shirt: 'Dress Shirt',
+    blazer: 'Blazer',
+    dress_pants: 'Dress Pants',
+    tie: 'Tie',
+    formal_shoes: 'Formal Shoes',
+    // Casual
     tshirt: 'T-Shirt',
-    pants: 'Pants',
+    polo: 'Polo',
+    casual_shirt: 'Casual Shirt',
     jeans: 'Jeans',
+    chinos: 'Chinos',
     shorts: 'Shorts',
-    dress: 'Dress',
-    skirt: 'Skirt',
+    sneakers: 'Sneakers',
+    // Sports
+    sports_tshirt: 'Sports T-Shirt',
+    track_pants: 'Track Pants',
+    athletic_shorts: 'Athletic Shorts',
+    sports_shoes: 'Sports Shoes',
+    gym_wear: 'Gym Wear',
+    // Lounge
+    pajamas: 'Pajamas',
+    sweatpants: 'Sweatpants',
+    sleepwear: 'Sleepwear',
+    // Outerwear
     jacket: 'Jacket',
+    coat: 'Coat',
     sweater: 'Sweater',
     hoodie: 'Hoodie',
-    coat: 'Coat',
+    windbreaker: 'Windbreaker',
+    // Essentials
     underwear: 'Underwear',
     socks: 'Socks',
-    shoes: 'Shoes',
+    vest: 'Vest',
+    belt: 'Belt',
+    // Other
     accessories: 'Accessories',
     other: 'Other',
+};
+
+// Style to categories mapping
+const styleCategories = {
+    formal: ['dress_shirt', 'blazer', 'dress_pants', 'tie', 'formal_shoes'],
+    casual: ['tshirt', 'polo', 'casual_shirt', 'jeans', 'chinos', 'shorts', 'sneakers'],
+    sports: ['sports_tshirt', 'track_pants', 'athletic_shorts', 'sports_shoes', 'gym_wear'],
+    lounge: ['pajamas', 'sweatpants', 'sleepwear', 'hoodie'],
+    outerwear: ['jacket', 'coat', 'sweater', 'hoodie', 'windbreaker'],
+    essentials: ['underwear', 'socks', 'vest', 'belt'],
 };
 
 const cleanlinessColors = {
@@ -128,17 +169,28 @@ function ClothingCard({ item, onWear, onWash, onLaundry }) {
 
 function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
     const [name, setName] = useState('');
+    const [style, setStyle] = useState('casual');
     const [category, setCategory] = useState('tshirt');
     const [color, setColor] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [locationId, setLocationId] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Get available categories for selected style
+    const availableCategories = styleCategories[style] || [];
+
     useEffect(() => {
         if (locations.length > 0 && !locationId) {
             setLocationId(locations[0].id);
         }
     }, [locations, locationId]);
+
+    // Reset category when style changes
+    useEffect(() => {
+        if (!availableCategories.includes(category)) {
+            setCategory(availableCategories[0] || 'other');
+        }
+    }, [style]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -151,6 +203,7 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
                 current_location_id: locationId,
                 image_url: imageUrl.trim() || null,
                 clothing: {
+                    style,
                     category,
                     color: color || null,
                     season: 'all',
@@ -171,7 +224,7 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                 <div className="modal-header">
                     <h2 className="modal-title">Add Clothing</h2>
                 </div>
@@ -187,11 +240,38 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
                             autoFocus
                         />
                     </div>
+
+                    {/* Style Selector - Card Grid */}
+                    <div className="form-group">
+                        <label className="label">Style</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-sm)' }}>
+                            {Object.entries(styleLabels).map(([value, { label, icon, desc }]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setStyle(value)}
+                                    style={{
+                                        padding: 'var(--space-sm)',
+                                        border: style === value ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-md)',
+                                        background: style === value ? 'var(--color-accent-alpha)' : 'var(--color-bg-tertiary)',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    <div style={{ fontSize: 20 }}>{icon}</div>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: style === value ? 'var(--color-accent)' : 'var(--color-text-primary)' }}>{label}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Category Selector - Filtered by Style */}
                     <div className="form-group">
                         <label className="label">Category</label>
                         <select className="input" value={category} onChange={e => setCategory(e.target.value)}>
-                            {Object.entries(categoryLabels).map(([value, label]) => (
-                                <option key={value} value={value}>{label}</option>
+                            {availableCategories.map(cat => (
+                                <option key={cat} value={cat}>{categoryLabels[cat]}</option>
                             ))}
                         </select>
                     </div>
