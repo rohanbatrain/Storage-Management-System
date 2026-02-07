@@ -7,12 +7,14 @@ import {
     TouchableOpacity,
     Alert,
     RefreshControl,
+    Modal,
+    Switch,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import { itemApi, locationApi } from '../services/api';
-import FormModal, { ConfirmDialog } from '../components/FormModal';
+import FormModal, { ConfirmDialog, LocationPicker } from '../components/FormModal';
 
 export default function ItemDetailScreen() {
     const route = useRoute<any>();
@@ -35,7 +37,7 @@ export default function ItemDetailScreen() {
         try {
             const [itemRes, locRes] = await Promise.all([
                 itemApi.get(id),
-                locationApi.list(),
+                locationApi.getTree(),
             ]);
             setItem(itemRes.data);
             setLocations(locRes.data);
@@ -88,6 +90,37 @@ export default function ItemDetailScreen() {
             navigation.goBack();
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.detail || 'Failed to delete item');
+            setActionLoading(false);
+        }
+    };
+
+    // Move Item Modal Component
+    const [moveSelectedLocation, setMoveSelectedLocation] = useState<string>('');
+    const [moveIsTemporary, setMoveIsTemporary] = useState(false);
+    const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+    const [selectedLocationName, setSelectedLocationName] = useState('');
+
+    const handleMove = async () => {
+        if (!moveSelectedLocation) {
+            Alert.alert('Error', 'Please select a location');
+            return;
+        }
+        try {
+            setActionLoading(true);
+            await itemApi.move(id, {
+                to_location_id: moveSelectedLocation,
+                is_temporary: moveIsTemporary,
+            });
+            setMoveModalVisible(false);
+            Alert.alert('Success', 'Item moved successfully');
+            loadData();
+            // Reset move state
+            setMoveSelectedLocation('');
+            setSelectedLocationName('');
+            setMoveIsTemporary(false);
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to move item');
+        } finally {
             setActionLoading(false);
         }
     };
@@ -274,9 +307,214 @@ export default function ItemDetailScreen() {
                 message={`Are you sure you want to delete "${item.name}"? This action cannot be undone.`}
                 loading={actionLoading}
             />
+
+            {/* Move Item Modal */}
+            <Modal
+                visible={moveModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setMoveModalVisible(false)}
+            >
+                <View style={moveStyles.overlay}>
+                    <View style={[moveStyles.modal, { paddingBottom: insets.bottom + spacing.lg }]}>
+                        <View style={moveStyles.header}>
+                            <View style={moveStyles.iconWrapper}>
+                                <Text style={moveStyles.icon}>📦</Text>
+                            </View>
+                            <Text style={moveStyles.title}>Move Item</Text>
+                            <TouchableOpacity
+                                style={moveStyles.closeButton}
+                                onPress={() => setMoveModalVisible(false)}
+                            >
+                                <Text style={moveStyles.closeIcon}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={moveStyles.content}>
+                            <Text style={moveStyles.label}>Move "{item.name}" to:</Text>
+                            <TouchableOpacity
+                                style={moveStyles.locationPicker}
+                                onPress={() => setLocationPickerVisible(true)}
+                            >
+                                <Text style={selectedLocationName ? moveStyles.locationText : moveStyles.placeholderText}>
+                                    {selectedLocationName || 'Select a location...'}
+                                </Text>
+                                <Text style={moveStyles.chevron}>›</Text>
+                            </TouchableOpacity>
+
+                            <View style={moveStyles.checkboxRow}>
+                                <Switch
+                                    value={moveIsTemporary}
+                                    onValueChange={setMoveIsTemporary}
+                                    trackColor={{ false: colors.bgTertiary, true: colors.warning + '60' }}
+                                    thumbColor={moveIsTemporary ? colors.warning : colors.textMuted}
+                                />
+                                <Text style={moveStyles.checkboxLabel}>This is a temporary placement</Text>
+                            </View>
+                        </View>
+
+                        <View style={moveStyles.actions}>
+                            <TouchableOpacity
+                                style={moveStyles.cancelButton}
+                                onPress={() => setMoveModalVisible(false)}
+                            >
+                                <Text style={moveStyles.cancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    moveStyles.submitButton,
+                                    !moveSelectedLocation && moveStyles.submitButtonDisabled
+                                ]}
+                                onPress={handleMove}
+                                disabled={!moveSelectedLocation || actionLoading}
+                            >
+                                <Text style={moveStyles.submitText}>
+                                    {actionLoading ? 'Moving...' : 'Move Item'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Location Picker */}
+            <LocationPicker
+                visible={locationPickerVisible}
+                onClose={() => setLocationPickerVisible(false)}
+                onSelect={(locId, locName) => {
+                    setMoveSelectedLocation(locId);
+                    setSelectedLocationName(locName);
+                }}
+                locations={locations}
+                title="Select Destination"
+            />
         </View>
     );
 }
+
+const moveStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        justifyContent: 'flex-end',
+    },
+    modal: {
+        backgroundColor: colors.bgSecondary,
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    iconWrapper: {
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.warning + '20',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
+    },
+    icon: {
+        fontSize: 24,
+    },
+    title: {
+        flex: 1,
+        fontSize: 20,
+        fontWeight: '700',
+        color: colors.textPrimary,
+    },
+    closeButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.bgTertiary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    closeIcon: {
+        fontSize: 14,
+        color: colors.textMuted,
+    },
+    content: {
+        padding: spacing.lg,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: spacing.sm,
+    },
+    locationPicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.bgTertiary,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: spacing.lg,
+    },
+    locationText: {
+        fontSize: 16,
+        color: colors.textPrimary,
+    },
+    placeholderText: {
+        fontSize: 16,
+        color: colors.textMuted,
+    },
+    chevron: {
+        fontSize: 20,
+        color: colors.textMuted,
+    },
+    checkboxRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+    },
+    checkboxLabel: {
+        fontSize: 15,
+        color: colors.textPrimary,
+    },
+    actions: {
+        flexDirection: 'row',
+        padding: spacing.lg,
+        paddingTop: 0,
+        gap: spacing.md,
+    },
+    cancelButton: {
+        flex: 1,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.bgTertiary,
+        alignItems: 'center',
+    },
+    cancelText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    submitButton: {
+        flex: 2,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.warning,
+        alignItems: 'center',
+    },
+    submitButtonDisabled: {
+        opacity: 0.5,
+    },
+    submitText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textPrimary,
+    },
+});
 
 const styles = StyleSheet.create({
     content: {

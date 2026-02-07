@@ -11,9 +11,16 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../styles/theme';
+
+interface SelectOption {
+    value: string;
+    label: string;
+    icon?: string;
+}
 
 interface FormField {
     key: string;
@@ -22,16 +29,18 @@ interface FormField {
     multiline?: boolean;
     keyboardType?: 'default' | 'numeric' | 'email-address';
     required?: boolean;
+    type?: 'text' | 'checkbox' | 'select';
+    options?: SelectOption[];
 }
 
 interface FormModalProps {
     visible: boolean;
     onClose: () => void;
-    onSubmit: (data: Record<string, string>) => void;
+    onSubmit: (data: Record<string, any>) => void;
     title: string;
     icon: string;
     fields: FormField[];
-    initialValues?: Record<string, string>;
+    initialValues?: Record<string, any>;
     loading?: boolean;
     submitLabel?: string;
     accentColor?: string;
@@ -50,7 +59,7 @@ export default function FormModal({
     accentColor = colors.accentPrimary,
 }: FormModalProps) {
     const insets = useSafeAreaInsets();
-    const [formData, setFormData] = React.useState<Record<string, string>>(initialValues);
+    const [formData, setFormData] = React.useState<Record<string, any>>(initialValues);
     const [errors, setErrors] = React.useState<Record<string, string>>({});
 
     React.useEffect(() => {
@@ -60,7 +69,7 @@ export default function FormModal({
         }
     }, [visible, initialValues]);
 
-    const handleChange = (key: string, value: string) => {
+    const handleChange = (key: string, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
         if (errors[key]) {
             setErrors(prev => ({ ...prev, [key]: '' }));
@@ -71,7 +80,7 @@ export default function FormModal({
         // Validate required fields
         const newErrors: Record<string, string> = {};
         fields.forEach(field => {
-            if (field.required && !formData[field.key]?.trim()) {
+            if (field.required && !formData[field.key]?.toString().trim()) {
                 newErrors[field.key] = `${field.label} is required`;
             }
         });
@@ -82,6 +91,89 @@ export default function FormModal({
         }
 
         onSubmit(formData);
+    };
+
+    const renderField = (field: FormField) => {
+        const fieldType = field.type || 'text';
+
+        if (fieldType === 'checkbox') {
+            return (
+                <View key={field.key} style={styles.checkboxContainer}>
+                    <Switch
+                        value={!!formData[field.key]}
+                        onValueChange={(value) => handleChange(field.key, value)}
+                        trackColor={{ false: colors.bgTertiary, true: accentColor + '60' }}
+                        thumbColor={formData[field.key] ? accentColor : colors.textMuted}
+                    />
+                    <Text style={styles.checkboxLabel}>{field.label}</Text>
+                </View>
+            );
+        }
+
+        if (fieldType === 'select' && field.options) {
+            return (
+                <View key={field.key} style={styles.fieldContainer}>
+                    <Text style={styles.label}>
+                        {field.label}
+                        {field.required && <Text style={styles.required}> *</Text>}
+                    </Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.selectScroll}
+                    >
+                        {field.options.map((option) => (
+                            <TouchableOpacity
+                                key={option.value}
+                                style={[
+                                    styles.selectOption,
+                                    formData[field.key] === option.value && {
+                                        backgroundColor: accentColor + '20',
+                                        borderColor: accentColor,
+                                    }
+                                ]}
+                                onPress={() => handleChange(field.key, option.value)}
+                            >
+                                {option.icon && <Text style={styles.selectIcon}>{option.icon}</Text>}
+                                <Text style={[
+                                    styles.selectText,
+                                    formData[field.key] === option.value && { color: accentColor }
+                                ]}>
+                                    {option.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            );
+        }
+
+        return (
+            <View key={field.key} style={styles.fieldContainer}>
+                <Text style={styles.label}>
+                    {field.label}
+                    {field.required && <Text style={styles.required}> *</Text>}
+                </Text>
+                <TextInput
+                    style={[
+                        styles.input,
+                        field.multiline && styles.inputMultiline,
+                        errors[field.key] && styles.inputError,
+                    ]}
+                    placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                    placeholderTextColor={colors.textMuted}
+                    value={formData[field.key]?.toString() || ''}
+                    onChangeText={(value) => handleChange(field.key, value)}
+                    multiline={field.multiline}
+                    numberOfLines={field.multiline ? 3 : 1}
+                    keyboardType={field.keyboardType || 'default'}
+                    textAlignVertical={field.multiline ? 'top' : 'center'}
+                />
+                {errors[field.key] && (
+                    <Text style={styles.errorText}>{errors[field.key]}</Text>
+                )}
+            </View>
+        );
     };
 
     return (
@@ -116,32 +208,7 @@ export default function FormModal({
                                     showsVerticalScrollIndicator={false}
                                     keyboardShouldPersistTaps="handled"
                                 >
-                                    {fields.map(field => (
-                                        <View key={field.key} style={styles.fieldContainer}>
-                                            <Text style={styles.label}>
-                                                {field.label}
-                                                {field.required && <Text style={styles.required}> *</Text>}
-                                            </Text>
-                                            <TextInput
-                                                style={[
-                                                    styles.input,
-                                                    field.multiline && styles.inputMultiline,
-                                                    errors[field.key] && styles.inputError,
-                                                ]}
-                                                placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                                                placeholderTextColor={colors.textMuted}
-                                                value={formData[field.key] || ''}
-                                                onChangeText={(value) => handleChange(field.key, value)}
-                                                multiline={field.multiline}
-                                                numberOfLines={field.multiline ? 3 : 1}
-                                                keyboardType={field.keyboardType || 'default'}
-                                                textAlignVertical={field.multiline ? 'top' : 'center'}
-                                            />
-                                            {errors[field.key] && (
-                                                <Text style={styles.errorText}>{errors[field.key]}</Text>
-                                            )}
-                                        </View>
-                                    ))}
+                                    {fields.map(renderField)}
                                 </ScrollView>
 
                                 {/* Actions */}
@@ -257,6 +324,83 @@ export function FAB({ icon, onPress, color = colors.accentPrimary }: FABProps) {
     );
 }
 
+// Location Picker Modal
+interface LocationPickerProps {
+    visible: boolean;
+    onClose: () => void;
+    onSelect: (locationId: string, locationName: string) => void;
+    locations: any[];
+    title?: string;
+}
+
+export function LocationPicker({
+    visible,
+    onClose,
+    onSelect,
+    locations,
+    title = 'Select Location',
+}: LocationPickerProps) {
+    const insets = useSafeAreaInsets();
+
+    // Flatten tree for display
+    const flattenTree = (nodes: any[], depth = 0): any[] => {
+        let result: any[] = [];
+        for (const node of nodes) {
+            result.push({ ...node, depth });
+            if (node.children) {
+                result = result.concat(flattenTree(node.children, depth + 1));
+            }
+        }
+        return result;
+    };
+
+    const flatLocations = flattenTree(locations);
+
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="slide"
+            onRequestClose={onClose}
+        >
+            <TouchableWithoutFeedback onPress={onClose}>
+                <View style={styles.overlay}>
+                    <TouchableWithoutFeedback>
+                        <View style={[styles.modal, { paddingBottom: insets.bottom + spacing.lg, maxHeight: '70%' }]}>
+                            <View style={styles.header}>
+                                <View style={[styles.iconWrapper, { backgroundColor: colors.accentPrimary + '20' }]}>
+                                    <Text style={styles.icon}>📍</Text>
+                                </View>
+                                <Text style={styles.title}>{title}</Text>
+                                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                                    <Text style={styles.closeIcon}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <ScrollView style={styles.formScroll}>
+                                {flatLocations.map((loc) => (
+                                    <TouchableOpacity
+                                        key={loc.id}
+                                        style={[styles.locationOption, { paddingLeft: spacing.lg + (loc.depth * 16) }]}
+                                        onPress={() => {
+                                            onSelect(loc.id, loc.name);
+                                            onClose();
+                                        }}
+                                    >
+                                        <Text style={styles.locationIcon}>
+                                            {loc.depth > 0 ? '└' : '📁'}
+                                        </Text>
+                                        <Text style={styles.locationName}>{loc.name}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </TouchableWithoutFeedback>
+                </View>
+            </TouchableWithoutFeedback>
+        </Modal>
+    );
+}
+
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
@@ -345,6 +489,43 @@ const styles = StyleSheet.create({
         color: colors.error,
         marginTop: spacing.xs,
     },
+    // Checkbox styles
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+        gap: spacing.md,
+    },
+    checkboxLabel: {
+        fontSize: 15,
+        color: colors.textPrimary,
+        flex: 1,
+    },
+    // Select styles
+    selectScroll: {
+        flexDirection: 'row',
+    },
+    selectOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginRight: spacing.sm,
+        gap: spacing.xs,
+        backgroundColor: colors.bgTertiary,
+    },
+    selectIcon: {
+        fontSize: 16,
+    },
+    selectText: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: colors.textSecondary,
+    },
+    // Actions
     actions: {
         flexDirection: 'row',
         padding: spacing.lg,
@@ -445,5 +626,23 @@ const styles = StyleSheet.create({
     },
     fabIcon: {
         fontSize: 24,
+    },
+    // Location Picker
+    locationOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        gap: spacing.sm,
+    },
+    locationIcon: {
+        fontSize: 16,
+        color: colors.textMuted,
+    },
+    locationName: {
+        fontSize: 15,
+        color: colors.textPrimary,
     },
 });

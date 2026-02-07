@@ -88,7 +88,7 @@ export default function LocationDetailScreen() {
         }
     };
 
-    const handleAddItem = async (data: Record<string, string>) => {
+    const handleAddItem = async (data: Record<string, any>) => {
         try {
             setActionLoading(true);
             await itemApi.create({
@@ -96,6 +96,7 @@ export default function LocationDetailScreen() {
                 description: data.description,
                 quantity: parseInt(data.quantity) || 1,
                 current_location_id: id,
+                is_temporary_placement: !!data.isTemporary,
             });
             setAddItemModalVisible(false);
             Alert.alert('Success', 'Item added successfully');
@@ -320,11 +321,11 @@ export default function LocationDetailScreen() {
                 submitLabel="Add Item"
                 accentColor={colors.success}
                 fields={[
-                    { key: 'name', label: 'Item Name', placeholder: 'e.g., "Winter Jacket"', required: true },
-                    { key: 'description', label: 'Description', multiline: true },
+                    { key: 'name', label: 'Item Name', placeholder: 'e.g., "Winter Jacket, Passport"', required: true },
                     { key: 'quantity', label: 'Quantity', keyboardType: 'numeric' },
+                    { key: 'isTemporary', label: 'This is a temporary placement', type: 'checkbox' },
                 ]}
-                initialValues={{ name: '', description: '', quantity: '1' }}
+                initialValues={{ name: '', quantity: '1', isTemporary: false }}
             />
 
             {/* Delete Confirmation */}

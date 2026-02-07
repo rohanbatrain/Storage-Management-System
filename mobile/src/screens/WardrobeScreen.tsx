@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import { wardrobeApi, locationApi } from '../services/api';
-import FormModal, { FAB } from '../components/FormModal';
+import FormModal, { FAB, LocationPicker } from '../components/FormModal';
 
 const categoryLabels: { [key: string]: string } = {
     tshirt: '👕 T-Shirt',
@@ -172,17 +172,25 @@ export default function WardrobeScreen() {
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>('tshirt');
+    const [selectedLocationId, setSelectedLocationId] = useState<string>('');
+    const [selectedLocationName, setSelectedLocationName] = useState<string>('');
+    const [locationPickerVisible, setLocationPickerVisible] = useState(false);
 
     const loadData = async () => {
         try {
             const [itemsRes, statsRes, locRes] = await Promise.all([
                 wardrobeApi.list(),
                 wardrobeApi.stats(),
-                locationApi.list(),
+                locationApi.getTree(),
             ]);
             setItems(itemsRes.data);
             setStats(statsRes.data);
             setLocations(locRes.data);
+            // Set default location if not set
+            if (!selectedLocationId && locRes.data.length > 0) {
+                setSelectedLocationId(locRes.data[0].id);
+                setSelectedLocationName(locRes.data[0].name);
+            }
         } catch (error) {
             console.error('Failed to load wardrobe:', error);
         } finally {
@@ -196,14 +204,22 @@ export default function WardrobeScreen() {
         setRefreshing(false);
     }, []);
 
-    const handleAddClothing = async (data: Record<string, string>) => {
+    const handleAddClothing = async (data: Record<string, any>) => {
+        if (!selectedLocationId) {
+            Alert.alert('Error', 'Please select a closet location');
+            return;
+        }
         try {
             setActionLoading(true);
             await wardrobeApi.create({
                 name: data.name,
-                category: selectedCategory,
-                color: data.color,
-                max_wears_before_wash: parseInt(data.max_wears) || 3,
+                current_location_id: selectedLocationId,
+                image_url: data.imageUrl || null,
+                clothing: {
+                    category: data.category || 'tshirt',
+                    color: data.color || null,
+                    season: 'all',
+                },
             });
             setAddModalVisible(false);
             Alert.alert('Success', 'Clothing item added!');
@@ -333,10 +349,32 @@ export default function WardrobeScreen() {
                 accentColor="#a855f7"
                 fields={[
                     { key: 'name', label: 'Item Name', placeholder: 'e.g., "Blue Polo Shirt"', required: true },
+                    {
+                        key: 'category',
+                        label: 'Category',
+                        type: 'select',
+                        options: Object.entries(categoryLabels).map(([value, label]) => ({
+                            value,
+                            label: label.replace(/^[^\s]+\s/, ''), // Remove emoji prefix
+                            icon: label.split(' ')[0], // Get emoji
+                        })),
+                    },
                     { key: 'color', label: 'Color', placeholder: 'e.g., "Navy Blue"' },
-                    { key: 'max_wears', label: 'Max Wears Before Wash', keyboardType: 'numeric' },
+                    { key: 'imageUrl', label: 'Image URL (optional)', placeholder: 'https://...' },
                 ]}
-                initialValues={{ name: '', color: '', max_wears: '3' }}
+                initialValues={{ name: '', color: '', category: 'tshirt', imageUrl: '' }}
+            />
+
+            {/* Location Picker for Add Modal */}
+            <LocationPicker
+                visible={locationPickerVisible}
+                onClose={() => setLocationPickerVisible(false)}
+                onSelect={(locId, locName) => {
+                    setSelectedLocationId(locId);
+                    setSelectedLocationName(locName);
+                }}
+                locations={locations}
+                title="Select Closet/Location"
             />
         </View>
     );
