@@ -68,7 +68,6 @@ export default function LocationsScreen() {
     // Modal states
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
-    const [selectedKind, setSelectedKind] = useState<string>('container');
 
     const loadLocations = async () => {
         try {
@@ -87,12 +86,12 @@ export default function LocationsScreen() {
         setRefreshing(false);
     }, []);
 
-    const handleAddLocation = async (data: Record<string, string>) => {
+    const handleAddLocation = async (data: Record<string, any>) => {
         try {
             setActionLoading(true);
             await locationApi.create({
                 name: data.name,
-                kind: selectedKind,
+                kind: data.kind || 'room',
                 description: data.description,
             });
             setAddModalVisible(false);
@@ -182,7 +181,7 @@ export default function LocationsScreen() {
             </ScrollView>
 
             {/* Add Location FAB */}
-            <FAB icon="➕" onPress={() => setAddModalVisible(true)} />
+            <FAB icon="➕" onPress={() => setAddModalVisible(true)} color={colors.accentPrimary} />
 
             {/* Add Location Modal */}
             <FormModal
@@ -194,37 +193,24 @@ export default function LocationsScreen() {
                 loading={actionLoading}
                 submitLabel="Create Location"
                 fields={[
-                    { key: 'name', label: 'Location Name', placeholder: 'e.g., "Kitchen Drawer"', required: true },
-                    { key: 'description', label: 'Description', placeholder: 'What\'s stored here?', multiline: true },
+                    { key: 'name', label: 'Location Name', placeholder: 'e.g., "Bedroom", "Office"', required: true },
+                    {
+                        key: 'kind',
+                        label: 'Location Type',
+                        type: 'select',
+                        required: true,
+                        options: [
+                            { value: 'room', label: 'Room', icon: '🏠' },
+                            { value: 'furniture', label: 'Furniture', icon: '🪑' },
+                            { value: 'container', label: 'Container', icon: '📦' },
+                            { value: 'surface', label: 'Surface', icon: '📋' },
+                            // Note: 'portable' requires a parent and cannot be a root location
+                        ],
+                    },
+                    { key: 'description', label: 'Description (optional)', multiline: true },
                 ]}
-                initialValues={{ name: '', description: '' }}
-            >
-                {/* Kind selector is handled inside the modal header for now */}
-            </FormModal>
-
-            {/* Kind Selector (shown below the form) */}
-            {addModalVisible && (
-                <View style={styles.kindSelectorOverlay}>
-                    <Text style={styles.kindSelectorLabel}>Location Type:</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kindSelector}>
-                        {Object.keys(kindIcons).map((kind) => (
-                            <TouchableOpacity
-                                key={kind}
-                                style={[
-                                    styles.kindOption,
-                                    selectedKind === kind && { backgroundColor: kindColors[kind] + '30', borderColor: kindColors[kind] }
-                                ]}
-                                onPress={() => setSelectedKind(kind)}
-                            >
-                                <Text style={styles.kindOptionIcon}>{kindIcons[kind]}</Text>
-                                <Text style={[styles.kindOptionText, selectedKind === kind && { color: kindColors[kind] }]}>
-                                    {kind}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
+                initialValues={{ name: '', kind: 'room', description: '' }}
+            />
         </View>
     );
 }
