@@ -189,7 +189,8 @@ function EmptyStateOnboarding({ onAddLocation }) {
 
     return (
         <div style={{
-            minHeight: 'calc(100vh - 120px)',
+            minHeight: 'calc(100vh - 0px)',
+            margin: 'calc(-1 * var(--space-xl))',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -197,7 +198,7 @@ function EmptyStateOnboarding({ onAddLocation }) {
             padding: 'var(--space-2xl)',
             textAlign: 'center',
             background: 'radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15) 0%, transparent 50%), radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
-            borderRadius: 'var(--radius-xl)',
+            backgroundColor: 'var(--color-bg-primary)',
             position: 'relative',
             overflow: 'hidden',
         }}>
