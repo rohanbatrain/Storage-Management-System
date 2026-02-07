@@ -5,9 +5,8 @@ import {
     StyleSheet,
     TouchableOpacity,
     Alert,
-    Vibration,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
@@ -25,7 +24,7 @@ export default function ScannerScreen() {
         }
     }, [permission]);
 
-    const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    const handleBarCodeScanned = async (result: BarcodeScanningResult) => {
         if (scanned) return;
         setScanned(true);
         setScanning(false);
@@ -35,7 +34,7 @@ export default function ScannerScreen() {
 
         // Extract QR code ID from the scanned URL
         // Expected format: psms://location/psms-loc-xxxxxxxx
-        const match = data.match(/psms:\/\/location\/(.+)/);
+        const match = result.data.match(/psms:\/\/location\/(.+)/);
 
         if (match && match[1]) {
             const qrCodeId = match[1];
