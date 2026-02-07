@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.database import get_db
-from app.models.item import Item
+from app.models.item import Item, ItemType
 from app.models.location import Location
 from app.models.history import MovementHistory, ActionType
 from app.schemas.item import (
@@ -111,7 +111,7 @@ def get_item(item_id: UUID, db: Session = Depends(get_db)):
 
 @router.post("", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(item_data: ItemCreate, db: Session = Depends(get_db)):
-    """Create a new item."""
+    """Create a new item. Auto-converts to clothing if placed in wardrobe location."""
     # Validate current location exists
     location = db.query(Location).filter(Location.id == item_data.current_location_id).first()
     if not location:
@@ -128,6 +128,24 @@ def create_item(item_data: ItemCreate, db: Session = Depends(get_db)):
     if not permanent_id and not item_data.is_temporary_placement:
         permanent_id = item_data.current_location_id
     
+    # Auto-convert to clothing if location is a wardrobe
+    item_type = ItemType.GENERIC
+    item_data_json = {}
+    
+    if location.is_wardrobe:
+        item_type = ItemType.CLOTHING
+        # Set default clothing metadata
+        item_data_json = {
+            "category": location.default_clothing_category or "other",
+            "wear_count_since_wash": 0,
+            "max_wears_before_wash": 3,
+            "last_worn_at": None,
+            "cleanliness": "clean",
+            "color": None,
+            "brand": None,
+            "season": "all",
+        }
+    
     item = Item(
         name=item_data.name,
         description=item_data.description,
@@ -135,7 +153,9 @@ def create_item(item_data: ItemCreate, db: Session = Depends(get_db)):
         permanent_location_id=permanent_id,
         quantity=item_data.quantity,
         tags=item_data.tags,
-        is_temporary_placement=item_data.is_temporary_placement
+        is_temporary_placement=item_data.is_temporary_placement,
+        item_type=item_type,
+        item_data=item_data_json
     )
     
     db.add(item)

@@ -27,6 +27,8 @@ class LocationBase(BaseModel):
 class LocationCreate(LocationBase):
     """Schema for creating a new location."""
     aliases: List[str] = []
+    is_wardrobe: bool = False
+    default_clothing_category: Optional[str] = None
 
 
 class LocationUpdate(BaseModel):
@@ -35,6 +37,8 @@ class LocationUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     kind: Optional[LocationKind] = None
     parent_id: Optional[UUID] = None
+    is_wardrobe: Optional[bool] = None
+    default_clothing_category: Optional[str] = None
 
 
 class AliasCreate(BaseModel):
@@ -47,6 +51,8 @@ class LocationResponse(LocationBase):
     id: UUID
     aliases: List[str] = []
     qr_code_id: Optional[str] = None
+    is_wardrobe: bool = False
+    default_clothing_category: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     item_count: int = 0
@@ -64,6 +70,7 @@ class LocationTreeResponse(BaseModel):
     kind: LocationKind
     aliases: List[str] = []
     qr_code_id: Optional[str] = None
+    is_wardrobe: bool = False
     item_count: int = 0
     children: List["LocationTreeResponse"] = []
     

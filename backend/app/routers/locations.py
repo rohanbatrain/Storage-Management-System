@@ -49,6 +49,7 @@ def build_tree(location: Location, db: Session) -> LocationTreeResponse:
         kind=location.kind,
         aliases=location.aliases or [],
         qr_code_id=location.qr_code_id,
+        is_wardrobe=location.is_wardrobe,
         item_count=item_count,
         children=[build_tree(child, db) for child in children]
     )
@@ -74,6 +75,8 @@ def list_root_locations(db: Session = Depends(get_db)):
             kind=loc.kind,
             aliases=loc.aliases or [],
             qr_code_id=loc.qr_code_id,
+            is_wardrobe=loc.is_wardrobe,
+            default_clothing_category=loc.default_clothing_category,
             created_at=loc.created_at,
             updated_at=loc.updated_at,
             item_count=item_count,
@@ -173,7 +176,9 @@ def create_location(location_data: LocationCreate, db: Session = Depends(get_db)
         parent_id=location_data.parent_id,
         kind=location_data.kind,
         aliases=location_data.aliases,
-        qr_code_id=qr_code_id
+        qr_code_id=qr_code_id,
+        is_wardrobe=location_data.is_wardrobe,
+        default_clothing_category=location_data.default_clothing_category
     )
     
     db.add(location)
@@ -188,6 +193,8 @@ def create_location(location_data: LocationCreate, db: Session = Depends(get_db)
         kind=location.kind,
         aliases=location.aliases or [],
         qr_code_id=location.qr_code_id,
+        is_wardrobe=location.is_wardrobe,
+        default_clothing_category=location.default_clothing_category,
         created_at=location.created_at,
         updated_at=location.updated_at,
         item_count=0,

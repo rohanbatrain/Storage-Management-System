@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum, Boolean
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -40,6 +40,11 @@ class Location(Base):
     kind = Column(SQLEnum(LocationKind), nullable=False, default=LocationKind.CONTAINER)
     aliases = Column(ARRAY(String), default=[])
     qr_code_id = Column(String(100), unique=True, nullable=True, index=True)
+    
+    # Wardrobe integration
+    is_wardrobe = Column(Boolean, default=False, nullable=False, index=True)  # Items here auto-become clothing
+    default_clothing_category = Column(String(50), nullable=True)  # Auto-category for new clothing items
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
