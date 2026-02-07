@@ -341,32 +341,17 @@ function Dashboard() {
     return (
         <div>
             {/* Hero Section */}
-            <div style={{
-                marginBottom: 'var(--space-xl)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-            }}>
-                <div>
-                    <h1 style={{
-                        fontSize: 'var(--font-size-3xl)',
-                        fontWeight: 700,
-                        marginBottom: 'var(--space-xs)'
-                    }}>
-                        Welcome Back! 👋
-                    </h1>
-                    <p style={{ color: 'var(--color-text-secondary)' }}>
-                        Here's what's happening in your storage space
-                    </p>
-                </div>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => setShowAddModal(true)}
-                    style={{ padding: 'var(--space-sm) var(--space-lg)' }}
-                >
-                    <Plus size={18} />
-                    Add Location
-                </button>
+            <div style={{ marginBottom: 'var(--space-xl)' }}>
+                <h1 style={{
+                    fontSize: 'var(--font-size-3xl)',
+                    fontWeight: 700,
+                    marginBottom: 'var(--space-xs)'
+                }}>
+                    Welcome Back! 👋
+                </h1>
+                <p style={{ color: 'var(--color-text-secondary)' }}>
+                    Here's what's happening in your storage space
+                </p>
             </div>
 
             {/* Stats Grid */}
