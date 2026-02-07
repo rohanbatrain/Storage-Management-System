@@ -70,6 +70,7 @@ def item_to_clothing_response(item: Item) -> ClothingItemResponse:
         color=meta.get("color"),
         brand=meta.get("brand"),
         season=meta.get("season", "all"),
+        image_url=item.image_url,
         can_rewear=can_rewear,
     )
 
@@ -138,6 +139,7 @@ def create_clothing_item(
         current_location_id=item_data.current_location_id,
         permanent_location_id=item_data.permanent_location_id or item_data.current_location_id,
         tags=item_data.tags,
+        image_url=item_data.image_url,
         item_type=ItemType.CLOTHING,
         item_data=clothing_meta,
     )

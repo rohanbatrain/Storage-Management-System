@@ -92,6 +92,7 @@ class ClothingItemCreate(BaseModel):
     current_location_id: UUID
     permanent_location_id: Optional[UUID] = None
     tags: List[str] = []
+    image_url: Optional[str] = Field(None, max_length=1000)
     clothing: ClothingMetadata
 
 
@@ -100,6 +101,7 @@ class ClothingItemUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=500)
     tags: Optional[List[str]] = None
+    image_url: Optional[str] = Field(None, max_length=1000)
     max_wears_before_wash: Optional[int] = Field(None, ge=1, le=20)
     color: Optional[str] = None
     brand: Optional[str] = None
@@ -128,6 +130,7 @@ class ClothingItemResponse(BaseModel):
     color: Optional[str] = None
     brand: Optional[str] = None
     season: Season
+    image_url: Optional[str] = None
     
     # Computed
     can_rewear: bool = True  # Computed based on wear count

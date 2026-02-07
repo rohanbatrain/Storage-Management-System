@@ -48,7 +48,23 @@ const cleanlinessLabels = {
 
 function ClothingCard({ item, onWear, onWash, onLaundry }) {
     return (
-        <div className="card" style={{ padding: 'var(--space-md)' }}>
+        <div className="card" style={{ padding: 'var(--space-md)', overflow: 'hidden' }}>
+            {item.image_url && (
+                <div style={{
+                    marginBottom: 'var(--space-sm)',
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    height: 120,
+                    background: 'var(--color-bg-tertiary)',
+                }}>
+                    <img
+                        src={item.image_url}
+                        alt={item.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => e.target.style.display = 'none'}
+                    />
+                </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-sm)' }}>
                 <div>
                     <h4 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>{item.name}</h4>
@@ -114,6 +130,7 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('tshirt');
     const [color, setColor] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
     const [locationId, setLocationId] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -132,6 +149,7 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
             await onAdd({
                 name: name.trim(),
                 current_location_id: locationId,
+                image_url: imageUrl.trim() || null,
                 clothing: {
                     category,
                     color: color || null,
@@ -140,6 +158,7 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
             });
             setName('');
             setColor('');
+            setImageUrl('');
             onClose();
         } catch (err) {
             console.error('Failed to create clothing:', err);
@@ -184,6 +203,16 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
                             value={color}
                             onChange={e => setColor(e.target.value)}
                             placeholder="Blue"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="label">Image URL (optional)</label>
+                        <input
+                            type="url"
+                            className="input"
+                            value={imageUrl}
+                            onChange={e => setImageUrl(e.target.value)}
+                            placeholder="https://example.com/image.jpg"
                         />
                     </div>
                     <div className="form-group">

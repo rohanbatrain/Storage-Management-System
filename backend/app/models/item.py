@@ -53,6 +53,7 @@ class Item(Base):
     # Wardrobe Module Extensions
     item_type = Column(SQLEnum(ItemType), default=ItemType.GENERIC, nullable=False, index=True)
     item_data = Column(JSONB, default={})  # Domain-specific data (clothing: category, wear_count, etc.)
+    image_url = Column(String(1000), nullable=True)  # External image URL
     
     # Relationships
     current_location = relationship(

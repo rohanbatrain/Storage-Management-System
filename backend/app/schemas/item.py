@@ -10,6 +10,7 @@ class ItemBase(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     quantity: int = Field(default=1, ge=1)
     tags: List[str] = []
+    image_url: Optional[str] = Field(None, max_length=1000)
 
 
 class ItemCreate(ItemBase):
@@ -25,6 +26,7 @@ class ItemUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     quantity: Optional[int] = Field(None, ge=1)
     tags: Optional[List[str]] = None
+    image_url: Optional[str] = Field(None, max_length=1000)
 
 
 class ItemMoveRequest(BaseModel):
@@ -55,6 +57,7 @@ class ItemResponse(ItemBase):
     updated_at: datetime
     current_location: Optional[LocationSummary] = None
     permanent_location: Optional[LocationSummary] = None
+    image_url: Optional[str] = None
     
     class Config:
         from_attributes = True
