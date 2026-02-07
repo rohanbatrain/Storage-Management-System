@@ -19,7 +19,6 @@ interface StatCardProps {
     value: number;
     label: string;
     color: string;
-    gradient?: string;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ icon, value, label, color }) => (
@@ -28,28 +27,6 @@ const StatCard: React.FC<StatCardProps> = ({ icon, value, label, color }) => (
         <Text style={[styles.statValue, { color }]}>{value}</Text>
         <Text style={styles.statLabel}>{label}</Text>
     </View>
-);
-
-interface ActionCardProps {
-    icon: string;
-    title: string;
-    subtitle: string;
-    onPress: () => void;
-    isPrimary?: boolean;
-}
-
-const ActionCard: React.FC<ActionCardProps> = ({ icon, title, subtitle, onPress, isPrimary }) => (
-    <TouchableOpacity
-        style={[styles.actionCard, isPrimary && styles.actionCardPrimary]}
-        onPress={onPress}
-        activeOpacity={0.7}
-    >
-        <View style={[styles.actionIconWrapper, isPrimary && styles.actionIconPrimary]}>
-            <Text style={styles.actionIcon}>{icon}</Text>
-        </View>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionSubtitle}>{subtitle}</Text>
-    </TouchableOpacity>
 );
 
 interface ItemRowProps {
@@ -142,42 +119,41 @@ export default function HomeScreen() {
                 <StatCard icon="⚠️" value={stats.temporary} label="Temporary" color={colors.warning} />
             </View>
 
-            {/* Quick Actions Grid */}
+            {/* Activity Overview */}
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Quick Actions</Text>
+                <Text style={styles.sectionTitle}>📊 Activity Overview</Text>
             </View>
-            <View style={styles.actionsGrid}>
-                <ActionCard
-                    icon="📷"
-                    title="Scan QR"
-                    subtitle="Find items fast"
-                    onPress={() => navigation.navigate('Scanner')}
-                    isPrimary
-                />
-                <ActionCard
-                    icon="🔍"
-                    title="Search"
-                    subtitle="Find anything"
-                    onPress={() => navigation.navigate('Search')}
-                />
-                <ActionCard
-                    icon="👕"
-                    title="Wardrobe"
-                    subtitle="Manage clothes"
-                    onPress={() => navigation.navigate('Wardrobe')}
-                />
-                <ActionCard
-                    icon="🗂️"
-                    title="Locations"
-                    subtitle="Browse storage"
-                    onPress={() => navigation.navigate('Locations')}
-                />
+            <View style={styles.activityCard}>
+                <View style={styles.activityRow}>
+                    <View style={styles.activityDot} />
+                    <Text style={styles.activityText}>
+                        {stats.locations} storage locations organized
+                    </Text>
+                </View>
+                <View style={styles.activityRow}>
+                    <View style={[styles.activityDot, { backgroundColor: colors.success }]} />
+                    <Text style={styles.activityText}>
+                        {stats.items} items tracked in your inventory
+                    </Text>
+                </View>
+                {stats.temporary > 0 && (
+                    <View style={styles.activityRow}>
+                        <View style={[styles.activityDot, { backgroundColor: colors.warning }]} />
+                        <Text style={styles.activityText}>
+                            {stats.temporary} items need attention
+                        </Text>
+                    </View>
+                )}
             </View>
 
             {/* Temporary Items */}
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>⚠️ Temporary Placements</Text>
-                <Text style={styles.sectionBadge}>{stats.temporary}</Text>
+                {stats.temporary > 0 && (
+                    <View style={styles.sectionBadge}>
+                        <Text style={styles.sectionBadgeText}>{stats.temporary}</Text>
+                    </View>
+                )}
             </View>
             {temporaryItems.length === 0 ? (
                 <View style={styles.emptyState}>
@@ -201,7 +177,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
     content: {
-        paddingBottom: spacing.xxl,
+        paddingBottom: spacing.xxl + 80, // Extra padding for tab bar
     },
     // Hero Header
     heroHeader: {
@@ -279,58 +255,40 @@ const styles = StyleSheet.create({
     },
     sectionBadge: {
         backgroundColor: colors.warning + '30',
-        color: colors.warning,
-        fontSize: typography.xs,
-        fontWeight: '600',
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
         borderRadius: borderRadius.full,
-        overflow: 'hidden',
     },
-    // Actions Grid
-    actionsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        paddingHorizontal: spacing.md,
-        gap: spacing.sm,
+    sectionBadgeText: {
+        fontSize: typography.xs,
+        fontWeight: '600',
+        color: colors.warning,
     },
-    actionCard: {
-        width: (width - spacing.md * 2 - spacing.sm) / 2 - 0.5,
+    // Activity Card
+    activityCard: {
+        marginHorizontal: spacing.md,
         backgroundColor: colors.bgSecondary,
         borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        alignItems: 'center',
+        padding: spacing.lg,
         borderWidth: 1,
         borderColor: colors.border,
+        gap: spacing.md,
     },
-    actionCardPrimary: {
-        borderColor: colors.accentPrimary + '50',
-        backgroundColor: colors.accentPrimary + '10',
-    },
-    actionIconWrapper: {
-        width: 48,
-        height: 48,
-        borderRadius: borderRadius.md,
-        backgroundColor: colors.bgTertiary,
+    activityRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: spacing.sm,
+        gap: spacing.md,
     },
-    actionIconPrimary: {
-        backgroundColor: colors.accentPrimary + '30',
+    activityDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: colors.accentPrimary,
     },
-    actionIcon: {
-        fontSize: 24,
-    },
-    actionTitle: {
-        fontSize: typography.md,
-        fontWeight: '600',
-        color: colors.textPrimary,
-        marginBottom: 2,
-    },
-    actionSubtitle: {
-        fontSize: typography.xs,
-        color: colors.textMuted,
+    activityText: {
+        fontSize: typography.sm,
+        color: colors.textSecondary,
+        flex: 1,
     },
     // Items List
     itemsList: {
