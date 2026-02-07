@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Set
 from uuid import UUID
 import uuid
 
@@ -18,6 +18,38 @@ from app.schemas.location import (
 )
 
 router = APIRouter(prefix="/locations", tags=["Locations"])
+
+
+# Define valid parent kinds for each location type
+# None means it can be a root location (no parent)
+VALID_PARENT_KINDS: dict[LocationKind, Set[Optional[LocationKind]]] = {
+    LocationKind.ROOM: {None},  # Rooms can only be root locations
+    LocationKind.FURNITURE: {LocationKind.ROOM},  # Furniture goes in rooms
+    LocationKind.CONTAINER: {LocationKind.ROOM, LocationKind.FURNITURE, LocationKind.CONTAINER, LocationKind.SURFACE, LocationKind.PORTABLE},
+    LocationKind.SURFACE: {LocationKind.ROOM, LocationKind.FURNITURE},  # Surfaces are on furniture or in rooms
+    LocationKind.PORTABLE: {LocationKind.ROOM, LocationKind.FURNITURE, LocationKind.SURFACE, LocationKind.CONTAINER},
+    LocationKind.LAUNDRY_WORN: {LocationKind.ROOM, LocationKind.FURNITURE},  # Laundry baskets in rooms or furniture
+    LocationKind.LAUNDRY_DIRTY: {LocationKind.ROOM, LocationKind.FURNITURE},
+}
+
+
+def validate_location_hierarchy(child_kind: LocationKind, parent: Optional[Location]) -> None:
+    """Validate that the parent-child relationship is logical."""
+    parent_kind = parent.kind if parent else None
+    valid_parents = VALID_PARENT_KINDS.get(child_kind, set())
+    
+    if parent_kind not in valid_parents:
+        if parent is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"'{child_kind.value}' cannot be a root location. Valid parents: {[k.value for k in valid_parents if k]}"
+            )
+        else:
+            valid_parent_names = [k.value for k in valid_parents if k] or ["(root only)"]
+            raise HTTPException(
+                status_code=400,
+                detail=f"'{child_kind.value}' cannot be inside '{parent_kind.value}'. Valid parents: {valid_parent_names}"
+            )
 
 
 def get_location_path(db: Session, location: Location) -> List[LocationPathResponse]:
@@ -162,10 +194,14 @@ def get_location_tree(location_id: UUID, db: Session = Depends(get_db)):
 def create_location(location_data: LocationCreate, db: Session = Depends(get_db)):
     """Create a new storage location."""
     # Validate parent exists if provided
+    parent = None
     if location_data.parent_id:
         parent = db.query(Location).filter(Location.id == location_data.parent_id).first()
         if not parent:
             raise HTTPException(status_code=400, detail="Parent location not found")
+    
+    # Validate parent-child hierarchy
+    validate_location_hierarchy(location_data.kind, parent)
     
     # Generate QR code ID
     qr_code_id = f"psms-loc-{uuid.uuid4().hex[:8]}"
@@ -213,13 +249,24 @@ def update_location(
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
     
+    # Determine new parent and kind
+    new_parent = None
+    new_parent_id = location_data.parent_id if location_data.parent_id is not None else location.parent_id
+    new_kind = location_data.kind if location_data.kind is not None else location.kind
+    
     # Validate parent if being changed
     if location_data.parent_id is not None:
         if location_data.parent_id == location_id:
             raise HTTPException(status_code=400, detail="Location cannot be its own parent")
-        parent = db.query(Location).filter(Location.id == location_data.parent_id).first()
-        if not parent:
+        new_parent = db.query(Location).filter(Location.id == location_data.parent_id).first()
+        if not new_parent:
             raise HTTPException(status_code=400, detail="Parent location not found")
+    elif new_parent_id:
+        new_parent = db.query(Location).filter(Location.id == new_parent_id).first()
+    
+    # Validate hierarchy if parent or kind is changing
+    if location_data.parent_id is not None or location_data.kind is not None:
+        validate_location_hierarchy(new_kind, new_parent)
     
     # Update fields
     if location_data.name is not None:
@@ -230,6 +277,10 @@ def update_location(
         location.kind = location_data.kind
     if location_data.parent_id is not None:
         location.parent_id = location_data.parent_id
+    if location_data.is_wardrobe is not None:
+        location.is_wardrobe = location_data.is_wardrobe
+    if location_data.default_clothing_category is not None:
+        location.default_clothing_category = location_data.default_clothing_category
     
     db.commit()
     db.refresh(location)
