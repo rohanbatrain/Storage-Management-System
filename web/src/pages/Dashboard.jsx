@@ -21,10 +21,10 @@ import { locationApi, itemApi } from '../services/api';
 // Visual type selector data
 const LOCATION_TYPES = [
     { kind: 'room', icon: Home, label: 'Room', description: 'Bedroom, Kitchen, Bathroom', color: '#6366f1' },
+    { kind: 'portable', icon: Briefcase, label: 'Portable', description: 'Backpack, Laptop Bag, Suitcase', color: '#f59e0b' },
     { kind: 'furniture', icon: Box, label: 'Furniture', description: 'Wardrobe, Desk, Shelf', color: '#8b5cf6' },
     { kind: 'container', icon: Package, label: 'Container', description: 'Box, Drawer, Bin', color: '#06b6d4' },
     { kind: 'surface', icon: Layout, label: 'Surface', description: 'Countertop, Table', color: '#10b981' },
-    { kind: 'portable', icon: Briefcase, label: 'Portable', description: 'Bag, Suitcase', color: '#f59e0b' },
 ];
 
 function StatCard({ icon: Icon, value, label, color, onClick }) {
@@ -102,7 +102,7 @@ function AddLocationModal({ onClose, onSuccess }) {
                                 <input
                                     type="text"
                                     className="input"
-                                    placeholder="e.g., Master Bedroom, Kitchen, Garage"
+                                    placeholder="e.g., Bedroom, College Bag, Kitchen"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                     required
@@ -218,11 +218,11 @@ function EmptyStateOnboarding({ onAddLocation }) {
                 marginBottom: 'var(--space-xl)',
                 maxWidth: 400
             }}>
-                Start by creating your first room. You can then add furniture, containers, and items to organize everything.
+                Start by creating your first location — a room, bag, or container.
             </p>
             <button className="btn btn-primary" onClick={onAddLocation} style={{ padding: 'var(--space-md) var(--space-xl)', fontSize: 'var(--font-size-md)' }}>
                 <Plus size={20} />
-                Create Your First Room
+                Add Your First Location
             </button>
         </div>
     );
