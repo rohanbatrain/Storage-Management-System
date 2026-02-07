@@ -321,7 +321,7 @@ function Dashboard() {
     };
 
     // Show onboarding if no locations
-    if (stats.locations === 0 && !showAddModal) {
+    if (stats.locations === 0) {
         return (
             <div>
                 <EmptyStateOnboarding onAddLocation={() => setShowAddModal(true)} />
