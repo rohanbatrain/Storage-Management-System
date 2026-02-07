@@ -22,6 +22,8 @@ const kindIcons: { [key: string]: string } = {
     surface: '📋',
     portable: '🎒',
     laundry: '🧺',
+    laundry_worn: '🧲',
+    laundry_dirty: '🧲',
 };
 
 const kindColors: { [key: string]: string } = {
@@ -31,6 +33,26 @@ const kindColors: { [key: string]: string } = {
     surface: colors.info,
     portable: '#a855f7',
     laundry: '#ec4899',
+    laundry_worn: colors.success,
+    laundry_dirty: colors.error,
+};
+
+// Valid child kinds based on parent kind (matching backend validation)
+const VALID_CHILD_KINDS: { [key: string]: string[] } = {
+    room: ['furniture', 'container', 'surface', 'portable'],
+    furniture: ['container', 'surface'],
+    container: ['container'],
+    surface: ['container', 'portable'],
+    portable: ['container'],
+    laundry_worn: [],
+    laundry_dirty: [],
+};
+
+const kindDetails: { [key: string]: { label: string; description: string } } = {
+    furniture: { label: 'Furniture', description: 'Wardrobe, Desk, Shelf' },
+    container: { label: 'Container', description: 'Box, Drawer, Bin' },
+    surface: { label: 'Surface', description: 'Shelf, Counter' },
+    portable: { label: 'Portable', description: 'Bag, Suitcase' },
 };
 
 export default function LocationDetailScreen() {
@@ -48,6 +70,7 @@ export default function LocationDetailScreen() {
     // Modal states
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [addItemModalVisible, setAddItemModalVisible] = useState(false);
+    const [addSubLocationModalVisible, setAddSubLocationModalVisible] = useState(false);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
 
@@ -103,6 +126,24 @@ export default function LocationDetailScreen() {
             loadData();
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.detail || 'Failed to add item');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleAddSubLocation = async (data: Record<string, any>) => {
+        try {
+            setActionLoading(true);
+            await locationApi.create({
+                name: data.name,
+                kind: data.kind,
+                parent_id: id,
+            });
+            setAddSubLocationModalVisible(false);
+            Alert.alert('Success', 'Sub-location created successfully');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to create sub-location');
         } finally {
             setActionLoading(false);
         }
@@ -191,6 +232,16 @@ export default function LocationDetailScreen() {
                             <Text style={styles.actionIcon}>➕</Text>
                             <Text style={[styles.actionLabel, { color: colors.success }]}>Add Item</Text>
                         </TouchableOpacity>
+
+                        {(VALID_CHILD_KINDS[location.kind]?.length > 0) && (
+                            <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: '#8b5cf6' + '15' }]}
+                                onPress={() => setAddSubLocationModalVisible(true)}
+                            >
+                                <Text style={styles.actionIcon}>📁</Text>
+                                <Text style={[styles.actionLabel, { color: '#8b5cf6' }]}>Add Sub</Text>
+                            </TouchableOpacity>
+                        )}
 
                         <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: colors.warning + '15' }]}
@@ -326,6 +377,32 @@ export default function LocationDetailScreen() {
                     { key: 'isTemporary', label: 'This is a temporary placement', type: 'checkbox' },
                 ]}
                 initialValues={{ name: '', quantity: '1', isTemporary: false }}
+            />
+
+            {/* Add Sub-Location Modal */}
+            <FormModal
+                visible={addSubLocationModalVisible}
+                onClose={() => setAddSubLocationModalVisible(false)}
+                onSubmit={handleAddSubLocation}
+                title="Add Sub-Location"
+                icon="📁"
+                loading={actionLoading}
+                submitLabel="Create"
+                accentColor="#8b5cf6"
+                fields={[
+                    { key: 'name', label: 'Name', placeholder: 'e.g., "Top Drawer", "Left Shelf"', required: true },
+                    {
+                        key: 'kind',
+                        label: 'Type',
+                        type: 'select',
+                        options: (VALID_CHILD_KINDS[location.kind] || []).map(k => ({
+                            value: k,
+                            label: kindDetails[k]?.label || k,
+                            icon: kindIcons[k] || '📁',
+                        })),
+                    },
+                ]}
+                initialValues={{ name: '', kind: (VALID_CHILD_KINDS[location.kind] || ['container'])[0] }}
             />
 
             {/* Delete Confirmation */}
