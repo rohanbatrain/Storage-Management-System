@@ -45,4 +45,14 @@ export const qrApi = {
     scanQr: (qrCodeId: string) => api.get(`/qr/scan/${qrCodeId}`),
 };
 
+// Wardrobe API
+export const wardrobeApi = {
+    list: () => api.get('/wardrobe/items'),
+    stats: () => api.get('/wardrobe/stats'),
+    wear: (id: string) => api.post(`/wardrobe/items/${id}/wear`),
+    wash: (id: string) => api.post(`/wardrobe/items/${id}/wash`),
+    laundry: (id: string) => api.post(`/wardrobe/items/${id}/to-laundry`),
+    create: (data: any) => api.post('/wardrobe/items', data),
+};
+
 export default api;

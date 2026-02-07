@@ -131,6 +131,22 @@ export default function HomeScreen() {
                         <Text style={globalStyles.btnText}>Search</Text>
                     </TouchableOpacity>
                 </View>
+                <View style={[styles.actionsRow, { marginTop: spacing.sm }]}>
+                    <TouchableOpacity
+                        style={[globalStyles.btnSecondary, { flex: 1 }]}
+                        onPress={() => navigation.navigate('Wardrobe')}
+                    >
+                        <Text style={{ fontSize: 18 }}>👕</Text>
+                        <Text style={globalStyles.btnText}>Wardrobe</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[globalStyles.btnSecondary, { flex: 1 }]}
+                        onPress={() => navigation.navigate('Locations')}
+                    >
+                        <Text style={{ fontSize: 18 }}>🗂️</Text>
+                        <Text style={globalStyles.btnText}>Locations</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Temporary Items */}
@@ -154,23 +170,6 @@ export default function HomeScreen() {
                     </View>
                 )}
             </View>
-
-            {/* Browse Locations */}
-            <TouchableOpacity
-                style={[globalStyles.card, styles.browseCard]}
-                onPress={() => navigation.navigate('Locations')}
-            >
-                <View style={globalStyles.spaceBetween}>
-                    <View style={globalStyles.row}>
-                        <Text style={{ fontSize: 24, marginRight: spacing.md }}>🗂️</Text>
-                        <View>
-                            <Text style={globalStyles.subtitle}>Browse Locations</Text>
-                            <Text style={globalStyles.textMuted}>View your storage hierarchy</Text>
-                        </View>
-                    </View>
-                    <Text style={{ color: colors.textMuted }}>→</Text>
-                </View>
-            </TouchableOpacity>
         </ScrollView>
     );
 }

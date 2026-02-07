@@ -9,6 +9,7 @@ import LocationsScreen from './src/screens/LocationsScreen';
 import LocationDetailScreen from './src/screens/LocationDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import SearchScreen from './src/screens/SearchScreen';
+import WardrobeScreen from './src/screens/WardrobeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -76,7 +77,13 @@ export default function App() {
                     component={SearchScreen}
                     options={{ title: 'Search' }}
                 />
+                <Stack.Screen
+                    name="Wardrobe"
+                    component={WardrobeScreen}
+                    options={{ title: '👕 Wardrobe' }}
+                />
             </Stack.Navigator>
         </NavigationContainer>
     );
 }
+
