@@ -12,6 +12,8 @@ class ActionType(str, enum.Enum):
     PLACED = "placed"      # Initial placement in a location
     MOVED = "moved"        # Moved from one location to another
     RETURNED = "returned"  # Returned to permanent location
+    WORN = "worn"          # Wardrobe: Item was worn
+    WASHED = "washed"      # Wardrobe: Item was laundered
 
 
 class MovementHistory(Base):

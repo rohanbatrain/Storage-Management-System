@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import LocationDetail from './pages/LocationDetail';
 import ItemDetail from './pages/ItemDetail';
 import Search from './pages/Search';
+import Wardrobe from './pages/Wardrobe';
 
 function App() {
     return (
@@ -15,6 +16,7 @@ function App() {
                     <Route path="/location/:id" element={<LocationDetail />} />
                     <Route path="/item/:id" element={<ItemDetail />} />
                     <Route path="/search" element={<Search />} />
+                    <Route path="/wardrobe" element={<Wardrobe />} />
                 </Routes>
             </main>
         </div>

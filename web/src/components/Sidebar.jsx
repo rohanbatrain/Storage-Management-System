@@ -8,7 +8,9 @@ import {
     Layout,
     Search,
     Plus,
-    Home
+    Home,
+    Shirt,
+    Droplets
 } from 'lucide-react';
 import { locationApi } from '../services/api';
 
@@ -18,6 +20,7 @@ const kindIcons = {
     container: Box,
     surface: Layout,
     portable: Briefcase,
+    laundry: Droplets,
 };
 
 function TreeNode({ node, level = 0 }) {
@@ -127,6 +130,14 @@ function Sidebar() {
                     >
                         <Home size={16} className="tree-icon" />
                         <span>Dashboard</span>
+                    </Link>
+                    <Link
+                        to="/wardrobe"
+                        className="tree-node"
+                        style={{ color: 'inherit', marginTop: 'var(--space-xs)' }}
+                    >
+                        <Shirt size={16} className="tree-icon" />
+                        <span>Wardrobe</span>
                     </Link>
                 </div>
 

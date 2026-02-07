@@ -14,6 +14,7 @@ class LocationKind(str, enum.Enum):
     CONTAINER = "container" # Box, Drawer, Bin, Basket
     SURFACE = "surface"     # Desk top, Shelf, Counter
     PORTABLE = "portable"   # Bag, Suitcase, Backpack
+    LAUNDRY = "laundry"     # Laundry basket/hamper (Wardrobe Module)
 
 
 class Location(Base):

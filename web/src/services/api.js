@@ -47,4 +47,31 @@ export const qrApi = {
     scanQr: (qrCodeId) => api.get(`/qr/scan/${qrCodeId}`),
 };
 
+// Wardrobe API
+export const wardrobeApi = {
+    // Clothing items
+    listClothing: (params) => api.get('/wardrobe/items', { params }),
+    getClothingItem: (id) => api.get(`/wardrobe/items/${id}`),
+    createClothingItem: (data) => api.post('/wardrobe/items', data),
+    updateClothingItem: (id, data) => api.put(`/wardrobe/items/${id}`, data),
+
+    // Wear and laundry
+    wearItem: (id) => api.post(`/wardrobe/items/${id}/wear`),
+    washItem: (id) => api.post(`/wardrobe/items/${id}/wash`),
+    moveToLaundry: (id) => api.post(`/wardrobe/items/${id}/to-laundry`),
+    getLaundryItems: () => api.get('/wardrobe/laundry'),
+    getRewearSafeItems: () => api.get('/wardrobe/rewear-safe'),
+
+    // Outfits
+    listOutfits: () => api.get('/wardrobe/outfits'),
+    getOutfit: (id) => api.get(`/wardrobe/outfits/${id}`),
+    createOutfit: (data) => api.post('/wardrobe/outfits', data),
+    updateOutfit: (id, data) => api.put(`/wardrobe/outfits/${id}`, data),
+    deleteOutfit: (id) => api.delete(`/wardrobe/outfits/${id}`),
+    wearOutfit: (id) => api.post(`/wardrobe/outfits/${id}/wear`),
+
+    // Stats
+    getStats: () => api.get('/wardrobe/stats'),
+};
+
 export default api;

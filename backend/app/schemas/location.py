@@ -12,6 +12,7 @@ class LocationKind(str, Enum):
     CONTAINER = "container"
     SURFACE = "surface"
     PORTABLE = "portable"
+    LAUNDRY = "laundry"
 
 
 class LocationBase(BaseModel):

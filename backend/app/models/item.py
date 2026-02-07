@@ -1,9 +1,16 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
+import enum
+
+
+class ItemType(str, enum.Enum):
+    """Types of items for domain-specific extensions."""
+    GENERIC = "generic"     # Standard storage item
+    CLOTHING = "clothing"   # Wardrobe module clothing item
 
 
 class Item(Base):
@@ -14,6 +21,8 @@ class Item(Base):
     - Current location: Where the item is right now
     - Permanent location: The item's "home" location
     - Temporary placement flag: Indicates if current placement is temporary
+    - Item type: For domain extensions (generic, clothing, etc.)
+    - Metadata: JSONB for domain-specific data
     
     Tags are stored as JSONB for flexible categorization.
     """
@@ -41,6 +50,10 @@ class Item(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
+    # Wardrobe Module Extensions
+    item_type = Column(SQLEnum(ItemType), default=ItemType.GENERIC, nullable=False, index=True)
+    metadata = Column(JSONB, default={})  # Domain-specific data (clothing: category, wear_count, etc.)
+    
     # Relationships
     current_location = relationship(
         "Location",
@@ -65,4 +78,4 @@ class Item(Base):
     )
     
     def __repr__(self):
-        return f"<Item(name='{self.name}', quantity={self.quantity})>"
+        return f"<Item(name='{self.name}', type='{self.item_type.value}', quantity={self.quantity})>"
