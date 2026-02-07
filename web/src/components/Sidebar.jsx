@@ -20,7 +20,8 @@ const kindIcons = {
     container: Box,
     surface: Layout,
     portable: Briefcase,
-    laundry: Droplets,
+    laundry_worn: Shirt,
+    laundry_dirty: Droplets,
 };
 
 function TreeNode({ node, level = 0 }) {

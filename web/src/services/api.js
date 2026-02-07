@@ -59,6 +59,7 @@ export const wardrobeApi = {
     wearItem: (id) => api.post(`/wardrobe/items/${id}/wear`),
     washItem: (id) => api.post(`/wardrobe/items/${id}/wash`),
     moveToLaundry: (id) => api.post(`/wardrobe/items/${id}/to-laundry`),
+    moveToWornBasket: (id) => api.post(`/wardrobe/items/${id}/to-worn-basket`),
     getLaundryItems: () => api.get('/wardrobe/laundry'),
     getRewearSafeItems: () => api.get('/wardrobe/rewear-safe'),
 

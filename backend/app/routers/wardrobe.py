@@ -322,7 +322,7 @@ def wash_item(item_id: UUID, db: Session = Depends(get_db)):
 
 @router.post("/items/{item_id}/to-laundry", response_model=ClothingItemResponse)
 def move_to_laundry(item_id: UUID, db: Session = Depends(get_db)):
-    """Move item to laundry basket."""
+    """Move dirty item to laundry basket (dirty basket for washing)."""
     item = db.query(Item).filter(
         Item.id == item_id,
         Item.item_type == ItemType.CLOTHING
@@ -331,10 +331,10 @@ def move_to_laundry(item_id: UUID, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Clothing item not found")
     
-    # Find laundry location
-    laundry = db.query(Location).filter(Location.kind == LocationKind.LAUNDRY).first()
+    # Find dirty laundry location
+    laundry = db.query(Location).filter(Location.kind == LocationKind.LAUNDRY_DIRTY).first()
     if not laundry:
-        raise HTTPException(status_code=400, detail="No laundry basket location found. Create a location with kind 'laundry' first.")
+        raise HTTPException(status_code=400, detail="No dirty laundry basket found. Create a location with kind 'laundry_dirty' first.")
     
     old_location_id = item.current_location_id
     item.current_location_id = laundry.id
@@ -350,7 +350,48 @@ def move_to_laundry(item_id: UUID, db: Session = Depends(get_db)):
         from_location_id=old_location_id,
         to_location_id=laundry.id,
         action=ActionType.MOVED,
-        notes="Moved to laundry basket",
+        notes="Moved to dirty laundry basket",
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(item)
+    
+    return item_to_clothing_response(item)
+
+
+@router.post("/items/{item_id}/to-worn-basket", response_model=ClothingItemResponse)
+def move_to_worn_basket(item_id: UUID, db: Session = Depends(get_db)):
+    """Move worn (but rewearable) item to worn basket."""
+    item = db.query(Item).filter(
+        Item.id == item_id,
+        Item.item_type == ItemType.CLOTHING
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Clothing item not found")
+    
+    meta = get_clothing_metadata(item)
+    
+    # Check if item is dirty - should go to dirty basket instead
+    if meta.get("cleanliness") == CleanlinessStatus.DIRTY.value:
+        raise HTTPException(status_code=400, detail="Item is dirty, use to-laundry endpoint instead")
+    
+    # Find worn laundry location
+    worn_basket = db.query(Location).filter(Location.kind == LocationKind.LAUNDRY_WORN).first()
+    if not worn_basket:
+        raise HTTPException(status_code=400, detail="No worn clothes basket found. Create a location with kind 'laundry_worn' first.")
+    
+    old_location_id = item.current_location_id
+    item.current_location_id = worn_basket.id
+    item.is_temporary_placement = True
+    item.last_moved_at = datetime.utcnow()
+    
+    history = MovementHistory(
+        item_id=item.id,
+        from_location_id=old_location_id,
+        to_location_id=worn_basket.id,
+        action=ActionType.MOVED,
+        notes="Moved to worn clothes basket",
     )
     db.add(history)
     db.commit()

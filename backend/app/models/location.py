@@ -9,12 +9,13 @@ import enum
 
 class LocationKind(str, enum.Enum):
     """Types of storage locations."""
-    ROOM = "room"           # Bedroom, Bathroom, Kitchen, Living Room
-    FURNITURE = "furniture" # Almirah, Bed, Table, Cabinet
-    CONTAINER = "container" # Box, Drawer, Bin, Basket
-    SURFACE = "surface"     # Desk top, Shelf, Counter
-    PORTABLE = "portable"   # Bag, Suitcase, Backpack
-    LAUNDRY = "laundry"     # Laundry basket/hamper (Wardrobe Module)
+    ROOM = "room"               # Bedroom, Bathroom, Kitchen, Living Room
+    FURNITURE = "furniture"     # Almirah, Bed, Table, Cabinet
+    CONTAINER = "container"     # Box, Drawer, Bin, Basket
+    SURFACE = "surface"         # Desk top, Shelf, Counter
+    PORTABLE = "portable"       # Bag, Suitcase, Backpack
+    LAUNDRY_WORN = "laundry_worn"    # Basket for worn but rewearable clothes
+    LAUNDRY_DIRTY = "laundry_dirty"  # Basket for dirty clothes needing wash
 
 
 class Location(Base):
