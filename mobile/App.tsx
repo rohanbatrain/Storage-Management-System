@@ -14,6 +14,9 @@ import LocationDetailScreen from './src/screens/LocationDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import WardrobeScreen from './src/screens/WardrobeScreen';
+import LaundryScreen from './src/screens/LaundryScreen';
+import OutfitsScreen from './src/screens/OutfitsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -115,6 +118,14 @@ function MainTabs() {
                 options={{
                     title: 'Search',
                     tabBarIcon: ({ focused }: { focused: boolean }) => <TabIcon icon="🔍" focused={focused} />,
+                }}
+            />
+            <Tab.Screen
+                name="SettingsTab"
+                component={SettingsScreen}
+                options={{
+                    title: 'Settings',
+                    tabBarIcon: ({ focused }: { focused: boolean }) => <TabIcon icon="⚙️" focused={focused} />,
                 }}
             />
         </Tab.Navigator>
@@ -263,6 +274,21 @@ function AppContent() {
                         name="Wardrobe"
                         component={WardrobeScreen}
                         options={{ title: 'Wardrobe' }}
+                    />
+                    <Stack.Screen
+                        name="Laundry"
+                        component={LaundryScreen}
+                        options={{ title: 'Laundry' }}
+                    />
+                    <Stack.Screen
+                        name="Outfits"
+                        component={OutfitsScreen}
+                        options={{ title: 'Outfits' }}
+                    />
+                    <Stack.Screen
+                        name="Settings"
+                        component={SettingsScreen}
+                        options={{ title: 'Settings' }}
                     />
                 </Stack.Navigator>
             </NavigationContainer>

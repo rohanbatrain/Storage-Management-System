@@ -16,17 +16,21 @@ const api = axios.create({
     timeout: 10000,
 });
 
-// Location API - Full CRUD
+// Location API - Full CRUD + Aliases
 export const locationApi = {
     list: () => api.get('/locations'),
     getTree: () => api.get('/locations/tree'),
     get: (id: string) => api.get(`/locations/${id}`),
+    getLocationTree: (id: string) => api.get(`/locations/${id}/tree`),
     create: (data: any) => api.post('/locations', data),
     update: (id: string, data: any) => api.put(`/locations/${id}`, data),
     delete: (id: string) => api.delete(`/locations/${id}`),
+    // Aliases
+    addAlias: (id: string, alias: string) => api.post(`/locations/${id}/alias`, { alias }),
+    removeAlias: (id: string, alias: string) => api.delete(`/locations/${id}/alias/${alias}`),
 };
 
-// Item API - Full CRUD
+// Item API - Full CRUD + History
 export const itemApi = {
     list: (params?: any) => api.get('/items', { params }),
     get: (id: string) => api.get(`/items/${id}`),
@@ -35,32 +39,60 @@ export const itemApi = {
     delete: (id: string) => api.delete(`/items/${id}`),
     move: (id: string, data: any) => api.post(`/items/${id}/move`, data),
     return: (id: string) => api.post(`/items/${id}/return`),
+    // History
+    getHistory: (id: string) => api.get(`/items/${id}/history`),
 };
 
 // Search API
 export const searchApi = {
     search: (query: string) => api.get('/search', { params: { q: query } }),
+    searchByAlias: (alias: string) => api.get(`/search/alias/${alias}`),
 };
 
 // QR API
 export const qrApi = {
     getQrUrl: (locationId: string, size = 200) =>
         `${API_BASE_URL}/api/qr/${locationId}?size=${size}`,
+    getItemQrUrl: (itemId: string, size = 200) =>
+        `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}`,
     scanQr: (qrCodeId: string) => api.get(`/qr/scan/${qrCodeId}`),
 };
 
-// Wardrobe API - Full CRUD
+// Wardrobe API - Full CRUD + Laundry + Outfits
 export const wardrobeApi = {
+    // Clothing items
     list: () => api.get('/wardrobe/items'),
     stats: () => api.get('/wardrobe/stats'),
     get: (id: string) => api.get(`/wardrobe/items/${id}`),
     create: (data: any) => api.post('/wardrobe/items', data),
     update: (id: string, data: any) => api.put(`/wardrobe/items/${id}`, data),
     delete: (id: string) => api.delete(`/wardrobe/items/${id}`),
+
+    // Wear and laundry actions
     wear: (id: string) => api.post(`/wardrobe/items/${id}/wear`),
     wash: (id: string) => api.post(`/wardrobe/items/${id}/wash`),
     laundry: (id: string) => api.post(`/wardrobe/items/${id}/to-laundry`),
+    moveToWornBasket: (id: string) => api.post(`/wardrobe/items/${id}/to-worn-basket`),
+
+    // Laundry views
+    getLaundryItems: () => api.get('/wardrobe/laundry'),
+    getRewearSafeItems: () => api.get('/wardrobe/rewear-safe'),
+
+    // Outfits
+    listOutfits: () => api.get('/wardrobe/outfits'),
+    getOutfit: (id: string) => api.get(`/wardrobe/outfits/${id}`),
+    createOutfit: (data: any) => api.post('/wardrobe/outfits', data),
+    updateOutfit: (id: string, data: any) => api.put(`/wardrobe/outfits/${id}`, data),
+    deleteOutfit: (id: string) => api.delete(`/wardrobe/outfits/${id}`),
+    wearOutfit: (id: string) => api.post(`/wardrobe/outfits/${id}/wear`),
+};
+
+// Export API
+export const exportApi = {
+    exportFull: () => api.get('/export/full'),
+    exportSummary: () => api.get('/export/summary'),
 };
 
 export default api;
+
 

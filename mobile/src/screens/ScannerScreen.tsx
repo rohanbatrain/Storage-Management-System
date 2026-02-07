@@ -33,33 +33,60 @@ export default function ScannerScreen() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         // Extract QR code ID from the scanned URL
-        // Expected format: psms://location/psms-loc-xxxxxxxx
-        const match = result.data.match(/psms:\/\/location\/(.+)/);
+        // Expected formats: 
+        // - psms://location/psms-loc-xxxxxxxx
+        // - psms://item/psms-item-xxxxxxxx
+        const locationMatch = result.data.match(/psms:\/\/location\/(.+)/);
+        const itemMatch = result.data.match(/psms:\/\/item\/(.+)/);
 
-        if (match && match[1]) {
-            const qrCodeId = match[1];
+        const qrCodeId = locationMatch?.[1] || itemMatch?.[1];
 
+        if (qrCodeId) {
             try {
                 const response = await qrApi.scanQr(qrCodeId);
-                const location = response.data;
+                const { type, data } = response.data;
 
-                Alert.alert(
-                    'Location Found!',
-                    `${location.name}\n${location.item_count} items`,
-                    [
-                        {
-                            text: 'View Location',
-                            onPress: () => navigation.navigate('LocationDetail', { id: location.id }),
-                        },
-                        {
-                            text: 'Scan Again',
-                            onPress: () => {
-                                setScanned(false);
-                                setScanning(true);
+                if (type === 'location') {
+                    Alert.alert(
+                        '📍 Location Found!',
+                        `${data.name}\n${data.item_count} items • ${data.kind || 'storage'}`,
+                        [
+                            {
+                                text: 'View Location',
+                                onPress: () => navigation.navigate('LocationDetail', { id: data.id }),
                             },
-                        },
-                    ]
-                );
+                            {
+                                text: 'Scan Again',
+                                onPress: () => {
+                                    setScanned(false);
+                                    setScanning(true);
+                                },
+                            },
+                        ]
+                    );
+                } else if (type === 'item') {
+                    Alert.alert(
+                        '📦 Item Found!',
+                        `${data.name}\n📍 Location: ${data.current_location}${data.is_temporary_placement ? '\n⚠️ Temporarily placed' : ''}`,
+                        [
+                            {
+                                text: 'View Item',
+                                onPress: () => navigation.navigate('ItemDetail', { id: data.id }),
+                            },
+                            {
+                                text: 'View Location',
+                                onPress: () => navigation.navigate('LocationDetail', { id: data.current_location_id }),
+                            },
+                            {
+                                text: 'Scan Again',
+                                onPress: () => {
+                                    setScanned(false);
+                                    setScanning(true);
+                                },
+                            },
+                        ]
+                    );
+                }
             } catch (error) {
                 Alert.alert(
                     'Not Found',
@@ -78,7 +105,7 @@ export default function ScannerScreen() {
         } else {
             Alert.alert(
                 'Invalid QR Code',
-                'This QR code is not a valid PSMS location code.',
+                'This QR code is not a valid PSMS code.',
                 [
                     {
                         text: 'Scan Again',

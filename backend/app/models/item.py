@@ -47,6 +47,7 @@ class Item(Base):
     tags = Column(JSONB, default=[])
     is_temporary_placement = Column(Boolean, default=False, nullable=False)
     last_moved_at = Column(DateTime, nullable=True)
+    qr_code_id = Column(String(100), unique=True, nullable=True, index=True)  # For QR scanning
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     

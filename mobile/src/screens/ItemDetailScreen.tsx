@@ -9,11 +9,12 @@ import {
     RefreshControl,
     Modal,
     Switch,
+    Image,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import { itemApi, locationApi } from '../services/api';
+import { itemApi, locationApi, qrApi } from '../services/api';
 import FormModal, { ConfirmDialog, LocationPicker } from '../components/FormModal';
 
 export default function ItemDetailScreen() {
@@ -24,6 +25,7 @@ export default function ItemDetailScreen() {
 
     const [item, setItem] = useState<any>(null);
     const [locations, setLocations] = useState<any[]>([]);
+    const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -32,15 +34,18 @@ export default function ItemDetailScreen() {
     const [moveModalVisible, setMoveModalVisible] = useState(false);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+    const [showQR, setShowQR] = useState(false);
 
     const loadData = async () => {
         try {
-            const [itemRes, locRes] = await Promise.all([
+            const [itemRes, locRes, histRes] = await Promise.all([
                 itemApi.get(id),
                 locationApi.getTree(),
+                itemApi.getHistory(id).catch(() => ({ data: [] })),
             ]);
             setItem(itemRes.data);
             setLocations(locRes.data);
+            setHistory(histRes.data || []);
         } catch (error) {
             console.error('Failed to load item:', error);
             Alert.alert('Error', 'Failed to load item details');
@@ -222,6 +227,16 @@ export default function ItemDetailScreen() {
                             <Text style={[styles.actionLabel, { color: colors.accentPrimary }]}>Edit</Text>
                         </TouchableOpacity>
 
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.info + '15' }]}
+                            onPress={() => setShowQR(!showQR)}
+                        >
+                            <Text style={styles.actionIcon}>📱</Text>
+                            <Text style={[styles.actionLabel, { color: colors.info }]}>
+                                {showQR ? 'Hide QR' : 'Show QR'}
+                            </Text>
+                        </TouchableOpacity>
+
                         {item.is_temporary_placement && item.permanent_location_id && (
                             <TouchableOpacity
                                 style={[styles.actionButton, { backgroundColor: colors.success + '15' }]}
@@ -251,6 +266,18 @@ export default function ItemDetailScreen() {
                     </View>
                 </View>
 
+                {/* QR Code */}
+                {showQR && (
+                    <View style={styles.qrContainer}>
+                        <Image
+                            source={{ uri: qrApi.getItemQrUrl(id, 200) }}
+                            style={styles.qrCode}
+                        />
+                        <Text style={styles.qrLabel}>Scan to find this item</Text>
+                        <Text style={styles.qrHint}>Print and attach to item for easy tracking</Text>
+                    </View>
+                )}
+
                 {/* Item Details */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>📋 Details</Text>
@@ -275,6 +302,30 @@ export default function ItemDetailScreen() {
                         )}
                     </View>
                 </View>
+
+                {/* Movement History */}
+                {history.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>📜 Movement History</Text>
+                        <View style={styles.detailsCard}>
+                            {history.slice(0, 5).map((entry: any, idx: number) => (
+                                <View key={entry.id || idx} style={styles.historyItem}>
+                                    <Text style={styles.historyAction}>
+                                        {entry.action === 'move' ? '📦 Moved' :
+                                            entry.action === 'return' ? '↩️ Returned' :
+                                                entry.action === 'create' ? '➕ Created' : entry.action}
+                                    </Text>
+                                    <Text style={styles.historyTime}>
+                                        {new Date(entry.moved_at).toLocaleDateString()}
+                                    </Text>
+                                </View>
+                            ))}
+                            {history.length > 5 && (
+                                <Text style={styles.historyMore}>+{history.length - 5} more entries</Text>
+                            )}
+                        </View>
+                    </View>
+                )}
             </ScrollView>
 
             {/* Edit Modal */}
@@ -679,5 +730,56 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         color: colors.textPrimary,
+    },
+    // History styles
+    historyItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    historyAction: {
+        fontSize: 14,
+        color: colors.textPrimary,
+    },
+    historyTime: {
+        fontSize: 12,
+        color: colors.textMuted,
+    },
+    historyMore: {
+        fontSize: 12,
+        color: colors.accentPrimary,
+        textAlign: 'center',
+        paddingTop: spacing.sm,
+    },
+    // QR styles
+    qrContainer: {
+        alignItems: 'center',
+        backgroundColor: colors.bgSecondary,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        marginBottom: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    qrCode: {
+        width: 200,
+        height: 200,
+        borderRadius: borderRadius.md,
+        backgroundColor: '#fff',
+    },
+    qrLabel: {
+        marginTop: spacing.md,
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textPrimary,
+    },
+    qrHint: {
+        marginTop: spacing.xs,
+        fontSize: 12,
+        color: colors.textMuted,
+        textAlign: 'center',
     },
 });
