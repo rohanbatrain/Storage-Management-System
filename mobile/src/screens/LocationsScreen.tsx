@@ -161,7 +161,7 @@ export default function LocationsScreen() {
 
 const styles = StyleSheet.create({
     content: {
-        paddingBottom: spacing.xxl,
+        paddingBottom: 120, // Extra padding for tab bar
     },
     center: {
         justifyContent: 'center',

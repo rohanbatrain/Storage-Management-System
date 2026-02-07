@@ -1,5 +1,8 @@
 import { StyleSheet } from 'react-native';
 
+// Tab bar height for consistent bottom padding
+export const TAB_BAR_HEIGHT = 100;
+
 export const colors = {
     bgPrimary: '#0f0f14',
     bgSecondary: '#1a1a24',
