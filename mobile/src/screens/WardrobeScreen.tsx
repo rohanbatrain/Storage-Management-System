@@ -8,10 +8,13 @@ import {
     RefreshControl,
     Image,
     Alert,
+    Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, typography, globalStyles } from '../styles/theme';
-import { wardrobeApi, locationApi } from '../services/api';
+import { wardrobeApi } from '../services/api';
+
+const { width } = Dimensions.get('window');
 
 const categoryLabels: { [key: string]: string } = {
     tshirt: '👕 T-Shirt',
@@ -36,6 +39,13 @@ const cleanlinessColors: { [key: string]: string } = {
     washing: colors.info,
 };
 
+const cleanlinessIcons: { [key: string]: string } = {
+    fresh: '✨',
+    worn: '👕',
+    dirty: '🧺',
+    washing: '🌀',
+};
+
 interface ClothingItem {
     id: string;
     name: string;
@@ -48,6 +58,21 @@ interface ClothingItem {
     image_url?: string;
 }
 
+interface StatCardProps {
+    icon: string;
+    value: number;
+    label: string;
+    color: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ icon, value, label, color }) => (
+    <View style={[styles.statCard, { borderBottomColor: color, borderBottomWidth: 3 }]}>
+        <Text style={styles.statIcon}>{icon}</Text>
+        <Text style={[styles.statValue, { color }]}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+    </View>
+);
+
 interface ClothingCardProps {
     item: ClothingItem;
     onWear: () => void;
@@ -55,50 +80,85 @@ interface ClothingCardProps {
     onLaundry: () => void;
 }
 
-const ClothingCard: React.FC<ClothingCardProps> = ({ item, onWear, onWash, onLaundry }) => (
-    <View style={styles.clothingCard}>
-        {item.image_url && (
-            <Image
-                source={{ uri: item.image_url }}
-                style={styles.clothingImage}
-                resizeMode="cover"
-            />
-        )}
-        <View style={globalStyles.spaceBetween}>
-            <View style={{ flex: 1 }}>
-                <Text style={globalStyles.text}>{item.name}</Text>
-                <Text style={globalStyles.textMuted}>
-                    {categoryLabels[item.category] || item.category}
-                </Text>
-            </View>
-            <View style={[styles.badge, { backgroundColor: cleanlinessColors[item.cleanliness] + '30' }]}>
-                <Text style={[styles.badgeText, { color: cleanlinessColors[item.cleanliness] }]}>
-                    {item.cleanliness}
-                </Text>
+const ClothingCard: React.FC<ClothingCardProps> = ({ item, onWear, onWash, onLaundry }) => {
+    const statusColor = cleanlinessColors[item.cleanliness] || colors.textMuted;
+    const wearProgress = item.wear_count_since_wash / item.max_wears_before_wash;
+
+    return (
+        <View style={styles.clothingCard}>
+            {/* Image or Placeholder */}
+            {item.image_url ? (
+                <Image
+                    source={{ uri: item.image_url }}
+                    style={styles.clothingImage}
+                    resizeMode="cover"
+                />
+            ) : (
+                <View style={[styles.clothingImage, styles.imagePlaceholder]}>
+                    <Text style={styles.placeholderIcon}>👕</Text>
+                </View>
+            )}
+
+            {/* Content */}
+            <View style={styles.cardContent}>
+                <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        <Text style={styles.itemCategory}>
+                            {categoryLabels[item.category] || item.category}
+                        </Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
+                        <Text style={{ fontSize: 12 }}>{cleanlinessIcons[item.cleanliness]}</Text>
+                        <Text style={[styles.statusText, { color: statusColor }]}>
+                            {item.cleanliness}
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Wear Progress */}
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                        <View
+                            style={[
+                                styles.progressFill,
+                                {
+                                    width: `${Math.min(wearProgress * 100, 100)}%`,
+                                    backgroundColor: wearProgress >= 1 ? colors.error : wearProgress >= 0.7 ? colors.warning : colors.success
+                                }
+                            ]}
+                        />
+                    </View>
+                    <Text style={styles.progressText}>
+                        {item.wear_count_since_wash}/{item.max_wears_before_wash} wears
+                    </Text>
+                </View>
+
+                {/* Actions */}
+                <View style={styles.actionsRow}>
+                    {item.can_rewear && (
+                        <TouchableOpacity style={styles.actionBtn} onPress={onWear}>
+                            <Text style={styles.actionIcon}>👕</Text>
+                            <Text style={styles.actionText}>Wear</Text>
+                        </TouchableOpacity>
+                    )}
+                    {item.cleanliness === 'dirty' && (
+                        <TouchableOpacity style={styles.actionBtn} onPress={onLaundry}>
+                            <Text style={styles.actionIcon}>🧺</Text>
+                            <Text style={styles.actionText}>Laundry</Text>
+                        </TouchableOpacity>
+                    )}
+                    {(item.cleanliness === 'washing' || item.cleanliness === 'dirty') && (
+                        <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={onWash}>
+                            <Text style={styles.actionIcon}>✨</Text>
+                            <Text style={[styles.actionText, { color: colors.textPrimary }]}>Washed</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
         </View>
-        <Text style={globalStyles.textSecondary}>
-            Wears: {item.wear_count_since_wash} / {item.max_wears_before_wash}
-        </Text>
-        <View style={styles.actionsRow}>
-            {item.can_rewear && (
-                <TouchableOpacity style={globalStyles.btnPrimary} onPress={onWear}>
-                    <Text style={globalStyles.btnText}>👕 Wear</Text>
-                </TouchableOpacity>
-            )}
-            {item.cleanliness === 'dirty' && (
-                <TouchableOpacity style={globalStyles.btnSecondary} onPress={onLaundry}>
-                    <Text style={globalStyles.btnText}>🧺 Laundry</Text>
-                </TouchableOpacity>
-            )}
-            {(item.cleanliness === 'washing' || item.cleanliness === 'dirty') && (
-                <TouchableOpacity style={globalStyles.btnSecondary} onPress={onWash}>
-                    <Text style={globalStyles.btnText}>✨ Washed</Text>
-                </TouchableOpacity>
-            )}
-        </View>
-    </View>
-);
+    );
+};
 
 export default function WardrobeScreen() {
     const navigation = useNavigation<any>();
@@ -162,6 +222,7 @@ export default function WardrobeScreen() {
     if (loading) {
         return (
             <View style={[globalStyles.container, styles.center]}>
+                <Text style={styles.loadingIcon}>👕</Text>
                 <Text style={globalStyles.textMuted}>Loading wardrobe...</Text>
             </View>
         );
@@ -171,6 +232,7 @@ export default function WardrobeScreen() {
         <ScrollView
             style={globalStyles.container}
             contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -179,46 +241,33 @@ export default function WardrobeScreen() {
                 />
             }
         >
+            {/* Header */}
+            <View style={styles.header}>
+                <Text style={styles.headerIcon}>👕</Text>
+                <Text style={styles.headerTitle}>Your Wardrobe</Text>
+                <Text style={styles.headerSubtitle}>Track what you wear</Text>
+            </View>
+
             {/* Stats */}
             {stats && (
                 <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: colors.accentPrimary }]}>
-                            {stats.total_items}
-                        </Text>
-                        <Text style={globalStyles.textMuted}>Total</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: colors.success }]}>
-                            {stats.fresh_count}
-                        </Text>
-                        <Text style={globalStyles.textMuted}>Fresh</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: colors.warning }]}>
-                            {stats.worn_count}
-                        </Text>
-                        <Text style={globalStyles.textMuted}>Worn</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: colors.error }]}>
-                            {stats.dirty_count}
-                        </Text>
-                        <Text style={globalStyles.textMuted}>Dirty</Text>
-                    </View>
+                    <StatCard icon="👕" value={stats.total_items} label="Total" color={colors.accentPrimary} />
+                    <StatCard icon="✨" value={stats.fresh_count} label="Fresh" color={colors.success} />
+                    <StatCard icon="👔" value={stats.worn_count} label="Worn" color={colors.warning} />
+                    <StatCard icon="🧺" value={stats.dirty_count} label="Dirty" color={colors.error} />
                 </View>
             )}
 
             {/* Items */}
             <View style={styles.section}>
-                <Text style={[globalStyles.subtitle, { marginBottom: spacing.md }]}>
-                    👕 Your Clothes ({items.length})
+                <Text style={styles.sectionTitle}>
+                    Your Clothes ({items.length})
                 </Text>
                 {items.length === 0 ? (
                     <View style={styles.emptyState}>
-                        <Text style={{ fontSize: 48, marginBottom: spacing.md }}>👕</Text>
-                        <Text style={globalStyles.text}>No clothes yet</Text>
-                        <Text style={globalStyles.textMuted}>Add items from the web app</Text>
+                        <Text style={styles.emptyIcon}>👕</Text>
+                        <Text style={styles.emptyTitle}>No clothes yet</Text>
+                        <Text style={styles.emptyText}>Add items from the web app</Text>
                     </View>
                 ) : (
                     <View style={styles.itemsList}>
@@ -240,7 +289,6 @@ export default function WardrobeScreen() {
 
 const styles = StyleSheet.create({
     content: {
-        padding: spacing.lg,
         paddingBottom: spacing.xxl,
     },
     center: {
@@ -248,63 +296,192 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         flex: 1,
     },
+    loadingIcon: {
+        fontSize: 48,
+        marginBottom: spacing.md,
+    },
+    // Header
+    header: {
+        alignItems: 'center',
+        paddingVertical: spacing.xl,
+        paddingHorizontal: spacing.lg,
+        backgroundColor: '#a855f720',
+    },
+    headerIcon: {
+        fontSize: 48,
+        marginBottom: spacing.sm,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: colors.textPrimary,
+        marginBottom: spacing.xs,
+    },
+    headerSubtitle: {
+        fontSize: typography.sm,
+        color: colors.textSecondary,
+    },
+    // Stats
     statsRow: {
         flexDirection: 'row',
+        paddingHorizontal: spacing.md,
+        marginTop: -spacing.md,
         gap: spacing.sm,
-        marginBottom: spacing.xl,
     },
     statCard: {
         flex: 1,
         backgroundColor: colors.bgSecondary,
         borderRadius: borderRadius.lg,
-        padding: spacing.md,
+        padding: spacing.sm,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: colors.border,
     },
+    statIcon: {
+        fontSize: 18,
+        marginBottom: 2,
+    },
     statValue: {
-        fontSize: typography.xxl,
+        fontSize: typography.xl,
         fontWeight: '700',
     },
-    section: {
-        marginBottom: spacing.xl,
+    statLabel: {
+        fontSize: 10,
+        color: colors.textMuted,
     },
+    // Section
+    section: {
+        paddingHorizontal: spacing.md,
+        marginTop: spacing.xl,
+    },
+    sectionTitle: {
+        fontSize: typography.lg,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: spacing.md,
+    },
+    // Items
     itemsList: {
         gap: spacing.md,
     },
     clothingCard: {
         backgroundColor: colors.bgSecondary,
         borderRadius: borderRadius.lg,
-        padding: spacing.md,
+        overflow: 'hidden',
         borderWidth: 1,
         borderColor: colors.border,
-        gap: spacing.sm,
     },
     clothingImage: {
         width: '100%',
-        height: 120,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.sm,
+        height: 140,
     },
-    badge: {
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.full,
+    imagePlaceholder: {
+        backgroundColor: colors.bgTertiary,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    badgeText: {
+    placeholderIcon: {
+        fontSize: 48,
+        opacity: 0.5,
+    },
+    cardContent: {
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    itemName: {
+        fontSize: typography.md,
+        fontWeight: '600',
+        color: colors.textPrimary,
+    },
+    itemCategory: {
         fontSize: typography.xs,
+        color: colors.textMuted,
+    },
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        gap: 4,
+    },
+    statusText: {
+        fontSize: 11,
         fontWeight: '600',
         textTransform: 'capitalize',
     },
+    // Progress
+    progressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    progressBar: {
+        flex: 1,
+        height: 4,
+        backgroundColor: colors.bgTertiary,
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 2,
+    },
+    progressText: {
+        fontSize: 11,
+        color: colors.textMuted,
+    },
+    // Actions
     actionsRow: {
         flexDirection: 'row',
         gap: spacing.sm,
-        marginTop: spacing.sm,
+        marginTop: spacing.xs,
     },
-    emptyState: {
-        backgroundColor: colors.bgTertiary,
-        borderRadius: borderRadius.lg,
-        padding: spacing.xl,
+    actionBtn: {
+        flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: colors.bgTertiary,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        gap: spacing.xs,
+    },
+    actionBtnPrimary: {
+        backgroundColor: colors.accentPrimary,
+    },
+    actionIcon: {
+        fontSize: 14,
+    },
+    actionText: {
+        fontSize: typography.sm,
+        fontWeight: '500',
+        color: colors.textSecondary,
+    },
+    // Empty State
+    emptyState: {
+        backgroundColor: colors.bgSecondary,
+        borderRadius: borderRadius.lg,
+        padding: spacing.xxl,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    emptyIcon: {
+        fontSize: 56,
+        marginBottom: spacing.md,
+    },
+    emptyTitle: {
+        fontSize: typography.lg,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: spacing.sm,
+    },
+    emptyText: {
+        fontSize: typography.sm,
+        color: colors.textMuted,
     },
 });

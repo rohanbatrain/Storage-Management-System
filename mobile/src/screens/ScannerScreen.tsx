@@ -7,7 +7,7 @@ import {
     Alert,
     Vibration,
 } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
@@ -15,18 +15,15 @@ import { qrApi } from '../services/api';
 
 export default function ScannerScreen() {
     const navigation = useNavigation<any>();
-    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
     const [scanning, setScanning] = useState(true);
 
     useEffect(() => {
-        const getBarCodeScannerPermissions = async () => {
-            const { status } = await BarCodeScanner.requestPermissionsAsync();
-            setHasPermission(status === 'granted');
-        };
-
-        getBarCodeScannerPermissions();
-    }, []);
+        if (!permission) {
+            requestPermission();
+        }
+    }, [permission]);
 
     const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
         if (scanned) return;
@@ -96,7 +93,7 @@ export default function ScannerScreen() {
         }
     };
 
-    if (hasPermission === null) {
+    if (!permission) {
         return (
             <View style={[globalStyles.container, styles.center]}>
                 <Text style={globalStyles.text}>Requesting camera permission...</Text>
@@ -104,13 +101,16 @@ export default function ScannerScreen() {
         );
     }
 
-    if (hasPermission === false) {
+    if (!permission.granted) {
         return (
             <View style={[globalStyles.container, styles.center]}>
                 <Text style={globalStyles.text}>Camera access denied</Text>
-                <Text style={globalStyles.textSecondary}>
+                <Text style={[globalStyles.textSecondary, { marginBottom: spacing.md }]}>
                     Please enable camera access in your device settings.
                 </Text>
+                <TouchableOpacity style={globalStyles.btnPrimary} onPress={requestPermission}>
+                    <Text style={globalStyles.btnText}>Grant Permission</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -118,8 +118,11 @@ export default function ScannerScreen() {
     return (
         <View style={globalStyles.container}>
             {scanning && (
-                <BarCodeScanner
-                    onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+                <CameraView
+                    onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                    barcodeScannerSettings={{
+                        barcodeTypes: ['qr'],
+                    }}
                     style={StyleSheet.absoluteFillObject}
                 />
             )}
