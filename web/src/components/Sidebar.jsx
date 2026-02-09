@@ -27,7 +27,10 @@ const kindConfig = {
     laundry_dirty: { icon: Droplets, color: '#ef4444', label: 'Dirty' },
 };
 
-function TreeNode({ node, level = 0 }) {
+// Max depth before we start compressing the indent
+const MAX_INDENT_LEVEL = 3;
+
+function TreeNode({ node, level = 0, parentPath = [] }) {
     const [expanded, setExpanded] = useState(level < 2);
     const location = useLocation();
     const hasChildren = node.children && node.children.length > 0;
@@ -35,75 +38,144 @@ function TreeNode({ node, level = 0 }) {
     const Icon = config.icon;
     const isActive = location.pathname === `/location/${node.id}`;
 
+    // Compress indent for deep nesting (max 3 levels of visual indent)
+    const visualLevel = Math.min(level, MAX_INDENT_LEVEL);
+    const isDeepNested = level > MAX_INDENT_LEVEL;
+
+    // Build breadcrumb path for deeply nested items
+    const currentPath = [...parentPath, node.name];
+
     return (
-        <li className="tree-item">
+        <li className="tree-item" style={{ listStyle: 'none' }}>
             <div
                 className={`tree-node ${isActive ? 'active' : ''}`}
-                style={{ paddingLeft: `${level * 16 + 8}px` }}
+                style={{
+                    paddingLeft: `${visualLevel * 12 + 8}px`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: `6px ${visualLevel * 12 + 8}px`,
+                    borderRadius: '6px',
+                    margin: '1px 4px',
+                    background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                    border: isActive ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+                    transition: 'all 0.15s ease',
+                    cursor: 'pointer',
+                }}
+                onMouseEnter={e => {
+                    if (!isActive) {
+                        e.currentTarget.style.background = 'var(--color-bg-tertiary)';
+                    }
+                }}
+                onMouseLeave={e => {
+                    if (!isActive) {
+                        e.currentTarget.style.background = 'transparent';
+                    }
+                }}
             >
+                {/* Expand/Collapse Toggle */}
                 {hasChildren ? (
                     <span
-                        className={`tree-toggle ${expanded ? 'expanded' : ''}`}
-                        onClick={() => setExpanded(!expanded)}
+                        onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
                         style={{
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             borderRadius: 4,
-                            transition: 'background 0.15s',
+                            color: 'var(--color-text-muted)',
+                            flexShrink: 0,
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-tertiary)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </span>
                 ) : (
-                    <span style={{ width: 20 }} />
+                    <span style={{ width: 18, flexShrink: 0 }} />
                 )}
+
+                {/* Icon */}
                 <div style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 5,
                     background: `${config.color}20`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                 }}>
-                    <Icon size={14} style={{ color: config.color }} />
+                    <Icon size={12} style={{ color: config.color }} />
                 </div>
+
+                {/* Name & Depth Indicator */}
                 <Link
                     to={`/location/${node.id}`}
+                    onClick={e => e.stopPropagation()}
                     style={{
                         flex: 1,
-                        color: 'inherit',
+                        color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
+                        fontSize: '0.85rem',
+                        fontWeight: isActive ? 600 : 500,
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
                     }}
                 >
-                    {node.name}
+                    {/* Show depth indicator for deep nesting */}
+                    {isDeepNested && (
+                        <span style={{
+                            fontSize: '0.65rem',
+                            color: 'var(--color-text-muted)',
+                            background: 'var(--color-bg-tertiary)',
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            fontWeight: 600,
+                        }}>
+                            L{level + 1}
+                        </span>
+                    )}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {node.name}
+                    </span>
                 </Link>
-                {(node.item_count > 0 || node.children_count > 0) && (
+
+                {/* Count Badge */}
+                {(node.item_count > 0 || (hasChildren && node.children_count > 0)) && (
                     <span style={{
-                        fontSize: 'var(--font-size-xs)',
+                        fontSize: '0.65rem',
                         color: 'var(--color-text-muted)',
                         background: 'var(--color-bg-tertiary)',
                         padding: '2px 6px',
                         borderRadius: 10,
-                        marginLeft: 'auto',
+                        fontWeight: 600,
+                        flexShrink: 0,
                     }}>
-                        {node.item_count > 0 ? node.item_count : node.children_count}
+                        {node.item_count > 0 ? `${node.item_count}` : `${node.children_count}↓`}
                     </span>
                 )}
             </div>
+
+            {/* Children */}
             {hasChildren && expanded && (
-                <ul className="tree-children" style={{ borderLeft: '1px solid var(--color-border)', marginLeft: level * 16 + 18 }}>
+                <ul style={{
+                    margin: 0,
+                    padding: 0,
+                    marginLeft: visualLevel < MAX_INDENT_LEVEL ? 12 : 0,
+                    borderLeft: visualLevel < MAX_INDENT_LEVEL ? '1px solid var(--color-border)' : 'none',
+                }}>
                     {node.children.map(child => (
-                        <TreeNode key={child.id} node={child} level={level + 1} />
+                        <TreeNode
+                            key={child.id}
+                            node={child}
+                            level={level + 1}
+                            parentPath={currentPath}
+                        />
                     ))}
                 </ul>
             )}
@@ -119,12 +191,14 @@ function NavItem({ to, icon: Icon, label, color, isActive }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 'var(--space-sm)',
-                padding: 'var(--space-sm) var(--space-md)',
+                padding: '8px 12px',
                 borderRadius: 'var(--radius-md)',
                 color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                background: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
+                background: isActive ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                border: isActive ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid transparent',
                 transition: 'all 0.15s',
                 textDecoration: 'none',
+                fontSize: '0.875rem',
             }}
             onMouseEnter={e => {
                 if (!isActive) e.currentTarget.style.background = 'var(--color-bg-tertiary)';
@@ -134,15 +208,15 @@ function NavItem({ to, icon: Icon, label, color, isActive }) {
             }}
         >
             <div style={{
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 borderRadius: 6,
                 background: `${color}20`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
-                <Icon size={16} style={{ color }} />
+                <Icon size={14} style={{ color }} />
             </div>
             <span style={{ fontWeight: isActive ? 600 : 500 }}>{label}</span>
         </Link>
@@ -152,12 +226,15 @@ function NavItem({ to, icon: Icon, label, color, isActive }) {
 function SectionLabel({ children }) {
     return (
         <div style={{
-            fontSize: 'var(--font-size-xs)',
-            fontWeight: 600,
+            fontSize: '0.65rem',
+            fontWeight: 700,
             color: 'var(--color-text-muted)',
             textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            padding: 'var(--space-md) var(--space-md) var(--space-sm)',
+            letterSpacing: '0.75px',
+            padding: '16px 12px 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
         }}>
             {children}
         </div>
@@ -167,6 +244,7 @@ function SectionLabel({ children }) {
 function Sidebar() {
     const [tree, setTree] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [collapsed, setCollapsed] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -186,25 +264,34 @@ function Sidebar() {
     };
 
     return (
-        <aside className="sidebar">
+        <aside className="sidebar" style={{
+            width: 260,
+            height: '100vh',
+            background: 'var(--color-bg-secondary)',
+            borderRight: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+        }}>
             {/* Logo */}
-            <div className="sidebar-header">
-                <Link to="/" className="sidebar-logo">
+            <div style={{ padding: '16px', borderBottom: '1px solid var(--color-border)' }}>
+                <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
                     <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        background: 'var(--gradient-primary)',
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
                     }}>
-                        <Box size={20} style={{ color: 'white' }} />
+                        <Box size={16} style={{ color: 'white' }} />
                     </div>
                     <span style={{
-                        fontSize: 'var(--font-size-xl)',
+                        fontSize: '1.1rem',
                         fontWeight: 700,
-                        background: 'var(--gradient-primary)',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                     }}>
@@ -214,13 +301,28 @@ function Sidebar() {
             </div>
 
             {/* Search */}
-            <div style={{ padding: 'var(--space-sm) var(--space-md)' }}>
-                <div className="search-box">
-                    <Search size={16} className="search-icon" />
+            <div style={{ padding: '12px' }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'var(--color-bg-primary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                }}>
+                    <Search size={14} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
                     <input
                         type="text"
-                        className="input"
-                        placeholder="Search items..."
+                        placeholder="Search..."
+                        style={{
+                            flex: 1,
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            color: 'var(--color-text-primary)',
+                            fontSize: '0.85rem',
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && e.target.value) {
                                 navigate(`/search?q=${encodeURIComponent(e.target.value)}`);
@@ -231,21 +333,44 @@ function Sidebar() {
             </div>
 
             {/* Quick Add */}
-            <div style={{ padding: '0 var(--space-md) var(--space-md)' }}>
+            <div style={{ padding: '0 12px 12px' }}>
                 <button
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
                     onClick={() => navigate('/?action=add-location')}
+                    style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: 'var(--radius-md)',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.25)',
+                        transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.35)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.25)';
+                    }}
                 >
                     <Plus size={16} />
                     Add Location
                 </button>
             </div>
 
-            <nav className="sidebar-content">
+            <nav style={{ flex: 1, overflow: 'auto', paddingBottom: '12px' }}>
                 {/* Main Navigation */}
                 <SectionLabel>Menu</SectionLabel>
-                <div style={{ padding: '0 var(--space-sm)', marginBottom: 'var(--space-md)' }}>
+                <div style={{ padding: '0 8px', marginBottom: '8px' }}>
                     <NavItem
                         to="/"
                         icon={Home}
@@ -283,33 +408,31 @@ function Sidebar() {
                     />
                 </div>
 
-                {/* Locations */}
+                {/* Locations Tree */}
                 <SectionLabel>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
-                        <MapPin size={12} />
-                        Locations
-                    </div>
+                    <MapPin size={10} />
+                    Locations
                 </SectionLabel>
 
                 {loading ? (
-                    <div style={{ padding: 'var(--space-md)', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                    <div style={{ padding: '16px', color: 'var(--color-text-muted)', fontSize: '0.8rem', textAlign: 'center' }}>
                         Loading...
                     </div>
                 ) : tree.length === 0 ? (
                     <div style={{
-                        padding: 'var(--space-md)',
+                        padding: '20px 16px',
                         color: 'var(--color-text-muted)',
-                        fontSize: 'var(--font-size-sm)',
+                        fontSize: '0.8rem',
                         textAlign: 'center',
                     }}>
-                        <MapPin size={24} style={{ marginBottom: 'var(--space-sm)', opacity: 0.5 }} />
+                        <MapPin size={20} style={{ marginBottom: '8px', opacity: 0.5 }} />
                         <div>No locations yet</div>
-                        <div style={{ fontSize: 'var(--font-size-xs)', marginTop: 4 }}>
+                        <div style={{ fontSize: '0.7rem', marginTop: '4px', opacity: 0.7 }}>
                             Click "Add Location" to start
                         </div>
                     </div>
                 ) : (
-                    <ul className="tree" style={{ padding: '0 var(--space-xs)' }}>
+                    <ul style={{ margin: 0, padding: '0 4px' }}>
                         {tree.map(node => (
                             <TreeNode key={node.id} node={node} />
                         ))}
@@ -319,7 +442,7 @@ function Sidebar() {
 
             {/* Footer */}
             <div style={{
-                padding: 'var(--space-md)',
+                padding: '12px',
                 borderTop: '1px solid var(--color-border)',
             }}>
                 <Link
@@ -327,13 +450,25 @@ function Sidebar() {
                     style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 'var(--space-sm)',
-                        padding: 'var(--space-sm) var(--space-md)',
+                        gap: '8px',
+                        padding: '8px 12px',
                         borderRadius: 'var(--radius-md)',
                         color: location.pathname === '/settings' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
                         background: location.pathname === '/settings' ? 'var(--color-bg-tertiary)' : 'transparent',
                         textDecoration: 'none',
-                        fontSize: 'var(--font-size-sm)',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                        if (location.pathname !== '/settings') {
+                            e.currentTarget.style.background = 'var(--color-bg-tertiary)';
+                        }
+                    }}
+                    onMouseLeave={e => {
+                        if (location.pathname !== '/settings') {
+                            e.currentTarget.style.background = 'transparent';
+                        }
                     }}
                 >
                     ⚙️ Settings
