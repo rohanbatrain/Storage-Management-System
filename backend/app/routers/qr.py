@@ -106,15 +106,24 @@ def generate_bulk_pdf(
         qr = qrcode.QRCode(version=1, box_size=10, border=2)
         qr.add_data(qr_data)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
         
-        # Save QR to temp bytes
+        # Create the QR image and convert to RGB mode for proper PNG handling
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to PIL Image and ensure RGB mode
+        from PIL import Image as PILImage
+        if hasattr(qr_img, 'convert'):
+            pil_img = qr_img.convert('RGB')
+        else:
+            pil_img = qr_img.get_image().convert('RGB')
+        
+        # Save to bytes buffer with explicit PNG format
         img_buffer = io.BytesIO()
-        img.save(img_buffer, format='PNG')
+        pil_img.save(img_buffer, format='PNG')
         img_buffer.seek(0)
         
-        # Add QR image to PDF
-        pdf.image(img_buffer, x=x, y=y, w=qr_size, h=qr_size)
+        # Add QR image to PDF with explicit type
+        pdf.image(img_buffer, x=x, y=y, w=qr_size, h=qr_size, type='PNG')
         
         # Add name label below QR
         pdf.set_xy(x, y + qr_size + 2)
