@@ -331,21 +331,21 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     
     # Delete movement history records that reference these locations
     if location_ids:
+        # Use IN clause with proper UUID casting for PostgreSQL
+        ids_str = ",".join([f"'{id}'::uuid" for id in location_ids])
+        
         db.execute(
-            text("DELETE FROM movement_history WHERE to_location_id = ANY(:ids) OR from_location_id = ANY(:ids)"),
-            {"ids": location_ids}
+            text(f"DELETE FROM movement_history WHERE to_location_id IN ({ids_str}) OR from_location_id IN ({ids_str})")
         )
         
         # Delete items in these locations
         db.execute(
-            text("DELETE FROM items WHERE current_location_id = ANY(:ids) OR permanent_location_id = ANY(:ids)"),
-            {"ids": location_ids}
+            text(f"DELETE FROM items WHERE current_location_id IN ({ids_str}) OR permanent_location_id IN ({ids_str})")
         )
         
         # Delete the locations (children first due to parent_id FK)
         db.execute(
-            text("DELETE FROM locations WHERE id = ANY(:ids)"),
-            {"ids": location_ids}
+            text(f"DELETE FROM locations WHERE id IN ({ids_str})")
         )
     
     db.commit()
