@@ -44,7 +44,19 @@ export const searchApi = {
 export const qrApi = {
     getQrUrl: (locationId, size = 200) =>
         `${API_BASE_URL}/api/qr/${locationId}?size=${size}`,
+    getItemQrUrl: (itemId, size = 200) =>
+        `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}`,
+    getItemSequenceQrUrl: (itemId, seq, total, size = 150) =>
+        `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}&seq=${seq}&of=${total}`,
+    getBulkPdfUrl: (type, ids) =>
+        `${API_BASE_URL}/api/qr/bulk-pdf?type=${type}&ids=${ids.join(',')}`,
     scanQr: (qrCodeId) => api.get(`/qr/scan/${qrCodeId}`),
+};
+
+// Export API
+export const exportApi = {
+    exportFull: () => api.get('/export'),
+    exportSummary: () => api.get('/export/summary'),
 };
 
 // Wardrobe API
@@ -76,3 +88,4 @@ export const wardrobeApi = {
 };
 
 export default api;
+

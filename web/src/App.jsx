@@ -5,6 +5,10 @@ import LocationDetail from './pages/LocationDetail';
 import ItemDetail from './pages/ItemDetail';
 import Search from './pages/Search';
 import Wardrobe from './pages/Wardrobe';
+import Laundry from './pages/Laundry';
+import Outfits from './pages/Outfits';
+import Settings from './pages/Settings';
+import QRPrint from './pages/QRPrint';
 
 function App() {
     return (
@@ -17,6 +21,10 @@ function App() {
                     <Route path="/item/:id" element={<ItemDetail />} />
                     <Route path="/search" element={<Search />} />
                     <Route path="/wardrobe" element={<Wardrobe />} />
+                    <Route path="/laundry" element={<Laundry />} />
+                    <Route path="/outfits" element={<Outfits />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/qr-print" element={<QRPrint />} />
                 </Routes>
             </main>
         </div>

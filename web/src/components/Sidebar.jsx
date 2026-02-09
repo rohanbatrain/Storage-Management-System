@@ -267,6 +267,20 @@ function Sidebar() {
                         color="#3b82f6"
                         isActive={location.pathname === '/search'}
                     />
+                    <NavItem
+                        to="/laundry"
+                        icon={Droplets}
+                        label="Laundry"
+                        color="#ef4444"
+                        isActive={location.pathname === '/laundry'}
+                    />
+                    <NavItem
+                        to="/outfits"
+                        icon={Shirt}
+                        label="Outfits"
+                        color="#8b5cf6"
+                        isActive={location.pathname === '/outfits'}
+                    />
                 </div>
 
                 {/* Locations */}
@@ -307,11 +321,23 @@ function Sidebar() {
             <div style={{
                 padding: 'var(--space-md)',
                 borderTop: '1px solid var(--color-border)',
-                fontSize: 'var(--font-size-xs)',
-                color: 'var(--color-text-muted)',
-                textAlign: 'center',
             }}>
-                Personal Storage Manager
+                <Link
+                    to="/settings"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-sm)',
+                        padding: 'var(--space-sm) var(--space-md)',
+                        borderRadius: 'var(--radius-md)',
+                        color: location.pathname === '/settings' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                        background: location.pathname === '/settings' ? 'var(--color-bg-tertiary)' : 'transparent',
+                        textDecoration: 'none',
+                        fontSize: 'var(--font-size-sm)',
+                    }}
+                >
+                    ⚙️ Settings
+                </Link>
             </div>
         </aside>
     );

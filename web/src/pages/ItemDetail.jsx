@@ -10,9 +10,10 @@ import {
     Trash2,
     Edit2,
     RotateCcw,
-    X
+    X,
+    QrCode
 } from 'lucide-react';
-import { itemApi, locationApi } from '../services/api';
+import { itemApi, locationApi, qrApi } from '../services/api';
 
 function MoveItemModal({ item, onClose, onSuccess }) {
     const [locations, setLocations] = useState([]);
@@ -360,6 +361,55 @@ function ItemDetail() {
                         ))}
                     </div>
                 )}
+            </div>
+
+            {/* QR Code */}
+            <div className="card" style={{ marginTop: 'var(--space-xl)' }}>
+                <div className="card-header">
+                    <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                        <QrCode size={18} />
+                        QR Code
+                    </h3>
+                </div>
+                <div style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {(item.quantity || 1) === 1 ? (
+                        <>
+                            <img
+                                src={qrApi.getItemQrUrl(item.id, 180)}
+                                alt="Item QR Code"
+                                style={{ width: 180, height: 180, borderRadius: 'var(--radius-md)', background: 'white' }}
+                            />
+                            <div style={{ marginTop: 'var(--space-sm)', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                {item.name.length > 32 ? item.name.slice(0, 32) + '...' : item.name}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ marginBottom: 'var(--space-md)', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                                Qty: {item.quantity} — {item.quantity} QR codes
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', justifyContent: 'center' }}>
+                                {Array.from({ length: Math.min(item.quantity, 10) }).map((_, idx) => (
+                                    <div key={idx} style={{ textAlign: 'center', background: 'var(--color-bg-tertiary)', padding: 'var(--space-sm)', borderRadius: 'var(--radius-md)' }}>
+                                        <img
+                                            src={qrApi.getItemSequenceQrUrl(item.id, idx + 1, item.quantity)}
+                                            alt={`QR ${idx + 1}/${item.quantity}`}
+                                            style={{ width: 120, height: 120, borderRadius: 'var(--radius-sm)', background: 'white' }}
+                                        />
+                                        <div style={{ marginTop: 'var(--space-xs)', fontSize: 11, fontWeight: 600, color: 'var(--color-accent-primary)' }}>
+                                            {idx + 1}/{item.quantity}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            {item.quantity > 10 && (
+                                <div style={{ marginTop: 'var(--space-md)', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                                    Showing 10 of {item.quantity}. Use Print QR to get all.
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Move Modal */}
