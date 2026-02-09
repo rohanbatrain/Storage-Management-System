@@ -313,10 +313,41 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
     
-    # Use raw SQL DELETE to trigger database CASCADE properly
-    # This bypasses SQLAlchemy's ORM which tries to NULL foreign keys
+    # Get all descendant location IDs (recursive)
     from sqlalchemy import text
-    db.execute(text("DELETE FROM locations WHERE id = :id"), {"id": str(location_id)})
+    
+    # Find all locations to delete (this location + all descendants)
+    descendant_query = text("""
+        WITH RECURSIVE descendants AS (
+            SELECT id FROM locations WHERE id = :id
+            UNION ALL
+            SELECT l.id FROM locations l
+            INNER JOIN descendants d ON l.parent_id = d.id
+        )
+        SELECT id FROM descendants
+    """)
+    result = db.execute(descendant_query, {"id": str(location_id)})
+    location_ids = [str(row[0]) for row in result.fetchall()]
+    
+    # Delete movement history records that reference these locations
+    if location_ids:
+        db.execute(
+            text("DELETE FROM movement_history WHERE to_location_id = ANY(:ids) OR from_location_id = ANY(:ids)"),
+            {"ids": location_ids}
+        )
+        
+        # Delete items in these locations
+        db.execute(
+            text("DELETE FROM items WHERE current_location_id = ANY(:ids) OR permanent_location_id = ANY(:ids)"),
+            {"ids": location_ids}
+        )
+        
+        # Delete the locations (children first due to parent_id FK)
+        db.execute(
+            text("DELETE FROM locations WHERE id = ANY(:ids)"),
+            {"ids": location_ids}
+        )
+    
     db.commit()
 
 
