@@ -16,14 +16,28 @@ function QRPrint() {
     const [selectedItems, setSelectedItems] = useState(new Set());
     const [selectedClothing, setSelectedClothing] = useState(new Set());
 
+    // Flatten tree to get all locations including nested ones
+    const flattenTree = (nodes, depth = 0) => {
+        let result = [];
+        for (const node of nodes) {
+            result.push({ ...node, depth });
+            if (node.children && node.children.length > 0) {
+                result = result.concat(flattenTree(node.children, depth + 1));
+            }
+        }
+        return result;
+    };
+
     const loadData = async () => {
         try {
-            const [locRes, itemRes, clothRes] = await Promise.all([
-                locationApi.list(),
+            const [treeRes, itemRes, clothRes] = await Promise.all([
+                locationApi.getTree(),
                 itemApi.list(),
                 wardrobeApi.listClothing(),
             ]);
-            setLocations(locRes.data || []);
+            // Flatten the tree to get all locations
+            const flatLocations = flattenTree(treeRes.data || []);
+            setLocations(flatLocations);
             setItems((itemRes.data || []).filter(i => i.item_type !== 'clothing'));
             setClothing(clothRes.data || []);
         } catch (error) {
@@ -196,12 +210,27 @@ function QRPrint() {
                                 {currentSelection.has(item.id) && '✓'}
                             </div>
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                <div style={{
+                                    fontWeight: 600,
+                                    color: 'var(--color-text-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                }}>
+                                    {/* Show depth indicator for nested locations */}
+                                    {activeTab === 'locations' && item.depth > 0 && (
+                                        <span style={{
+                                            color: 'var(--color-text-muted)',
+                                            fontSize: '0.7rem',
+                                        }}>
+                                            {'└'.repeat(Math.min(item.depth, 3))}
+                                        </span>
+                                    )}
                                     {item.name}
                                 </div>
                                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                                     {activeTab === 'locations'
-                                        ? item.kind || 'Location'
+                                        ? `${item.kind || 'Location'}${item.depth > 0 ? ` • Level ${item.depth + 1}` : ''}`
                                         : `Qty: ${item.quantity || 1}${(item.quantity || 1) > 1 ? ` (${item.quantity} QR codes)` : ''}`
                                     }
                                 </div>
