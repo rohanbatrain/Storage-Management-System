@@ -59,6 +59,13 @@ class ItemResponse(ItemBase):
     permanent_location: Optional[LocationSummary] = None
     image_url: Optional[str] = None
     
+    # Loan tracking fields
+    is_lent: bool = False
+    lent_to: Optional[str] = None
+    lent_at: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    lent_notes: Optional[str] = None
+    
     class Config:
         from_attributes = True
 

@@ -68,7 +68,13 @@ def item_to_response(item: Item) -> ItemResponse:
         created_at=item.created_at,
         updated_at=item.updated_at,
         current_location=current_loc,
-        permanent_location=permanent_loc
+        permanent_location=permanent_loc,
+        # Loan fields
+        is_lent=item.is_lent,
+        lent_to=item.lent_to,
+        lent_at=item.lent_at,
+        due_date=item.due_date,
+        lent_notes=item.lent_notes
     )
 
 
@@ -323,3 +329,100 @@ def get_item_history(item_id: UUID, db: Session = Depends(get_db)):
         ))
     
     return result
+
+
+# ============ LOAN TRACKING ENDPOINTS ============
+
+@router.get("/lent/all")
+def list_lent_items(db: Session = Depends(get_db)):
+    """List all items currently lent out."""
+    items = db.query(Item).filter(Item.is_lent == True).all()
+    return [item_to_response(item) for item in items]
+
+
+@router.post("/{item_id}/lend")
+def lend_item(
+    item_id: UUID,
+    borrower: str,
+    due_date: Optional[datetime] = None,
+    notes: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Lend an item to someone.
+    Records who borrowed it, when, and optional due date.
+    """
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    if item.is_lent:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Item is already lent to {item.lent_to}"
+        )
+    
+    # Update item loan status
+    item.is_lent = True
+    item.lent_to = borrower
+    item.lent_at = datetime.utcnow()
+    item.due_date = due_date
+    item.lent_notes = notes
+    
+    # Create history record
+    history = MovementHistory(
+        item_id=item.id,
+        from_location_id=item.current_location_id,
+        to_location_id=item.current_location_id,  # Item stays in location but is lent
+        action=ActionType.LENT,
+        notes=f"Lent to {borrower}" + (f" - {notes}" if notes else "")
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(item)
+    
+    return {
+        "message": f"Item lent to {borrower}",
+        "item": item_to_response(item)
+    }
+
+
+@router.post("/{item_id}/return-loan")
+def return_from_loan(item_id: UUID, notes: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Mark a lent item as returned.
+    Clears the loan status and records in history.
+    """
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    if not item.is_lent:
+        raise HTTPException(status_code=400, detail="Item is not currently lent")
+    
+    borrower = item.lent_to
+    
+    # Clear loan status
+    item.is_lent = False
+    item.lent_to = None
+    item.lent_at = None
+    item.due_date = None
+    item.lent_notes = None
+    
+    # Create history record
+    history = MovementHistory(
+        item_id=item.id,
+        from_location_id=item.current_location_id,
+        to_location_id=item.current_location_id,
+        action=ActionType.RETURNED_FROM_LOAN,
+        notes=f"Returned from {borrower}" + (f" - {notes}" if notes else "")
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(item)
+    
+    return {
+        "message": f"Item returned from {borrower}",
+        "item": item_to_response(item)
+    }
+

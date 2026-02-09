@@ -33,8 +33,14 @@ export default function ItemDetailScreen() {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [moveModalVisible, setMoveModalVisible] = useState(false);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+    const [lendModalVisible, setLendModalVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [showQR, setShowQR] = useState(false);
+
+    // Lend state
+    const [lendBorrower, setLendBorrower] = useState('');
+    const [lendDueDate, setLendDueDate] = useState('');
+    const [lendNotes, setLendNotes] = useState('');
 
     const loadData = async () => {
         try {
@@ -130,6 +136,43 @@ export default function ItemDetailScreen() {
         }
     };
 
+    // Lend item handler
+    const handleLend = async () => {
+        if (!lendBorrower.trim()) {
+            Alert.alert('Error', 'Please enter borrower name');
+            return;
+        }
+        try {
+            setActionLoading(true);
+            await itemApi.lend(id, lendBorrower.trim(), lendDueDate || undefined, lendNotes || undefined);
+            setLendModalVisible(false);
+            Alert.alert('Success', `Item lent to ${lendBorrower}`);
+            loadData();
+            // Reset lend state
+            setLendBorrower('');
+            setLendDueDate('');
+            setLendNotes('');
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to lend item');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    // Return from loan handler
+    const handleReturnLoan = async () => {
+        try {
+            setActionLoading(true);
+            await itemApi.returnLoan(id);
+            Alert.alert('Success', 'Item returned from loan');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to return item');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
     }, [id]);
@@ -175,6 +218,28 @@ export default function ItemDetailScreen() {
                         <Text style={styles.description}>{item.description}</Text>
                     )}
                 </View>
+
+                {/* Loan Status Badge */}
+                {item.is_lent && (
+                    <View style={styles.loanBanner}>
+                        <Text style={styles.loanBannerIcon}>🤝</Text>
+                        <View style={styles.loanBannerText}>
+                            <Text style={styles.loanBannerTitle}>Lent to {item.lent_to}</Text>
+                            {item.due_date && (
+                                <Text style={styles.loanBannerDue}>
+                                    Due: {new Date(item.due_date).toLocaleDateString()}
+                                </Text>
+                            )}
+                        </View>
+                        <TouchableOpacity
+                            style={styles.loanReturnBtn}
+                            onPress={handleReturnLoan}
+                            disabled={actionLoading}
+                        >
+                            <Text style={styles.loanReturnBtnText}>Return</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* Location Cards */}
                 <View style={styles.section}>
@@ -255,6 +320,16 @@ export default function ItemDetailScreen() {
                             <Text style={styles.actionIcon}>📦</Text>
                             <Text style={[styles.actionLabel, { color: colors.warning }]}>Move</Text>
                         </TouchableOpacity>
+
+                        {!item.is_lent && (
+                            <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: '#8B5CF6' + '15' }]}
+                                onPress={() => setLendModalVisible(true)}
+                            >
+                                <Text style={styles.actionIcon}>🤝</Text>
+                                <Text style={[styles.actionLabel, { color: '#8B5CF6' }]}>Lend</Text>
+                            </TouchableOpacity>
+                        )}
 
                         <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: colors.error + '15' }]}
@@ -471,6 +546,73 @@ export default function ItemDetailScreen() {
                 locations={locations}
                 title="Select Destination"
             />
+
+            {/* Lend Modal */}
+            <Modal
+                visible={lendModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setLendModalVisible(false)}
+            >
+                <View style={moveStyles.overlay}>
+                    <View style={moveStyles.modal}>
+                        <Text style={moveStyles.title}>🤝 Lend Item</Text>
+                        <Text style={{ color: colors.textMuted, marginBottom: spacing.md }}>
+                            Enter the name of the person borrowing this item
+                        </Text>
+
+                        <View style={{ marginBottom: spacing.md }}>
+                            <Text style={{ color: colors.textSecondary, marginBottom: 6 }}>Borrower Name *</Text>
+                            <View style={{
+                                backgroundColor: colors.bgTertiary,
+                                borderRadius: borderRadius.md,
+                                padding: spacing.md,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                            }}>
+                                <Text
+                                    style={{ color: lendBorrower ? colors.textPrimary : colors.textMuted }}
+                                    onPress={() => {
+                                        Alert.prompt(
+                                            'Borrower Name',
+                                            'Who are you lending this to?',
+                                            (text) => setLendBorrower(text || ''),
+                                            'plain-text',
+                                            lendBorrower
+                                        );
+                                    }}
+                                >
+                                    {lendBorrower || 'Tap to enter name...'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.lg, paddingTop: 0 }}>
+                            <TouchableOpacity
+                                style={moveStyles.cancelButton}
+                                onPress={() => {
+                                    setLendModalVisible(false);
+                                    setLendBorrower('');
+                                }}
+                            >
+                                <Text style={moveStyles.cancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    moveStyles.submitButton,
+                                    !lendBorrower && moveStyles.submitButtonDisabled
+                                ]}
+                                onPress={handleLend}
+                                disabled={!lendBorrower || actionLoading}
+                            >
+                                <Text style={moveStyles.submitText}>
+                                    {actionLoading ? 'Lending...' : 'Lend Item'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -850,5 +992,45 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         color: colors.accentPrimary,
+    },
+    // Loan banner styles
+    loanBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#8B5CF6' + '20',
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: '#8B5CF6' + '40',
+    },
+    loanBannerIcon: {
+        fontSize: 28,
+        marginRight: spacing.md,
+    },
+    loanBannerText: {
+        flex: 1,
+    },
+    loanBannerTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#8B5CF6',
+    },
+    loanBannerDue: {
+        fontSize: 12,
+        color: colors.textMuted,
+        marginTop: 2,
+    },
+    loanReturnBtn: {
+        backgroundColor: '#8B5CF6',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+    },
+    loanReturnBtnText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 14,
     },
 });

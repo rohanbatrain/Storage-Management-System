@@ -14,6 +14,8 @@ class ActionType(str, enum.Enum):
     RETURNED = "returned"  # Returned to permanent location
     WORN = "worn"          # Wardrobe: Item was worn
     WASHED = "washed"      # Wardrobe: Item was laundered
+    LENT = "lent"          # Item lent to someone
+    RETURNED_FROM_LOAN = "returned_from_loan"  # Item returned from loan
 
 
 class MovementHistory(Base):

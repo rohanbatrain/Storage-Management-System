@@ -32,6 +32,12 @@ export const itemApi = {
     move: (id, data) => api.post(`/items/${id}/move`, data),
     return: (id) => api.post(`/items/${id}/return`),
     getHistory: (id) => api.get(`/items/${id}/history`),
+    // Loan tracking
+    lend: (id, borrower, dueDate, notes) => api.post(`/items/${id}/lend`, null, {
+        params: { borrower, due_date: dueDate, notes }
+    }),
+    returnLoan: (id, notes) => api.post(`/items/${id}/return-loan`, null, { params: { notes } }),
+    listLent: () => api.get('/items/lent/all'),
 };
 
 // Search API

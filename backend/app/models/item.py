@@ -56,6 +56,13 @@ class Item(Base):
     item_data = Column(JSONB, default={})  # Domain-specific data (clothing: category, wear_count, etc.)
     image_url = Column(String(1000), nullable=True)  # External image URL
     
+    # Loan Tracking
+    is_lent = Column(Boolean, default=False, nullable=False, index=True)
+    lent_to = Column(String(255), nullable=True)  # Name of borrower
+    lent_at = Column(DateTime, nullable=True)
+    due_date = Column(DateTime, nullable=True)
+    lent_notes = Column(String(500), nullable=True)
+    
     # Relationships
     current_location = relationship(
         "Location",
