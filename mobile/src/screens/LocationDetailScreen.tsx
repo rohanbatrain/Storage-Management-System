@@ -8,6 +8,7 @@ import {
     RefreshControl,
     Image,
     Alert,
+    TextInput,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,6 +74,10 @@ export default function LocationDetailScreen() {
     const [addSubLocationModalVisible, setAddSubLocationModalVisible] = useState(false);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+
+    // Alias states
+    const [newAlias, setNewAlias] = useState('');
+    const [aliasLoading, setAliasLoading] = useState(false);
 
     const loadData = async () => {
         try {
@@ -339,6 +344,65 @@ export default function LocationDetailScreen() {
                         </View>
                     </View>
                 )}
+
+                {/* Aliases Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🏷️ Aliases</Text>
+                    <View style={styles.aliasCard}>
+                        {location.aliases && location.aliases.length > 0 ? (
+                            <View style={styles.aliasList}>
+                                {location.aliases.map((alias: string, idx: number) => (
+                                    <View key={idx} style={styles.aliasChip}>
+                                        <Text style={styles.aliasText}>{alias}</Text>
+                                        <TouchableOpacity
+                                            onPress={async () => {
+                                                try {
+                                                    await locationApi.removeAlias(id, alias);
+                                                    loadData();
+                                                } catch (e) {
+                                                    Alert.alert('Error', 'Failed to remove alias');
+                                                }
+                                            }}
+                                            style={styles.aliasRemove}
+                                        >
+                                            <Text style={styles.aliasRemoveText}>×</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <Text style={styles.noAliases}>No aliases yet</Text>
+                        )}
+                        <View style={styles.aliasInput}>
+                            <TextInput
+                                style={styles.aliasTextInput}
+                                value={newAlias}
+                                onChangeText={setNewAlias}
+                                placeholder="Add alias (e.g., 'my drawer')..."
+                                placeholderTextColor={colors.textMuted}
+                            />
+                            <TouchableOpacity
+                                style={[styles.aliasAddBtn, !newAlias.trim() && styles.aliasAddBtnDisabled]}
+                                disabled={!newAlias.trim() || aliasLoading}
+                                onPress={async () => {
+                                    if (!newAlias.trim()) return;
+                                    setAliasLoading(true);
+                                    try {
+                                        await locationApi.addAlias(id, newAlias.trim());
+                                        setNewAlias('');
+                                        loadData();
+                                    } catch (e) {
+                                        Alert.alert('Error', 'Failed to add alias');
+                                    } finally {
+                                        setAliasLoading(false);
+                                    }
+                                }}
+                            >
+                                <Text style={styles.aliasAddBtnText}>Add</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
             </ScrollView>
 
             {/* Edit Modal */}
@@ -629,5 +693,76 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: colors.success,
+    },
+    // Alias styles
+    aliasCard: {
+        backgroundColor: colors.bgSecondary,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    aliasList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    aliasChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.accentPrimary + '20',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.sm,
+    },
+    aliasText: {
+        fontSize: 13,
+        color: colors.accentPrimary,
+        marginRight: spacing.xs,
+    },
+    aliasRemove: {
+        padding: 2,
+    },
+    aliasRemoveText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.accentPrimary,
+    },
+    noAliases: {
+        fontSize: 13,
+        color: colors.textMuted,
+        fontStyle: 'italic',
+        marginBottom: spacing.md,
+    },
+    aliasInput: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    aliasTextInput: {
+        flex: 1,
+        backgroundColor: colors.bgTertiary,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        fontSize: 14,
+        color: colors.textPrimary,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    aliasAddBtn: {
+        backgroundColor: colors.accentPrimary,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+    },
+    aliasAddBtnDisabled: {
+        opacity: 0.5,
+    },
+    aliasAddBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#fff',
     },
 });
