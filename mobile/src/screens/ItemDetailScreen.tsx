@@ -266,14 +266,46 @@ export default function ItemDetailScreen() {
                     </View>
                 </View>
 
-                {/* QR Code */}
+                {/* QR Code(s) */}
                 {showQR && (
                     <View style={styles.qrContainer}>
-                        <Image
-                            source={{ uri: qrApi.getItemQrUrl(id, 200) }}
-                            style={styles.qrCode}
-                        />
-                        <Text style={styles.qrLabel}>Scan to find this item</Text>
+                        {item.quantity > 1 ? (
+                            // Multiple QR codes for items with qty > 1
+                            <>
+                                <Text style={styles.qrSectionTitle}>
+                                    📱 {item.quantity} QR Codes (one per unit)
+                                </Text>
+                                <View style={styles.qrGrid}>
+                                    {Array.from({ length: Math.min(item.quantity, 10) }, (_, i) => (
+                                        <View key={i} style={styles.qrGridItem}>
+                                            <Image
+                                                source={{ uri: qrApi.getItemSequenceQrUrl(id, i + 1, item.quantity, 150) }}
+                                                style={styles.qrCodeSmall}
+                                            />
+                                            <Text style={styles.qrName} numberOfLines={1}>
+                                                {item.name.length > 20 ? item.name.slice(0, 20) + '...' : item.name}
+                                            </Text>
+                                            <Text style={styles.qrSequence}>{i + 1}/{item.quantity}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                                {item.quantity > 10 && (
+                                    <Text style={styles.qrHint}>Showing first 10 of {item.quantity} QR codes</Text>
+                                )}
+                            </>
+                        ) : (
+                            // Single QR for qty = 1
+                            <>
+                                <Image
+                                    source={{ uri: qrApi.getItemQrUrl(id, 200) }}
+                                    style={styles.qrCode}
+                                />
+                                <Text style={styles.qrName} numberOfLines={1}>
+                                    {item.name.length > 32 ? item.name.slice(0, 32) + '...' : item.name}
+                                </Text>
+                                <Text style={styles.qrLabel}>Scan to find this item</Text>
+                            </>
+                        )}
                         <Text style={styles.qrHint}>Print and attach to item for easy tracking</Text>
                     </View>
                 )}
@@ -781,5 +813,42 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.textMuted,
         textAlign: 'center',
+    },
+    qrSectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: spacing.md,
+    },
+    qrGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: spacing.md,
+    },
+    qrGridItem: {
+        alignItems: 'center',
+        padding: spacing.sm,
+        backgroundColor: colors.bgTertiary,
+        borderRadius: borderRadius.md,
+        width: 130,
+    },
+    qrCodeSmall: {
+        width: 100,
+        height: 100,
+        borderRadius: borderRadius.sm,
+        backgroundColor: '#fff',
+    },
+    qrName: {
+        marginTop: spacing.xs,
+        fontSize: 11,
+        fontWeight: '500',
+        color: colors.textPrimary,
+        textAlign: 'center',
+    },
+    qrSequence: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.accentPrimary,
     },
 });

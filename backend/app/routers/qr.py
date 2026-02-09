@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
+from typing import List, Optional
 import qrcode
 import io
 import uuid as uuid_lib
+
+try:
+    from fpdf import FPDF
+    FPDF_AVAILABLE = True
+except ImportError:
+    FPDF_AVAILABLE = False
 
 from app.database import get_db
 from app.models.location import Location
@@ -114,11 +121,13 @@ def scan_qr_code(qr_code_id: str, db: Session = Depends(get_db)):
 def generate_item_qr_code(
     item_id: UUID,
     size: int = 200,
+    seq: int = None,  # Sequence number (1-based)
+    of: int = None,   # Total count
     db: Session = Depends(get_db)
 ):
     """
     Generate a QR code image for an item.
-    If the item doesn't have a QR code ID, one is generated.
+    If seq and of are provided, generates a sequence-aware QR code.
     """
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
@@ -138,8 +147,11 @@ def generate_item_qr_code(
         border=4,
     )
     
-    # Encode the item QR code ID
-    qr_data = f"psms://item/{item.qr_code_id}"
+    # Encode the item QR code ID with optional sequence info
+    if seq and of:
+        qr_data = f"psms://item/{item.qr_code_id}?seq={seq}&of={of}"
+    else:
+        qr_data = f"psms://item/{item.qr_code_id}"
     qr.add_data(qr_data)
     qr.make(fit=True)
     
@@ -160,3 +172,114 @@ def generate_item_qr_code(
         }
     )
 
+
+@router.get("/bulk-pdf")
+def generate_bulk_pdf(
+    type: str = Query(..., description="Type: 'locations' or 'items'"),
+    ids: str = Query(..., description="Comma-separated list of UUIDs"),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a printable PDF with multiple QR codes.
+    Each QR code includes the name label below it.
+    """
+    if not FPDF_AVAILABLE:
+        raise HTTPException(status_code=500, detail="PDF generation not available")
+    
+    id_list = [id.strip() for id in ids.split(',') if id.strip()]
+    if not id_list:
+        raise HTTPException(status_code=400, detail="No IDs provided")
+    
+    # Fetch items based on type
+    qr_entries = []  # List of (name, qr_data)
+    
+    if type == 'locations':
+        for loc_id in id_list:
+            try:
+                loc = db.query(Location).filter(Location.id == loc_id).first()
+                if loc:
+                    if not loc.qr_code_id:
+                        loc.qr_code_id = f"psms-loc-{uuid_lib.uuid4().hex[:8]}"
+                        db.commit()
+                    name = loc.name[:32] + '...' if len(loc.name) > 32 else loc.name
+                    qr_entries.append((name, f"psms://location/{loc.qr_code_id}"))
+            except:
+                continue
+    elif type == 'items':
+        for item_id in id_list:
+            try:
+                item = db.query(Item).filter(Item.id == item_id).first()
+                if item:
+                    if not item.qr_code_id:
+                        item.qr_code_id = f"psms-item-{uuid_lib.uuid4().hex[:8]}"
+                        db.commit()
+                    # For items with qty > 1, create multiple entries
+                    qty = item.quantity or 1
+                    for seq in range(1, qty + 1):
+                        if qty > 1:
+                            name = f"{item.name[:25]}... ({seq}/{qty})" if len(item.name) > 25 else f"{item.name} ({seq}/{qty})"
+                            qr_data = f"psms://item/{item.qr_code_id}?seq={seq}&of={qty}"
+                        else:
+                            name = item.name[:32] + '...' if len(item.name) > 32 else item.name
+                            qr_data = f"psms://item/{item.qr_code_id}"
+                        qr_entries.append((name, qr_data))
+            except:
+                continue
+    else:
+        raise HTTPException(status_code=400, detail="Invalid type. Use 'locations' or 'items'")
+    
+    if not qr_entries:
+        raise HTTPException(status_code=404, detail="No valid entries found")
+    
+    # Generate PDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # QR grid layout: 3 columns, ~4 rows per page
+    qr_size = 50  # mm
+    margin = 10
+    col_width = 65
+    row_height = 70
+    cols_per_row = 3
+    
+    for idx, (name, qr_data) in enumerate(qr_entries):
+        col = idx % cols_per_row
+        row = (idx // cols_per_row) % 4
+        
+        if idx % 12 == 0:  # New page every 12 items
+            pdf.add_page()
+        
+        x = margin + col * col_width
+        y = margin + row * row_height
+        
+        # Generate QR code image
+        qr = qrcode.QRCode(version=1, box_size=10, border=2)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Save QR to temp bytes
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        
+        # Add QR image to PDF
+        pdf.image(img_buffer, x=x, y=y, w=qr_size, h=qr_size)
+        
+        # Add name label below QR
+        pdf.set_xy(x, y + qr_size + 2)
+        pdf.set_font('Helvetica', size=8)
+        pdf.cell(col_width - 5, 5, name, align='C')
+    
+    # Output PDF
+    pdf_bytes = io.BytesIO()
+    pdf_bytes.write(pdf.output())
+    pdf_bytes.seek(0)
+    
+    return StreamingResponse(
+        pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=qr-codes-{type}.pdf"
+        }
+    )

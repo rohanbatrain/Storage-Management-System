@@ -17,6 +17,7 @@ import WardrobeScreen from './src/screens/WardrobeScreen';
 import LaundryScreen from './src/screens/LaundryScreen';
 import OutfitsScreen from './src/screens/OutfitsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import QRPrintScreen from './src/screens/QRPrintScreen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -289,6 +290,11 @@ function AppContent() {
                         name="Settings"
                         component={SettingsScreen}
                         options={{ title: 'Settings' }}
+                    />
+                    <Stack.Screen
+                        name="QRPrint"
+                        component={QRPrintScreen}
+                        options={{ title: 'Print QR Codes' }}
                     />
                 </Stack.Navigator>
             </NavigationContainer>

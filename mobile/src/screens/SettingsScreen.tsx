@@ -10,11 +10,13 @@ import {
     Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../styles/theme';
 import { exportApi } from '../services/api';
 
 export default function SettingsScreen() {
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation<any>();
     const [exportLoading, setExportLoading] = useState(false);
     const [summary, setSummary] = useState<any>(null);
 
@@ -110,6 +112,12 @@ export default function SettingsScreen() {
                             subtitle="Download a JSON backup of everything"
                             onPress={handleExport}
                             loading={exportLoading}
+                        />
+                        <SettingsItem
+                            icon="🖨️"
+                            title="Print QR Codes"
+                            subtitle="Generate printable PDF with QR codes"
+                            onPress={() => navigation.navigate('QRPrint')}
                         />
                     </View>
                 </View>

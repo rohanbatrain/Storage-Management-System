@@ -55,6 +55,10 @@ export const qrApi = {
         `${API_BASE_URL}/api/qr/${locationId}?size=${size}`,
     getItemQrUrl: (itemId: string, size = 200) =>
         `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}`,
+    getItemSequenceQrUrl: (itemId: string, seq: number, total: number, size = 150) =>
+        `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}&seq=${seq}&of=${total}`,
+    getBulkPdfUrl: (type: 'locations' | 'items', ids: string[]) =>
+        `${API_BASE_URL}/api/qr/bulk-pdf?type=${type}&ids=${ids.join(',')}`,
     scanQr: (qrCodeId: string) => api.get(`/qr/scan/${qrCodeId}`),
 };
 

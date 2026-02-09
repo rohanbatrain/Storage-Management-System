@@ -270,9 +270,12 @@ export default function LocationDetailScreen() {
                 {showQR && (
                     <View style={styles.qrContainer}>
                         <Image
-                            source={{ uri: qrApi.getQrUrl(location.qr_code_id, 200) }}
+                            source={{ uri: qrApi.getQrUrl(id, 200) }}
                             style={styles.qrCode}
                         />
+                        <Text style={styles.qrName} numberOfLines={1}>
+                            {location.name.length > 32 ? location.name.slice(0, 32) + '...' : location.name}
+                        </Text>
                         <Text style={styles.qrLabel}>Scan to navigate here</Text>
                     </View>
                 )}
@@ -610,6 +613,13 @@ const styles = StyleSheet.create({
         marginTop: spacing.md,
         fontSize: 13,
         color: colors.textMuted,
+    },
+    qrName: {
+        marginTop: spacing.sm,
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        textAlign: 'center',
     },
     // Items List
     itemsList: {
