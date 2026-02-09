@@ -55,7 +55,7 @@ export const qrApi = {
 
 // Export API
 export const exportApi = {
-    exportFull: () => api.get('/export'),
+    exportFull: () => api.get('/export/full'),
     exportSummary: () => api.get('/export/summary'),
 };
 
