@@ -38,6 +38,10 @@ export const itemApi = {
     }),
     returnLoan: (id, notes) => api.post(`/items/${id}/return-loan`, null, { params: { notes } }),
     listLent: () => api.get('/items/lent/all'),
+    // Lost items
+    listLost: () => api.get('/items/lost/all'),
+    markLost: (id, notes) => api.post(`/items/${id}/lost`, null, { params: { notes } }),
+    markFound: (id, notes) => api.post(`/items/${id}/found`, null, { params: { notes } }),
 };
 
 // Search API
@@ -91,6 +95,19 @@ export const wardrobeApi = {
 
     // Stats
     getStats: () => api.get('/wardrobe/stats'),
+};
+
+// Image API
+export const imageApi = {
+    upload: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/images/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    },
 };
 
 export default api;

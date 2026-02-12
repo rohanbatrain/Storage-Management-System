@@ -11,9 +11,11 @@ import {
     Edit2,
     RotateCcw,
     X,
-    QrCode
+    QrCode,
+    Handshake,
+    AlertTriangle
 } from 'lucide-react';
-import { itemApi, locationApi, qrApi } from '../services/api';
+import { itemApi, locationApi, qrApi, imageApi } from '../services/api';
 
 function MoveItemModal({ item, onClose, onSuccess }) {
     const [locations, setLocations] = useState([]);
@@ -121,7 +123,16 @@ function ItemDetail() {
     const [item, setItem] = useState(null);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [showMoveModal, setShowMoveModal] = useState(false);
+    const [showLendModal, setShowLendModal] = useState(false);
+    const [lendBorrower, setLendBorrower] = useState('');
+    const [lendDueDate, setLendDueDate] = useState('');
+    const [lendNotes, setLendNotes] = useState('');
+    const [lendLoading, setLendLoading] = useState(false);
+    const [showLostModal, setShowLostModal] = useState(false);
+    const [lostNotes, setLostNotes] = useState('');
+    const [lostLoading, setLostLoading] = useState(false);
 
     useEffect(() => {
         loadItem();
@@ -163,6 +174,59 @@ function ItemDetail() {
         }
     };
 
+    const handleLend = async (e) => {
+        e.preventDefault();
+        if (!lendBorrower.trim()) return;
+        try {
+            setLendLoading(true);
+            await itemApi.lend(id, lendBorrower.trim(), lendDueDate || undefined, lendNotes || undefined);
+            setShowLendModal(false);
+            setLendBorrower('');
+            setLendDueDate('');
+            setLendNotes('');
+            loadItem();
+        } catch (error) {
+            console.error('Failed to lend item:', error);
+            alert(error.response?.data?.detail || 'Failed to lend item');
+        } finally {
+            setLendLoading(false);
+        }
+    };
+
+    const handleReturnLoan = async () => {
+        try {
+            await itemApi.returnLoan(id);
+            loadItem();
+        } catch (error) {
+            console.error('Failed to return loan:', error);
+        }
+    };
+
+    const handleMarkLost = async (e) => {
+        e.preventDefault();
+        try {
+            setLostLoading(true);
+            await itemApi.markLost(id, lostNotes || undefined);
+            setShowLostModal(false);
+            setLostNotes('');
+            loadItem();
+        } catch (error) {
+            console.error('Failed to mark item lost:', error);
+            alert(error.response?.data?.detail || 'Failed to mark item lost');
+        } finally {
+            setLostLoading(false);
+        }
+    };
+
+    const handleMarkFound = async () => {
+        try {
+            await itemApi.markFound(id);
+            loadItem();
+        } catch (error) {
+            console.error('Failed to mark item found:', error);
+        }
+    };
+
     if (loading) {
         return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>;
     }
@@ -175,13 +239,27 @@ function ItemDetail() {
         placed: 'Placed',
         moved: 'Moved',
         returned: 'Returned',
+        lent: 'Lent',
+        returned_from_loan: 'Returned from Loan',
+        lost: 'Lost',
+        found: 'Found',
+        worn: 'Worn',
+        washed: 'Washed',
     };
 
     const actionColors = {
         placed: 'var(--color-success)',
         moved: 'var(--color-info)',
         returned: 'var(--color-accent-primary)',
+        lent: '#8B5CF6',
+        returned_from_loan: '#8B5CF6',
+        lost: '#EF4444',
+        found: 'var(--color-success)',
+        worn: 'var(--color-warning)',
+        washed: 'var(--color-info)',
     };
+
+    const isOverdue = item?.is_lent && item?.due_date && new Date(item.due_date) < new Date();
 
     return (
         <div>
@@ -211,7 +289,30 @@ function ItemDetail() {
                         {item.is_temporary_placement && (
                             <span className="badge badge-warning">Temporary</span>
                         )}
+                        {item.is_lent && (
+                            <span className="badge" style={{ background: '#8B5CF620', color: '#8B5CF6', border: '1px solid #8B5CF640' }}>🤝 Lent</span>
+                        )}
+                        {item.is_lost && (
+                            <span className="badge" style={{ background: '#EF444420', color: '#EF4444', border: '1px solid #EF444440' }}>⚠️ Lost</span>
+                        )}
                     </div>
+                    {item.image_url && (
+                        <div style={{
+                            marginBottom: 'var(--space-md)',
+                            borderRadius: 'var(--radius-md)',
+                            overflow: 'hidden',
+                            height: 200,
+                            maxWidth: 300,
+                            background: 'var(--color-bg-tertiary)',
+                        }}>
+                            <img
+                                src={item.image_url}
+                                alt={item.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => e.target.style.display = 'none'}
+                            />
+                        </div>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', color: 'var(--color-text-secondary)' }}>
                         <span>Quantity: {item.quantity}</span>
                         {item.tags?.length > 0 && (
@@ -220,6 +321,9 @@ function ItemDetail() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                    <button className="btn btn-secondary btn-icon" onClick={() => setShowEditModal(true)}>
+                        <Edit2 size={18} />
+                    </button>
                     <button className="btn btn-secondary btn-icon" onClick={handleDelete}>
                         <Trash2 size={18} />
                     </button>
@@ -281,8 +385,87 @@ function ItemDetail() {
                 </div>
             </div>
 
+            {/* Loan Status Banner */}
+            {item.is_lent && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-md)',
+                    padding: 'var(--space-lg)',
+                    background: isOverdue ? '#EF444420' : '#8B5CF620',
+                    borderRadius: 'var(--radius-lg)',
+                    marginBottom: 'var(--space-xl)',
+                    border: `1px solid ${isOverdue ? '#EF444440' : '#8B5CF640'}`,
+                }}>
+                    <div style={{ fontSize: 28 }}>{isOverdue ? '⚠️' : '🤝'}</div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: isOverdue ? '#EF4444' : '#8B5CF6', fontSize: 16 }}>
+                            {isOverdue ? 'Overdue — ' : ''}Lent to {item.lent_to}
+                        </div>
+                        <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 4, color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                            {item.lent_at && <span>Since {new Date(item.lent_at).toLocaleDateString()}</span>}
+                            {item.due_date && <span>Due {new Date(item.due_date).toLocaleDateString()}</span>}
+                        </div>
+                        {item.lent_notes && (
+                            <div style={{ marginTop: 4, fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                                "{item.lent_notes}"
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        className="btn"
+                        style={{ background: isOverdue ? '#EF4444' : '#8B5CF6', color: '#fff', border: 'none', fontWeight: 600 }}
+                        onClick={handleReturnLoan}
+                    >
+                        <RotateCcw size={16} />
+                        Mark Returned
+                    </button>
+                </div>
+            )}
+
+
+
+            {/* Lost Status Banner */}
+            {
+                item.is_lost && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-md)',
+                        padding: 'var(--space-lg)',
+                        background: '#EF444420',
+                        borderRadius: 'var(--radius-lg)',
+                        marginBottom: 'var(--space-xl)',
+                        border: '1px solid #EF444440',
+                    }}>
+                        <div style={{ fontSize: 28 }}>⚠️</div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, color: '#EF4444', fontSize: 16 }}>
+                                Item Marked as Lost
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 4, color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                                {item.lost_at && <span>Reported {new Date(item.lost_at).toLocaleDateString()}</span>}
+                            </div>
+                            {item.lost_notes && (
+                                <div style={{ marginTop: 4, fontStyle: 'italic', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                                    "{item.lost_notes}"
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            className="btn"
+                            style={{ background: '#EF4444', color: '#fff', border: 'none', fontWeight: 600 }}
+                            onClick={handleMarkFound}
+                        >
+                            <RotateCcw size={16} />
+                            Mark Found
+                        </button>
+                    </div>
+                )
+            }
+
             {/* Actions */}
-            <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-xl)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-xl)', flexWrap: 'wrap' }}>
                 <button className="btn btn-primary" onClick={() => setShowMoveModal(true)}>
                     <ArrowRight size={16} />
                     Move to...
@@ -291,6 +474,26 @@ function ItemDetail() {
                     <button className="btn btn-secondary" onClick={handleReturn}>
                         <RotateCcw size={16} />
                         Return to Home
+                    </button>
+                )}
+                {!item.is_lent && !item.is_lost && (
+                    <button
+                        className="btn"
+                        style={{ background: '#8B5CF620', color: '#8B5CF6', border: '1px solid #8B5CF640' }}
+                        onClick={() => setShowLendModal(true)}
+                    >
+                        <Handshake size={16} />
+                        Lend to Friend
+                    </button>
+                )}
+                {!item.is_lost && !item.is_lent && (
+                    <button
+                        className="btn"
+                        style={{ background: '#EF444420', color: '#EF4444', border: '1px solid #EF444440' }}
+                        onClick={() => setShowLostModal(true)}
+                    >
+                        <AlertTriangle size={16} />
+                        Mark as Lost
                     </button>
                 )}
             </div>
@@ -413,15 +616,293 @@ function ItemDetail() {
             </div>
 
             {/* Move Modal */}
-            {showMoveModal && (
-                <MoveItemModal
+            {
+                showMoveModal && (
+                    <MoveItemModal
+                        item={item}
+                        onClose={() => setShowMoveModal(false)}
+                        onSuccess={loadItem}
+                    />
+                )
+            }
+
+            {/* Lend Modal */}
+            {
+                showLendModal && (
+                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                        <div className="card" style={{ width: 440, maxWidth: '90vw', padding: 0 }}>
+                            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                                    <Handshake size={18} style={{ color: '#8B5CF6' }} />
+                                    Lend Item
+                                </h3>
+                                <button className="btn btn-secondary btn-icon" onClick={() => setShowLendModal(false)}><X size={16} /></button>
+                            </div>
+                            <form onSubmit={handleLend} style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontWeight: 500, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Borrower Name *</label>
+                                    <input
+                                        type="text"
+                                        value={lendBorrower}
+                                        onChange={(e) => setLendBorrower(e.target.value)}
+                                        placeholder="Who are you lending this to?"
+                                        required
+                                        autoFocus
+                                        style={{
+                                            width: '100%', padding: 'var(--space-md)',
+                                            background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)',
+                                            borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)',
+                                            fontSize: 'var(--font-size-md)',
+                                        }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontWeight: 500, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Due Date (optional)</label>
+                                    <input
+                                        type="date"
+                                        value={lendDueDate}
+                                        onChange={(e) => setLendDueDate(e.target.value)}
+                                        style={{
+                                            width: '100%', padding: 'var(--space-md)',
+                                            background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)',
+                                            borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)',
+                                            fontSize: 'var(--font-size-md)',
+                                        }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontWeight: 500, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Notes (optional)</label>
+                                    <input
+                                        type="text"
+                                        value={lendNotes}
+                                        onChange={(e) => setLendNotes(e.target.value)}
+                                        placeholder="Any notes..."
+                                        style={{
+                                            width: '100%', padding: 'var(--space-md)',
+                                            background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)',
+                                            borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)',
+                                            fontSize: 'var(--font-size-md)',
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 'var(--space-sm)' }}>
+                                    <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowLendModal(false)}>Cancel</button>
+                                    <button
+                                        type="submit"
+                                        className="btn"
+                                        disabled={!lendBorrower.trim() || lendLoading}
+                                        style={{ flex: 2, background: '#8B5CF6', color: '#fff', border: 'none', fontWeight: 600, opacity: lendBorrower.trim() ? 1 : 0.5 }}
+                                    >
+                                        {lendLoading ? 'Lending...' : '🤝 Lend Item'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Lost Modal */}
+            {
+                showLostModal && (
+                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                        <div className="card" style={{ width: 440, maxWidth: '90vw', padding: 0 }}>
+                            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
+                                <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', color: '#EF4444' }}>
+                                    <AlertTriangle size={18} />
+                                    Mark as Lost
+                                </h3>
+                                <button className="btn btn-secondary btn-icon" onClick={() => setShowLostModal(false)}><X size={16} /></button>
+                            </div>
+                            <form onSubmit={handleMarkLost} style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                                <p style={{ color: 'var(--color-text-muted)' }}>
+                                    This will change the item's status to "Lost" and hide it from normal inventory views until marked found.
+                                </p>
+                                <div>
+                                    <label style={{ display: 'block', fontWeight: 500, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Notes (optional)</label>
+                                    <textarea
+                                        value={lostNotes}
+                                        onChange={(e) => setLostNotes(e.target.value)}
+                                        placeholder="Where was it last seen? Any details?"
+                                        rows={3}
+                                        autoFocus
+                                        style={{
+                                            width: '100%', padding: 'var(--space-md)',
+                                            background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)',
+                                            borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)',
+                                            fontSize: 'var(--font-size-md)', resize: 'vertical'
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 'var(--space-sm)' }}>
+                                    <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowLostModal(false)}>Cancel</button>
+                                    <button
+                                        type="submit"
+                                        className="btn"
+                                        disabled={lostLoading}
+                                        style={{ flex: 2, background: '#EF4444', color: '#fff', border: 'none', fontWeight: 600 }}
+                                    >
+                                        {lostLoading ? 'Marking...' : '⚠️ Confirm Lost'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {showEditModal && (
+                <EditItemModal
                     item={item}
-                    onClose={() => setShowMoveModal(false)}
-                    onSuccess={loadItem}
+                    onClose={() => setShowEditModal(false)}
+                    onSuccess={() => {
+                        loadItem();
+                        setShowEditModal(false);
+                    }}
                 />
             )}
         </div>
     );
 }
 
+function EditItemModal({ item, onClose, onSuccess }) {
+    const [name, setName] = useState(item.name);
+    const [description, setDescription] = useState(item.description || '');
+    const [quantity, setQuantity] = useState(item.quantity);
+    const [imageUrl, setImageUrl] = useState(item.image_url || '');
+    const [tags, setTags] = useState(item.tags ? item.tags.join(', ') : '');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await itemApi.update(item.id, {
+                name,
+                description: description || null,
+                quantity: parseInt(quantity),
+                image_url: imageUrl || null,
+                tags: tags.split(',').map(t => t.trim()).filter(Boolean)
+            });
+            onSuccess();
+        } catch (error) {
+            console.error('Failed to update item:', error);
+            alert(error.response?.data?.detail || 'Failed to update item');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2 className="modal-title">Edit Item</h2>
+                    <button className="btn btn-ghost btn-icon" onClick={onClose}>
+                        <X size={20} />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        <div className="form-group">
+                            <label className="form-label">Name</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Description</label>
+                            <textarea
+                                className="input"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                rows={3}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Quantity</label>
+                            <input
+                                type="number"
+                                className="input"
+                                min="1"
+                                value={quantity}
+                                onChange={e => setQuantity(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Image</label>
+                            <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={imageUrl}
+                                    onChange={e => setImageUrl(e.target.value)}
+                                    placeholder="https://example.com/image.jpg"
+                                    style={{ flex: 1 }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                                <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+                                    <span>Upload Image</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            try {
+                                                setLoading(true);
+                                                const res = await imageApi.upload(file);
+                                                setImageUrl(res.data.url);
+                                            } catch (error) {
+                                                console.error('Failed to upload image:', error);
+                                                alert('Failed to upload image');
+                                            } finally {
+                                                setLoading(false);
+                                            }
+                                        }}
+                                    />
+                                </label>
+                                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                                    or paste URL above
+                                </span>
+                            </div>
+                            {imageUrl && (
+                                <div style={{ marginTop: 'var(--space-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: 100, width: 100, background: 'var(--color-bg-tertiary)' }}>
+                                    <img src={imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                            )}
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Tags (comma separated)</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={tags}
+                                onChange={e => setTags(e.target.value)}
+                                placeholder="tag1, tag2"
+                            />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default ItemDetail;
+

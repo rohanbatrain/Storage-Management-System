@@ -10,12 +10,14 @@ import {
     Modal,
     Switch,
     Image,
+    TextInput,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import { itemApi, locationApi, qrApi } from '../services/api';
+import { itemApi, locationApi, qrApi, imageApi } from '../services/api';
 import FormModal, { ConfirmDialog, LocationPicker } from '../components/FormModal';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ItemDetailScreen() {
     const route = useRoute<any>();
@@ -41,6 +43,38 @@ export default function ItemDetailScreen() {
     const [lendBorrower, setLendBorrower] = useState('');
     const [lendDueDate, setLendDueDate] = useState('');
     const [lendNotes, setLendNotes] = useState('');
+
+    // Lost state
+    const [lostModalVisible, setLostModalVisible] = useState(false);
+    const [lostNotes, setLostNotes] = useState('');
+
+    const handlePickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
+
+            if (!result.canceled) {
+                setActionLoading(true);
+                const asset = result.assets[0];
+                const uploadRes = await imageApi.upload({
+                    uri: asset.uri,
+                    type: asset.mimeType,
+                    fileName: asset.fileName,
+                });
+                await itemApi.update(id, { image_url: uploadRes.data.url });
+                loadData();
+            }
+        } catch (error) {
+            console.error('Upload failed:', error);
+            Alert.alert('Error', 'Failed to upload image');
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -173,6 +207,34 @@ export default function ItemDetailScreen() {
         }
     };
 
+    const handleMarkLost = async () => {
+        try {
+            setActionLoading(true);
+            await itemApi.markLost(id, lostNotes || undefined);
+            setLostModalVisible(false);
+            setLostNotes('');
+            Alert.alert('Success', 'Item marked as lost');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to mark item lost');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleMarkFound = async () => {
+        try {
+            setActionLoading(true);
+            await itemApi.markFound(id);
+            Alert.alert('Success', 'Item marked as found');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to mark item found');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
     }, [id]);
@@ -201,9 +263,16 @@ export default function ItemDetailScreen() {
                 {/* Header Card */}
                 <View style={styles.headerCard}>
                     <View style={styles.headerTop}>
-                        <View style={styles.iconWrapper}>
-                            <Text style={styles.headerIcon}>📦</Text>
-                        </View>
+                        <TouchableOpacity style={styles.iconWrapper} onPress={handlePickImage} disabled={actionLoading}>
+                            {item.image_url ? (
+                                <Image source={{ uri: item.image_url }} style={{ width: 60, height: 60, borderRadius: borderRadius.md }} />
+                            ) : (
+                                <Text style={styles.headerIcon}>📦</Text>
+                            )}
+                            <View style={{ position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.bgSecondary, borderRadius: 10, padding: 2 }}>
+                                <Text style={{ fontSize: 10 }}>✏️</Text>
+                            </View>
+                        </TouchableOpacity>
                         <View style={styles.headerInfo}>
                             <Text style={styles.itemName}>{item.name}</Text>
                             <Text style={styles.itemMeta}>Quantity: {item.quantity}</Text>
@@ -237,6 +306,24 @@ export default function ItemDetailScreen() {
                             disabled={actionLoading}
                         >
                             <Text style={styles.loanReturnBtnText}>Return</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Lost Banner */}
+                {item.is_lost && (
+                    <View style={[styles.loanBanner, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]}>
+                        <View style={styles.loanBannerIcon}>
+                            <Text style={{ fontSize: 24 }}>⚠️</Text>
+                        </View>
+                        <View style={styles.loanBannerText}>
+                            <Text style={[styles.loanBannerTitle, { color: '#EF4444' }]}>Item Lost</Text>
+                            {item.lost_at && (
+                                <Text style={styles.loanBannerDue}>Reported: {new Date(item.lost_at).toLocaleDateString()}</Text>
+                            )}
+                        </View>
+                        <TouchableOpacity style={[styles.loanReturnBtn, { backgroundColor: '#EF4444' }]} onPress={handleMarkFound}>
+                            <Text style={styles.loanReturnBtnText}>Found</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -321,13 +408,23 @@ export default function ItemDetailScreen() {
                             <Text style={[styles.actionLabel, { color: colors.warning }]}>Move</Text>
                         </TouchableOpacity>
 
-                        {!item.is_lent && (
+                        {!item.is_lent && !item.is_lost && (
                             <TouchableOpacity
                                 style={[styles.actionButton, { backgroundColor: '#8B5CF6' + '15' }]}
                                 onPress={() => setLendModalVisible(true)}
                             >
                                 <Text style={styles.actionIcon}>🤝</Text>
                                 <Text style={[styles.actionLabel, { color: '#8B5CF6' }]}>Lend</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {!item.is_lost && !item.is_lent && (
+                            <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: '#EF444420', borderColor: '#EF444440', borderWidth: 1 }]}
+                                onPress={() => setLostModalVisible(true)}
+                            >
+                                <Text style={styles.actionIcon}>⚠️</Text>
+                                <Text style={[styles.actionLabel, { color: '#EF4444' }]}>Lost</Text>
                             </TouchableOpacity>
                         )}
 
@@ -613,6 +710,51 @@ export default function ItemDetailScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Lost Modal */}
+            <Modal
+                visible={lostModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setLostModalVisible(false)}
+            >
+                <View style={moveStyles.overlay}>
+                    <View style={moveStyles.modal}>
+                        <View style={moveStyles.header}>
+                            <Text style={[moveStyles.title, { color: '#EF4444' }]}>⚠️ Mark as Lost</Text>
+                            <TouchableOpacity onPress={() => setLostModalVisible(false)}>
+                                <Text style={moveStyles.closeIcon}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={moveStyles.content}>
+                            <Text style={moveStyles.label}>Notes (Optional)</Text>
+                            <TextInput
+                                style={[moveStyles.input, { height: 100 }]}
+                                value={lostNotes}
+                                onChangeText={setLostNotes}
+                                placeholder="Where was it last seen? Any details?"
+                                placeholderTextColor={colors.textMuted}
+                                multiline
+                            />
+
+                            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+                                <TouchableOpacity
+                                    style={moveStyles.cancelButton}
+                                    onPress={() => setLostModalVisible(false)}
+                                >
+                                    <Text style={moveStyles.cancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[moveStyles.submitButton, { backgroundColor: '#EF4444' }]}
+                                    onPress={handleMarkLost}
+                                >
+                                    <Text style={moveStyles.submitText}>Confirm Lost</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -636,13 +778,14 @@ const moveStyles = StyleSheet.create({
         borderBottomColor: colors.border,
     },
     iconWrapper: {
-        width: 44,
-        height: 44,
+        width: 60,
+        height: 60,
         borderRadius: borderRadius.md,
         backgroundColor: colors.warning + '20',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
+        overflow: 'visible',
     },
     icon: {
         fontSize: 24,
@@ -738,6 +881,15 @@ const moveStyles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: colors.textPrimary,
+    },
+    input: {
+        backgroundColor: colors.bgTertiary,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        color: colors.textPrimary,
+        borderWidth: 1,
+        borderColor: colors.border,
+        fontSize: 16,
     },
 });
 

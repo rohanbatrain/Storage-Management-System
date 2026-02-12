@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import locations, items, search, qr, wardrobe, export
+from app.routers import locations, items, search, qr, wardrobe, export, images
 
 settings = get_settings()
 
 # Create database tables
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 # Create FastAPI app
 app = FastAPI(
@@ -22,7 +22,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly for production
+    allow_origins=settings.cors_origins,  # Configure properly for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +35,7 @@ app.include_router(search.router, prefix=settings.api_v1_prefix)
 app.include_router(qr.router, prefix=settings.api_v1_prefix)
 app.include_router(wardrobe.router, prefix=settings.api_v1_prefix)
 app.include_router(export.router, prefix=settings.api_v1_prefix)
+app.include_router(images.router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")

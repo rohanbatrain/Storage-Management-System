@@ -74,7 +74,11 @@ def item_to_response(item: Item) -> ItemResponse:
         lent_to=item.lent_to,
         lent_at=item.lent_at,
         due_date=item.due_date,
-        lent_notes=item.lent_notes
+        lent_notes=item.lent_notes,
+        # Lost fields
+        is_lost=item.is_lost,
+        lost_at=item.lost_at,
+        lost_notes=item.lost_notes
     )
 
 
@@ -96,6 +100,23 @@ def list_items(
         query = query.filter(Item.is_temporary_placement == True)
     
     items = query.all()
+    return [item_to_response(item) for item in items]
+
+
+
+# IMPOTANT: Static routes must come BEFORE dynamic routes like /{item_id}
+
+@router.get("/lent/all")
+def list_lent_items(db: Session = Depends(get_db)):
+    """List all items currently lent out."""
+    items = db.query(Item).filter(Item.is_lent == True).all()
+    return [item_to_response(item) for item in items]
+
+
+@router.get("/lost/all")
+def list_lost_items(db: Session = Depends(get_db)):
+    """List all items currently marked as lost."""
+    items = db.query(Item).filter(Item.is_lost == True).all()
     return [item_to_response(item) for item in items]
 
 
@@ -333,12 +354,6 @@ def get_item_history(item_id: UUID, db: Session = Depends(get_db)):
 
 # ============ LOAN TRACKING ENDPOINTS ============
 
-@router.get("/lent/all")
-def list_lent_items(db: Session = Depends(get_db)):
-    """List all items currently lent out."""
-    items = db.query(Item).filter(Item.is_lent == True).all()
-    return [item_to_response(item) for item in items]
-
 
 @router.post("/{item_id}/lend")
 def lend_item(
@@ -423,6 +438,85 @@ def return_from_loan(item_id: UUID, notes: Optional[str] = None, db: Session = D
     
     return {
         "message": f"Item returned from {borrower}",
+        "item": item_to_response(item)
+    }
+
+
+@router.post("/{item_id}/lost")
+def mark_lost(
+    item_id: UUID, 
+    notes: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Mark an item as lost.
+    """
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    if item.is_lost:
+        raise HTTPException(status_code=400, detail="Item is already marked as lost")
+    
+    if item.is_lent:
+        raise HTTPException(status_code=400, detail="Cannot mark a lent item as lost. Return it first.")
+
+    item.is_lost = True
+    item.lost_at = datetime.utcnow()
+    item.lost_notes = notes
+    
+    # Create history record
+    history = MovementHistory(
+        item_id=item.id,
+        from_location_id=item.current_location_id,
+        to_location_id=item.current_location_id,
+        action=ActionType.LOST,
+        notes=f"Marked as lost" + (f" - {notes}" if notes else "")
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(item)
+    
+    return {
+        "message": "Item marked as lost",
+        "item": item_to_response(item)
+    }
+
+
+@router.post("/{item_id}/found")
+def mark_found(
+    item_id: UUID, 
+    notes: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Mark a lost item as found.
+    """
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    if not item.is_lost:
+        raise HTTPException(status_code=400, detail="Item is not currently marked as lost")
+    
+    item.is_lost = False
+    item.lost_at = None
+    item.lost_notes = None
+    
+    # Create history record
+    history = MovementHistory(
+        item_id=item.id,
+        from_location_id=item.current_location_id,
+        to_location_id=item.current_location_id,
+        action=ActionType.FOUND,
+        notes=f"Marked as found" + (f" - {notes}" if notes else "")
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(item)
+    
+    return {
+        "message": "Item marked as found",
         "item": item_to_response(item)
     }
 

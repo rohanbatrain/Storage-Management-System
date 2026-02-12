@@ -150,7 +150,7 @@ export default function OutfitsScreen() {
                 </View>
 
                 <View style={styles.itemsList}>
-                    {itemNames.map((name, idx) => (
+                    {itemNames.map((name: string, idx: number) => (
                         <View key={idx} style={styles.itemChip}>
                             <Text style={styles.itemChipText}>{name}</Text>
                         </View>

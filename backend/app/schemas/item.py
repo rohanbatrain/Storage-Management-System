@@ -66,6 +66,11 @@ class ItemResponse(ItemBase):
     due_date: Optional[datetime] = None
     lent_notes: Optional[str] = None
     
+    # Lost Items Tracking
+    is_lost: bool = False
+    lost_at: Optional[datetime] = None
+    lost_notes: Optional[str] = None
+    
     class Config:
         from_attributes = True
 

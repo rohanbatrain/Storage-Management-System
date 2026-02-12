@@ -22,6 +22,7 @@ class LocationBase(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     kind: LocationKind = LocationKind.CONTAINER
     parent_id: Optional[UUID] = None
+    image_url: Optional[str] = Field(None, max_length=1000)
 
 
 class LocationCreate(LocationBase):
@@ -39,6 +40,7 @@ class LocationUpdate(BaseModel):
     parent_id: Optional[UUID] = None
     is_wardrobe: Optional[bool] = None
     default_clothing_category: Optional[str] = None
+    image_url: Optional[str] = Field(None, max_length=1000)
 
 
 class AliasCreate(BaseModel):

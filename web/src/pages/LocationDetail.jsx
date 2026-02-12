@@ -315,6 +315,7 @@ function LocationDetail() {
     const [loading, setLoading] = useState(true);
     const [showAddItem, setShowAddItem] = useState(false);
     const [showAddSub, setShowAddSub] = useState(false);
+    const [showEditLocation, setShowEditLocation] = useState(false);
     const [showQR, setShowQR] = useState(false);
 
     useEffect(() => {
@@ -386,6 +387,23 @@ function LocationDetail() {
                         </h1>
                         <span className="badge badge-primary">{kindLabels[location.kind]}</span>
                     </div>
+                    {location.image_url && (
+                        <div style={{
+                            marginBottom: 'var(--space-md)',
+                            borderRadius: 'var(--radius-md)',
+                            overflow: 'hidden',
+                            height: 200,
+                            maxWidth: 300,
+                            background: 'var(--color-bg-tertiary)',
+                        }}>
+                            <img
+                                src={location.image_url}
+                                alt={location.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => e.target.style.display = 'none'}
+                            />
+                        </div>
+                    )}
                     {location.aliases?.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
                             <Tag size={14} style={{ color: 'var(--color-text-muted)' }} />
@@ -398,6 +416,9 @@ function LocationDetail() {
                 <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                     <button className="btn btn-secondary btn-icon" onClick={() => setShowQR(true)}>
                         <QrCode size={18} />
+                    </button>
+                    <button className="btn btn-secondary btn-icon" onClick={() => setShowEditLocation(true)}>
+                        <Edit2 size={18} />
                     </button>
                     <button className="btn btn-secondary btn-icon" onClick={handleDelete}>
                         <Trash2 size={18} />
@@ -522,6 +543,96 @@ function LocationDetail() {
                     onClose={() => setShowQR(false)}
                 />
             )}
+
+            {showEditLocation && (
+                <EditLocationModal
+                    location={location}
+                    onClose={() => setShowEditLocation(false)}
+                    onSuccess={() => {
+                        loadLocation();
+                        setShowEditLocation(false);
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
+function EditLocationModal({ location, onClose, onSuccess }) {
+    const [name, setName] = useState(location.name);
+    const [description, setDescription] = useState(location.description || '');
+    const [imageUrl, setImageUrl] = useState(location.image_url || '');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await locationApi.update(location.id, {
+                name,
+                description: description || null,
+                image_url: imageUrl || null
+            });
+            onSuccess();
+        } catch (error) {
+            console.error('Failed to update location:', error);
+            alert(error.response?.data?.detail || 'Failed to update location');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2 className="modal-title">Edit Location</h2>
+                    <button className="btn btn-ghost btn-icon" onClick={onClose}>
+                        <X size={20} />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        <div className="form-group">
+                            <label className="form-label">Name</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Description</label>
+                            <textarea
+                                className="input"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                rows={3}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Image URL</label>
+                            <input
+                                type="url"
+                                className="input"
+                                value={imageUrl}
+                                onChange={e => setImageUrl(e.target.value)}
+                                placeholder="https://example.com/image.jpg"
+                            />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }

@@ -62,6 +62,11 @@ class Item(Base):
     lent_at = Column(DateTime, nullable=True)
     due_date = Column(DateTime, nullable=True)
     lent_notes = Column(String(500), nullable=True)
+
+    # Lost Items Tracking
+    is_lost = Column(Boolean, default=False, nullable=False, index=True)
+    lost_at = Column(DateTime, nullable=True)
+    lost_notes = Column(String(500), nullable=True)
     
     # Relationships
     current_location = relationship(

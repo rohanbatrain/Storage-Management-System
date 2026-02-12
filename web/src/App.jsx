@@ -9,6 +9,8 @@ import Laundry from './pages/Laundry';
 import Outfits from './pages/Outfits';
 import Settings from './pages/Settings';
 import QRPrint from './pages/QRPrint';
+import LentItems from './pages/LentItems';
+import LostItems from './pages/LostItems';
 
 function App() {
     return (
@@ -25,6 +27,8 @@ function App() {
                     <Route path="/outfits" element={<Outfits />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/qr-print" element={<QRPrint />} />
+                    <Route path="/lent" element={<LentItems />} />
+                    <Route path="/lost" element={<LostItems />} />
                 </Routes>
             </main>
         </div>

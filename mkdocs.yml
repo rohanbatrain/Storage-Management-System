@@ -1,0 +1,37 @@
+site_name: Personal Storage Management System
+site_description: Documentation for PSMS - A comprehensive system for tracking personal items, wardrobe, and laundry.
+site_author: Rohan
+repo_url: https://github.com/rohan/personal-storage-management
+theme:
+  name: material
+  palette: 
+    - scheme: default
+      primary: indigo
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage Guide: usage.md
+  - Development: development.md

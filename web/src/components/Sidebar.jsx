@@ -13,7 +13,9 @@ import {
     Shirt,
     Droplets,
     Package,
-    MapPin
+    MapPin,
+    Handshake,
+    AlertTriangle
 } from 'lucide-react';
 import { locationApi } from '../services/api';
 
@@ -405,6 +407,20 @@ function Sidebar() {
                         label="Outfits"
                         color="#8b5cf6"
                         isActive={location.pathname === '/outfits'}
+                    />
+                    <NavItem
+                        to="/lent"
+                        icon={Handshake}
+                        label="Lent Items"
+                        color="#a855f7"
+                        isActive={location.pathname === '/lent'}
+                    />
+                    <NavItem
+                        to="/lost"
+                        icon={AlertTriangle}
+                        label="Lost Items"
+                        color="#ef4444"
+                        isActive={location.pathname === '/lost'}
                     />
                 </div>
 

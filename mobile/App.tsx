@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -18,23 +18,14 @@ import LaundryScreen from './src/screens/LaundryScreen';
 import OutfitsScreen from './src/screens/OutfitsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import QRPrintScreen from './src/screens/QRPrintScreen';
+import MenuScreen from './src/screens/MenuScreen';
+import { colors } from './src/styles/theme';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-// Theme colors
-const colors = {
-    bgPrimary: '#0f0f14',
-    bgSecondary: '#1a1a24',
-    bgTertiary: '#252532',
-    accentPrimary: '#6366f1',
-    textPrimary: '#f8fafc',
-    textMuted: '#64748b',
-    border: 'rgba(255, 255, 255, 0.08)',
-};
 
 // Custom dark theme for navigation
 const DarkTheme = {
@@ -46,7 +37,7 @@ const DarkTheme = {
         card: colors.bgSecondary,
         text: colors.textPrimary,
         border: colors.border,
-        notification: '#ef4444',
+        notification: colors.error,
     },
 };
 
@@ -98,19 +89,20 @@ function MainTabs() {
                 component={ScannerScreen}
                 options={{
                     title: 'Scan',
-                    tabBarIcon: () => (
-                        <View style={styles.scanButton}>
-                            <Text style={styles.scanIcon}>📷</Text>
-                        </View>
+                    tabBarButton: (props) => (
+                        <TouchableOpacity
+                            {...props}
+                            style={{
+                                top: -20,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <View style={styles.scanButton}>
+                                <Text style={styles.scanIcon}>📷</Text>
+                            </View>
+                        </TouchableOpacity>
                     ),
-                }}
-            />
-            <Tab.Screen
-                name="WardrobeTab"
-                component={WardrobeScreen}
-                options={{
-                    title: 'Wardrobe',
-                    tabBarIcon: ({ focused }: { focused: boolean }) => <TabIcon icon="👕" focused={focused} />,
                 }}
             />
             <Tab.Screen
@@ -122,11 +114,11 @@ function MainTabs() {
                 }}
             />
             <Tab.Screen
-                name="SettingsTab"
-                component={SettingsScreen}
+                name="MenuTab"
+                component={MenuScreen}
                 options={{
-                    title: 'Settings',
-                    tabBarIcon: ({ focused }: { focused: boolean }) => <TabIcon icon="⚙️" focused={focused} />,
+                    title: 'Menu',
+                    tabBarIcon: ({ focused }: { focused: boolean }) => <TabIcon icon="☰" focused={focused} />,
                 }}
             />
         </Tab.Navigator>

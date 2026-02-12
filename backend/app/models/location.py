@@ -40,6 +40,7 @@ class Location(Base):
     kind = Column(SQLEnum(LocationKind), nullable=False, default=LocationKind.CONTAINER)
     aliases = Column(ARRAY(String), default=[])
     qr_code_id = Column(String(100), unique=True, nullable=True, index=True)
+    image_url = Column(String(1000), nullable=True)
     
     # Wardrobe integration
     is_wardrobe = Column(Boolean, default=False, nullable=False, index=True)  # Items here auto-become clothing
