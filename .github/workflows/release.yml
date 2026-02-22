@@ -29,6 +29,7 @@ jobs:
   build-backend:
     needs: test
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -46,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          pip install -r requirements.txt pyinstaller
+          pip install -r requirements.txt
       - name: Build executable
         run: |
           cd backend
@@ -60,6 +61,7 @@ jobs:
   build-electron:
     needs: build-backend
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -83,7 +85,7 @@ jobs:
           path: electron/backend-dist/
       - name: Make backend executable
         if: runner.os != 'Windows'
-        run: chmod +x electron/backend-dist/main
+        run: chmod +x electron/backend-dist/psms-server
       - name: Build web frontend
         run: |
           cd web
@@ -113,6 +115,7 @@ jobs:
   # ─── Publish mobile app to Expo (optional — needs EXPO_TOKEN secret) ───
   publish-mobile:
     needs: test
+    if: ${{ secrets.EXPO_TOKEN != '' }}
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
