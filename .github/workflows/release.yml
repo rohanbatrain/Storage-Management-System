@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          pip install -r requirements.txt
+          pip install -r requirements.txt pyinstaller
       - name: Build executable
         run: |
           cd backend
@@ -85,7 +85,7 @@ jobs:
           path: electron/backend-dist/
       - name: Make backend executable
         if: runner.os != 'Windows'
-        run: chmod +x electron/backend-dist/main
+        run: chmod +x electron/backend-dist/psms-server
       - name: Build web frontend
         run: |
           cd web
@@ -112,32 +112,47 @@ jobs:
             electron/dist/*.AppImage
             electron/dist/*.deb
 
-  # ─── Publish mobile app to Expo (optional — needs EXPO_TOKEN secret) ───
-  publish-mobile:
+  # ─── Build Android APK ───
+  build-mobile:
     needs: test
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Install Expo CLI
-        run: npm install -g eas-cli
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
       - name: Install dependencies
         run: |
           cd mobile
           npm ci
-      - name: Publish Expo update
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Generate native Android project
         run: |
           cd mobile
-          eas update --branch production --message "Release ${{ github.ref_name }}"
+          npx expo prebuild --platform android --no-install
+      - name: Build release APK
+        run: |
+          cd mobile/android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+      - name: Find and rename APK
+        run: |
+          APK=$(find mobile/android -name "*.apk" -path "*/release/*" | head -1)
+          mkdir -p mobile/dist
+          cp "$APK" mobile/dist/psms-mobile-${{ github.ref_name }}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-android
+          path: mobile/dist/*.apk
 
   # ─── Create GitHub Release ───
   create-release:
-    needs: [build-electron]
+    needs: [build-electron, build-mobile]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -150,3 +165,4 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/electron-*/**
+            artifacts/mobile-android/**
