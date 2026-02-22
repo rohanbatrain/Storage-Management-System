@@ -331,22 +331,40 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     
     # Delete movement history records that reference these locations
     if location_ids:
-        # Use IN clause with proper UUID casting for PostgreSQL
-        ids_str = ",".join([f"'{id}'::uuid" for id in location_ids])
+        from app.models.history import MovementHistory
+        from app.models.item import Item
+        from app.routers.upload import cleanup_image
         
-        db.execute(
-            text(f"DELETE FROM movement_history WHERE to_location_id IN ({ids_str}) OR from_location_id IN ({ids_str})")
-        )
+        db.query(MovementHistory).filter(
+            (MovementHistory.to_location_id.in_(location_ids)) |
+            (MovementHistory.from_location_id.in_(location_ids))
+        ).delete(synchronize_session=False)
         
-        # Delete items in these locations
-        db.execute(
-            text(f"DELETE FROM items WHERE current_location_id IN ({ids_str}) OR permanent_location_id IN ({ids_str})")
-        )
+        # Clean up image files for items being deleted
+        items_to_delete = db.query(Item).filter(
+            (Item.current_location_id.in_(location_ids)) |
+            (Item.permanent_location_id.in_(location_ids))
+        ).all()
+        for item in items_to_delete:
+            cleanup_image(item.image_url)
         
-        # Delete the locations (children first due to parent_id FK)
-        db.execute(
-            text(f"DELETE FROM locations WHERE id IN ({ids_str})")
-        )
+        # Clean up image files for locations being deleted
+        locations_to_delete = db.query(Location).filter(
+            Location.id.in_(location_ids)
+        ).all()
+        for loc in locations_to_delete:
+            cleanup_image(loc.image_url)
+        
+        # Delete items
+        db.query(Item).filter(
+            (Item.current_location_id.in_(location_ids)) |
+            (Item.permanent_location_id.in_(location_ids))
+        ).delete(synchronize_session=False)
+        
+        # Delete the locations
+        db.query(Location).filter(
+            Location.id.in_(location_ids)
+        ).delete(synchronize_session=False)
     
     db.commit()
 

@@ -4,12 +4,17 @@ from app.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
+_is_sqlite = "sqlite" in settings.database_url
+
+engine_kwargs = {
+    "pool_pre_ping": True,
+    "connect_args": {"check_same_thread": False} if _is_sqlite else {},
+}
+if not _is_sqlite:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+
+engine = create_engine(settings.database_url, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

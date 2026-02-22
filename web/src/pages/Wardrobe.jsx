@@ -11,6 +11,7 @@ import {
     BarChart3,
     ChevronRight
 } from 'lucide-react';
+import ImageUpload from '../components/ImageUpload';
 import { wardrobeApi, locationApi } from '../services/api';
 
 const styleLabels = {
@@ -286,13 +287,10 @@ function AddClothingModal({ isOpen, onClose, onAdd, locations }) {
                         />
                     </div>
                     <div className="form-group">
-                        <label className="label">Image URL (optional)</label>
-                        <input
-                            type="url"
-                            className="input"
+                        <label className="label">Image (optional)</label>
+                        <ImageUpload
                             value={imageUrl}
-                            onChange={e => setImageUrl(e.target.value)}
-                            placeholder="https://example.com/image.jpg"
+                            onChange={setImageUrl}
                         />
                     </div>
                     <div className="form-group">

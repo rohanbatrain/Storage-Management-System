@@ -15,6 +15,7 @@ import {
     Handshake,
     AlertTriangle
 } from 'lucide-react';
+import ImageUpload from '../components/ImageUpload';
 import { itemApi, locationApi, qrApi, imageApi } from '../services/api';
 
 function MoveItemModal({ item, onClose, onSuccess }) {
@@ -835,49 +836,10 @@ function EditItemModal({ item, onClose, onSuccess }) {
                         </div>
                         <div className="form-group">
                             <label className="form-label">Image</label>
-                            <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
-                                <input
-                                    type="text"
-                                    className="input"
-                                    value={imageUrl}
-                                    onChange={e => setImageUrl(e.target.value)}
-                                    placeholder="https://example.com/image.jpg"
-                                    style={{ flex: 1 }}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                                <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
-                                    <span>Upload Image</span>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        style={{ display: 'none' }}
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-
-                                            try {
-                                                setLoading(true);
-                                                const res = await imageApi.upload(file);
-                                                setImageUrl(res.data.url);
-                                            } catch (error) {
-                                                console.error('Failed to upload image:', error);
-                                                alert('Failed to upload image');
-                                            } finally {
-                                                setLoading(false);
-                                            }
-                                        }}
-                                    />
-                                </label>
-                                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                                    or paste URL above
-                                </span>
-                            </div>
-                            {imageUrl && (
-                                <div style={{ marginTop: 'var(--space-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: 100, width: 100, background: 'var(--color-bg-tertiary)' }}>
-                                    <img src={imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                </div>
-                            )}
+                            <ImageUpload
+                                value={imageUrl}
+                                onChange={setImageUrl}
+                            />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Tags (comma separated)</label>
@@ -905,4 +867,3 @@ function EditItemModal({ item, onClose, onSuccess }) {
 }
 
 export default ItemDetail;
-

@@ -18,6 +18,8 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import { locationApi } from '../services/api';
+import ServerInfo from './ServerInfo';
+import SyncStatus from './SyncStatus';
 
 const kindConfig = {
     room: { icon: Layout, color: '#6366f1', label: 'Room' },
@@ -461,6 +463,8 @@ function Sidebar() {
                 padding: '12px',
                 borderTop: '1px solid var(--color-border)',
             }}>
+                <SyncStatus />
+                <ServerInfo />
                 <Link
                     to="/settings"
                     style={{

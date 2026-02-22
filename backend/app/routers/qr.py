@@ -27,21 +27,35 @@ router = APIRouter(prefix="/qr", tags=["QR Codes"])
 def generate_bulk_pdf(
     type: str = Query(..., description="Type: 'locations' or 'items'"),
     ids: str = Query(..., description="Comma-separated list of UUIDs"),
+    qr_size: int = Query(50, ge=25, le=80, description="QR code size in mm (25-80)"),
+    page_size: str = Query("letter", description="Page size: 'letter' or 'a4'"),
+    orientation: str = Query("portrait", description="Orientation: 'portrait' or 'landscape'"),
+    columns: int = Query(3, ge=1, le=6, description="Number of columns (1-6)"),
+    show_labels: bool = Query(True, description="Show name labels below QR codes"),
+    label_font_size: int = Query(8, ge=6, le=14, description="Label font size in pt (6-14)"),
+    include_border: bool = Query(False, description="Draw a dashed border around each QR cell"),
+    include_id: bool = Query(False, description="Print QR code ID text below the label"),
     db: Session = Depends(get_db)
 ):
     """
     Generate a printable PDF with multiple QR codes.
-    Each QR code includes the name label below it.
+    Supports extensive customization: QR size, page format, layout, labels, and borders.
     """
     if not FPDF_AVAILABLE:
         raise HTTPException(status_code=500, detail="PDF generation not available")
+    
+    # Validate enum-style params
+    if page_size not in ('letter', 'a4'):
+        raise HTTPException(status_code=400, detail="page_size must be 'letter' or 'a4'")
+    if orientation not in ('portrait', 'landscape'):
+        raise HTTPException(status_code=400, detail="orientation must be 'portrait' or 'landscape'")
     
     id_list = [id.strip() for id in ids.split(',') if id.strip()]
     if not id_list:
         raise HTTPException(status_code=400, detail="No IDs provided")
     
     # Fetch items based on type
-    qr_entries = []  # List of (name, qr_data)
+    qr_entries = []  # List of (name, qr_data, qr_code_id)
     
     if type == 'locations':
         for loc_id in id_list:
@@ -52,7 +66,7 @@ def generate_bulk_pdf(
                         loc.qr_code_id = f"psms-loc-{uuid_lib.uuid4().hex[:8]}"
                         db.commit()
                     name = loc.name[:32] + '...' if len(loc.name) > 32 else loc.name
-                    qr_entries.append((name, f"psms://location/{loc.qr_code_id}"))
+                    qr_entries.append((name, f"psms://location/{loc.qr_code_id}", loc.qr_code_id))
             except:
                 continue
     elif type == 'items':
@@ -72,7 +86,7 @@ def generate_bulk_pdf(
                         else:
                             name = item.name[:32] + '...' if len(item.name) > 32 else item.name
                             qr_data = f"psms://item/{item.qr_code_id}"
-                        qr_entries.append((name, qr_data))
+                        qr_entries.append((name, qr_data, item.qr_code_id))
             except:
                 continue
     else:
@@ -81,54 +95,114 @@ def generate_bulk_pdf(
     if not qr_entries:
         raise HTTPException(status_code=404, detail="No valid entries found")
     
-    # Generate PDF
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    # --- Page dimensions ---
+    # Letter: 215.9 x 279.4 mm, A4: 210 x 297 mm
+    page_dimensions = {
+        'letter': (215.9, 279.4),
+        'a4': (210.0, 297.0),
+    }
+    page_w, page_h = page_dimensions[page_size]
+    if orientation == 'landscape':
+        page_w, page_h = page_h, page_w
     
-    # QR grid layout: 3 columns, ~4 rows per page
-    qr_size = 50  # mm
-    margin = 10
-    col_width = 65
-    row_height = 70
-    cols_per_row = 3
+    # --- Layout calculations ---
+    margin = 10  # mm
+    usable_w = page_w - 2 * margin
+    usable_h = page_h - 2 * margin
     
-    for idx, (name, qr_data) in enumerate(qr_entries):
-        col = idx % cols_per_row
-        row = (idx // cols_per_row) % 4
+    col_width = usable_w / columns
+    # Cap qr_size to fit in column
+    effective_qr_size = min(qr_size, col_width - 4)
+    
+    # Row height: QR + optional label + optional ID + padding
+    label_height = (label_font_size * 0.4 + 3) if show_labels else 0
+    id_height = 4 if include_id else 0
+    row_height = effective_qr_size + label_height + id_height + 8  # 8mm padding
+    
+    rows_per_page = max(1, int(usable_h / row_height))
+    items_per_page = columns * rows_per_page
+    
+    # --- Generate PDF ---
+    fmt = page_size.upper() if page_size == 'a4' else 'Letter'
+    orient = 'P' if orientation == 'portrait' else 'L'
+    pdf = FPDF(orientation=orient, format=fmt)
+    pdf.set_auto_page_break(auto=False)
+    
+    from PIL import Image as PILImage
+    
+    for idx, (name, qr_data, qr_code_id) in enumerate(qr_entries):
+        col = idx % columns
+        row = (idx // columns) % rows_per_page
         
-        if idx % 12 == 0:  # New page every 12 items
+        if idx % items_per_page == 0:
             pdf.add_page()
         
-        x = margin + col * col_width
-        y = margin + row * row_height
+        # Calculate cell position
+        cell_x = margin + col * col_width
+        cell_y = margin + row * row_height
+        
+        # Center QR within the cell
+        qr_x = cell_x + (col_width - effective_qr_size) / 2
+        qr_y = cell_y + 2
+        
+        # Optional dashed border around cell
+        if include_border:
+            pdf.set_draw_color(180, 180, 180)
+            pdf.set_line_width(0.3)
+            bx = cell_x + 1
+            by = cell_y
+            bw = col_width - 2
+            bh = row_height - 2
+            # Draw border with dash pattern if available, else solid rect
+            if hasattr(pdf, 'set_dash_pattern'):
+                pdf.set_dash_pattern(dash=2, gap=1)
+                pdf.rect(bx, by, bw, bh)
+                pdf.set_dash_pattern()
+            elif hasattr(pdf, 'dashed_line'):
+                pdf.dashed_line(bx, by, bx + bw, by, 2, 1)
+                pdf.dashed_line(bx + bw, by, bx + bw, by + bh, 2, 1)
+                pdf.dashed_line(bx + bw, by + bh, bx, by + bh, 2, 1)
+                pdf.dashed_line(bx, by + bh, bx, by, 2, 1)
+            else:
+                pdf.rect(bx, by, bw, bh)
         
         # Generate QR code image
         qr = qrcode.QRCode(version=1, box_size=10, border=2)
         qr.add_data(qr_data)
         qr.make(fit=True)
         
-        # Create the QR image and convert to RGB mode for proper PNG handling
         qr_img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Convert to PIL Image and ensure RGB mode
-        from PIL import Image as PILImage
         if hasattr(qr_img, 'convert'):
             pil_img = qr_img.convert('RGB')
         else:
             pil_img = qr_img.get_image().convert('RGB')
         
-        # Save to bytes buffer with explicit PNG format
         img_buffer = io.BytesIO()
         pil_img.save(img_buffer, format='PNG')
         img_buffer.seek(0)
         
-        # Add QR image to PDF with explicit type
-        pdf.image(img_buffer, x=x, y=y, w=qr_size, h=qr_size, type='PNG')
+        pdf.image(img_buffer, x=qr_x, y=qr_y, w=effective_qr_size, h=effective_qr_size)
         
-        # Add name label below QR
-        pdf.set_xy(x, y + qr_size + 2)
-        pdf.set_font('Helvetica', size=8)
-        pdf.cell(col_width - 5, 5, name, align='C')
+        # Name label
+        if show_labels:
+            pdf.set_xy(cell_x, qr_y + effective_qr_size + 1)
+            pdf.set_font('Helvetica', size=label_font_size)
+            pdf.set_text_color(0, 0, 0)
+            # Truncate name to fit cell width (rough estimate: 2.5 chars per mm at small sizes)
+            max_chars = max(8, int(col_width / (label_font_size * 0.22)))
+            display_name = name[:max_chars] + '...' if len(name) > max_chars else name
+            pdf.cell(col_width, label_font_size * 0.4 + 1, display_name, align='C')
+        
+        # QR code ID text
+        if include_id:
+            id_y = qr_y + effective_qr_size + 1 + (label_height if show_labels else 0)
+            pdf.set_xy(cell_x, id_y)
+            pdf.set_font('Courier', size=6)
+            pdf.set_text_color(120, 120, 120)
+            pdf.cell(col_width, 3, qr_code_id, align='C')
+    
+    # Reset text color
+    pdf.set_text_color(0, 0, 0)
     
     # Output PDF
     pdf_bytes = io.BytesIO()

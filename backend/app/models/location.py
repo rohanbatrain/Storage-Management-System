@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum, Boolean
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.compatibility import GUID, ArrayCompatible
 import enum
 
 
@@ -33,12 +33,13 @@ class Location(Base):
     """
     __tablename__ = "locations"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, index=True)
     description = Column(String(500), nullable=True)
-    parent_id = Column(UUID(as_uuid=True), ForeignKey("locations.id", ondelete="CASCADE"), nullable=True, index=True)
+    parent_id = Column(GUID(), ForeignKey("locations.id", ondelete="CASCADE"), nullable=True, index=True)
     kind = Column(SQLEnum(LocationKind), nullable=False, default=LocationKind.CONTAINER)
-    aliases = Column(ARRAY(String), default=[])
+    # Changed from ARRAY to JSON-compatible array
+    aliases = Column(ArrayCompatible(), default=[])
     qr_code_id = Column(String(100), unique=True, nullable=True, index=True)
     image_url = Column(String(1000), nullable=True)
     
@@ -48,6 +49,7 @@ class Location(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    device_id = Column(String(64), nullable=True, index=True)  # Sync: which device last modified this
     
     # Self-referential relationship for nested locations
     parent = relationship(

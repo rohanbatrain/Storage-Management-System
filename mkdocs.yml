@@ -1,7 +1,10 @@
 site_name: Personal Storage Management System
-site_description: Documentation for PSMS - A comprehensive system for tracking personal items, wardrobe, and laundry.
+site_description: Documentation for PSMS — organize, track, and search every physical item you own.
 site_author: Rohan
+site_url: https://rohan.github.io/personal-storage-management/docs/
 repo_url: https://github.com/rohan/personal-storage-management
+site_dir: site/docs
+
 theme:
   name: material
   palette: 
@@ -34,4 +37,6 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Usage Guide: usage.md
+  - API Reference: api.md
+  - Multi-Device Sync: sync.md
   - Development: development.md

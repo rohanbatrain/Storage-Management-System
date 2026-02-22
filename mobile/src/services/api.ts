@@ -1,12 +1,9 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure this based on how you're running:
-// - iOS Simulator: use 'localhost'
-// - Android Emulator: use '10.0.2.2'
-// - Physical device: use your Mac's local IP (run: ifconfig | grep "inet " | grep -v 127)
-//
-// Example: const API_BASE_URL = 'http://192.168.1.100:8000';
-const API_BASE_URL = 'http://192.168.1.4:8000';
+// Default to localhost for dev, but will be overwritten by context
+let API_BASE_URL = 'http://192.168.1.4:8000';
 
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
@@ -15,6 +12,52 @@ const api = axios.create({
     },
     timeout: 10000,
 });
+
+let connectionErrorCallback: (() => void) | null = null;
+
+// Load persisted URL on startup
+AsyncStorage.getItem('@psms_api_url').then(url => {
+    if (url) {
+        setApiBaseUrl(url);
+    }
+});
+
+export const setConnectionErrorCallback = (callback: () => void) => {
+    connectionErrorCallback = callback;
+};
+
+export const setApiBaseUrl = (url: string) => {
+    API_BASE_URL = url;
+    api.defaults.baseURL = `${url}/api`;
+    console.log('API Base URL set to:', api.defaults.baseURL);
+};
+
+export const saveApiBaseUrl = async (url: string) => {
+    // Basic formatting: remove trailing slash, or add http if missing
+    let cleanUrl = url.trim();
+    if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+    }
+    if (!cleanUrl.startsWith('http')) {
+        cleanUrl = `http://${cleanUrl}`;
+    }
+
+    setApiBaseUrl(cleanUrl);
+    await AsyncStorage.setItem('@psms_api_url', cleanUrl);
+};
+
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (!error.response) {
+            // Network error
+            console.log('Network Error detected in API');
+            if (connectionErrorCallback) connectionErrorCallback();
+        }
+        return Promise.reject(error);
+    }
+);
+
 
 // Location API - Full CRUD + Aliases
 export const locationApi = {
@@ -60,6 +103,17 @@ export const searchApi = {
 };
 
 // QR API
+export interface QrPdfOptions {
+    qr_size?: number;
+    page_size?: 'letter' | 'a4';
+    orientation?: 'portrait' | 'landscape';
+    columns?: number;
+    show_labels?: boolean;
+    label_font_size?: number;
+    include_border?: boolean;
+    include_id?: boolean;
+}
+
 export const qrApi = {
     getQrUrl: (locationId: string, size = 200) =>
         `${API_BASE_URL}/api/qr/${locationId}?size=${size}`,
@@ -67,8 +121,22 @@ export const qrApi = {
         `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}`,
     getItemSequenceQrUrl: (itemId: string, seq: number, total: number, size = 150) =>
         `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}&seq=${seq}&of=${total}`,
-    getBulkPdfUrl: (type: 'locations' | 'items', ids: string[]) =>
-        `${API_BASE_URL}/api/qr/bulk-pdf?type=${type}&ids=${ids.join(',')}`,
+    getBulkPdfUrl: (type: 'locations' | 'items', ids: string[], options?: QrPdfOptions) => {
+        const params = new URLSearchParams();
+        params.set('type', type);
+        params.set('ids', ids.join(','));
+        if (options) {
+            if (options.qr_size !== undefined) params.set('qr_size', String(options.qr_size));
+            if (options.page_size) params.set('page_size', options.page_size);
+            if (options.orientation) params.set('orientation', options.orientation);
+            if (options.columns !== undefined) params.set('columns', String(options.columns));
+            if (options.show_labels !== undefined) params.set('show_labels', String(options.show_labels));
+            if (options.label_font_size !== undefined) params.set('label_font_size', String(options.label_font_size));
+            if (options.include_border !== undefined) params.set('include_border', String(options.include_border));
+            if (options.include_id !== undefined) params.set('include_id', String(options.include_id));
+        }
+        return `${API_BASE_URL}/api/qr/bulk-pdf?${params.toString()}`;
+    },
     scanQr: (qrCodeId: string) => api.get(`/qr/scan/${qrCodeId}`),
 };
 
@@ -101,10 +169,23 @@ export const wardrobeApi = {
     wearOutfit: (id: string) => api.post(`/wardrobe/outfits/${id}/wear`),
 };
 
-// Export API
+// Export & Import API
 export const exportApi = {
     exportFull: () => api.get('/export/full'),
     exportSummary: () => api.get('/export/summary'),
+    exportArchive: () => api.get('/export/archive', { responseType: 'blob', timeout: 120000 }),
+    importArchive: (fileUri: string, fileName: string) => {
+        const formData = new FormData();
+        formData.append('file', {
+            uri: fileUri,
+            type: 'application/zip',
+            name: fileName || 'backup.zip',
+        } as any);
+        return api.post('/export/import/archive?confirm_replace=true', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000,
+        });
+    },
 };
 
 // Image API

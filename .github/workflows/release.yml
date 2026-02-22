@@ -1,0 +1,129 @@
+name: Build & Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── Build Python backend on each OS ───
+  build-backend:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: backend-macos
+          - os: windows-latest
+            artifact: backend-windows
+          - os: ubuntu-latest
+            artifact: backend-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      - name: Build executable
+        run: |
+          cd backend
+          python build_executable.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: electron/backend-dist/
+
+  # ─── Package Electron app on each OS ───
+  build-electron:
+    needs: build-backend
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            backend_artifact: backend-macos
+            electron_args: --mac
+          - os: windows-latest
+            backend_artifact: backend-windows
+            electron_args: --win
+          - os: ubuntu-latest
+            backend_artifact: backend-linux
+            electron_args: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.backend_artifact }}
+          path: electron/backend-dist/
+      - name: Make backend executable
+        if: runner.os != 'Windows'
+        run: chmod +x electron/backend-dist/main
+      - name: Build web frontend
+        run: |
+          cd web
+          npm ci
+          npm run build
+      - name: Copy frontend to Electron
+        shell: bash
+        run: |
+          rm -rf electron/renderer
+          mkdir -p electron/renderer
+          cp -r web/dist/* electron/renderer/
+      - name: Install Electron deps & build
+        run: |
+          cd electron
+          npm ci
+          npx electron-builder ${{ matrix.electron_args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: electron-${{ matrix.os }}
+          path: |
+            electron/dist/*.dmg
+            electron/dist/*.zip
+            electron/dist/*.exe
+            electron/dist/*.AppImage
+            electron/dist/*.deb
+
+  # ─── Publish mobile app to Expo ───
+  publish-mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install Expo CLI
+        run: npm install -g eas-cli
+      - name: Install dependencies
+        run: |
+          cd mobile
+          npm ci
+      - name: Publish Expo update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd mobile
+          eas update --branch production --message "Release ${{ github.ref_name }}"
+
+  # ─── Create GitHub Release ───
+  create-release:
+    needs: [build-electron, publish-mobile]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: List artifacts
+        run: find artifacts/ -type f | head -50
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/electron-*/**

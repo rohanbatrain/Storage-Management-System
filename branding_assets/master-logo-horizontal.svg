@@ -1,0 +1,10 @@
+<svg width="2400" height="800" viewBox="0 0 2400 800" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(160, 160) scale(0.46875)" stroke="#ffffff" stroke-width="56" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="512,180 816,356 512,532 208,356" fill="rgba(255,255,255,0.05)"/>
+    <polygon points="208,356 512,532 512,884 208,708" fill="rgba(255,255,255,0.02)"/>
+    <polygon points="816,356 816,708 512,884 512,532" fill="rgba(255,255,255,0.08)"/>
+  </g>
+  <text x="760" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="280" font-weight="800" fill="#ffffff" letter-spacing="-4">SMS</text>
+  <text x="770" y="550" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="72" font-weight="600" fill="#a0a0aa" letter-spacing="4">STORAGE MANAGEMENT SYSTEM</text>
+  <text x="770" y="650" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="40" font-weight="500" fill="#666677" letter-spacing="1">BY SECOND BRAIN DATABASE</text>
+</svg>

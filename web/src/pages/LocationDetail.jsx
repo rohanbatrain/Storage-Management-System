@@ -14,6 +14,7 @@ import {
     X,
     Tag
 } from 'lucide-react';
+import ImageUpload from '../components/ImageUpload';
 import { locationApi, itemApi, qrApi } from '../services/api';
 
 const kindIcons = {
@@ -613,13 +614,10 @@ function EditLocationModal({ location, onClose, onSuccess }) {
                             />
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Image URL</label>
-                            <input
-                                type="url"
-                                className="input"
+                            <label className="form-label">Image</label>
+                            <ImageUpload
                                 value={imageUrl}
-                                onChange={e => setImageUrl(e.target.value)}
-                                placeholder="https://example.com/image.jpg"
+                                onChange={setImageUrl}
                             />
                         </div>
                     </div>

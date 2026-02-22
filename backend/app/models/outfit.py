@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from app.database import Base
+from app.models.compatibility import GUID, JSONCompatible, ArrayCompatible
 
 
 class Outfit(Base):
@@ -18,16 +18,17 @@ class Outfit(Base):
     """
     __tablename__ = "outfits"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, index=True)
     description = Column(String(500), nullable=True)
-    tags = Column(JSONB, default=[])  # ["formal", "casual", "summer", "winter"]
-    item_ids = Column(ARRAY(UUID(as_uuid=True)), default=[])  # References to clothing items
+    tags = Column(JSONCompatible(), default=[])  # ["formal", "casual", "summer", "winter"]
+    item_ids = Column(ArrayCompatible(), default=[])  # References to clothing items (stored as list of UUID strings)
     rating = Column(Integer, nullable=True)  # 1-5 stars
     wear_count = Column(Integer, default=0, nullable=False)
     last_worn_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    device_id = Column(String(64), nullable=True, index=True)  # Sync: which device last modified this
     
     def __repr__(self):
         return f"<Outfit(name='{self.name}', items={len(self.item_ids or [])})>"

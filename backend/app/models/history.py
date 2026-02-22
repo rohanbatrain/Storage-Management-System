@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.compatibility import GUID
 import enum
 
 
@@ -33,26 +33,28 @@ class MovementHistory(Base):
     """
     __tablename__ = "movement_history"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     item_id = Column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("items.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
     from_location_id = Column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("locations.id", ondelete="SET NULL"),
         nullable=True
     )
     to_location_id = Column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("locations.id", ondelete="SET NULL"),
         nullable=False
     )
     action = Column(SQLEnum(ActionType), nullable=False, default=ActionType.PLACED)
     moved_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     notes = Column(String(500), nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    device_id = Column(String(64), nullable=True, index=True)  # Sync: which device last modified this
     
     # Relationships
     item = relationship("Item", back_populates="movement_history")

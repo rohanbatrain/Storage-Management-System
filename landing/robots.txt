@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://rohan.github.io/personal-storage-management/docs/sitemap.xml

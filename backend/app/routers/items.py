@@ -230,10 +230,14 @@ def update_item(
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(item_id: UUID, db: Session = Depends(get_db)):
-    """Delete an item."""
+    """Delete an item and clean up its image file."""
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Clean up image file if it's a local upload
+    from app.routers.upload import cleanup_image
+    cleanup_image(item.image_url)
     
     db.delete(item)
     db.commit()

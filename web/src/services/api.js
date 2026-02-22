@@ -9,6 +9,24 @@ const api = axios.create({
     },
 });
 
+// Electron support: Dynamic base URL
+let electronBaseUrl = null;
+if (window.electron) {
+    api.interceptors.request.use(async (config) => {
+        if (!electronBaseUrl) {
+            try {
+                electronBaseUrl = await window.electron.getApiUrl();
+            } catch (error) {
+                console.error('Failed to get Electron API URL:', error);
+            }
+        }
+        if (electronBaseUrl) {
+            config.baseURL = `${electronBaseUrl}/api`;
+        }
+        return config;
+    });
+}
+
 // Location API
 export const locationApi = {
     list: () => api.get('/locations'),
@@ -50,23 +68,35 @@ export const searchApi = {
     searchByAlias: (alias) => api.get(`/search/alias/${alias}`),
 };
 
+// Helper to get the correct base URL (Electron-aware)
+const getBaseUrl = () => electronBaseUrl || API_BASE_URL;
+
 // QR API
 export const qrApi = {
     getQrUrl: (locationId, size = 200) =>
-        `${API_BASE_URL}/api/qr/${locationId}?size=${size}`,
+        `${getBaseUrl()}/api/qr/${locationId}?size=${size}`,
     getItemQrUrl: (itemId, size = 200) =>
-        `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}`,
+        `${getBaseUrl()}/api/qr/item/${itemId}?size=${size}`,
     getItemSequenceQrUrl: (itemId, seq, total, size = 150) =>
-        `${API_BASE_URL}/api/qr/item/${itemId}?size=${size}&seq=${seq}&of=${total}`,
+        `${getBaseUrl()}/api/qr/item/${itemId}?size=${size}&seq=${seq}&of=${total}`,
     getBulkPdfUrl: (type, ids) =>
-        `${API_BASE_URL}/api/qr/bulk-pdf?type=${type}&ids=${ids.join(',')}`,
+        `${getBaseUrl()}/api/qr/bulk-pdf?type=${type}&ids=${ids.join(',')}`,
     scanQr: (qrCodeId) => api.get(`/qr/scan/${qrCodeId}`),
 };
 
-// Export API
+// Export & Import API
 export const exportApi = {
     exportFull: () => api.get('/export/full'),
     exportSummary: () => api.get('/export/summary'),
+    exportArchive: () => api.get('/export/archive', { responseType: 'blob', timeout: 120000 }),
+    importArchive: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/export/import/archive?confirm_replace=true', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000,
+        });
+    },
 };
 
 // Wardrobe API
@@ -102,7 +132,7 @@ export const imageApi = {
     upload: (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        return api.post('/images/upload', formData, {
+        return api.post('/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

@@ -8,8 +8,6 @@ env/
 venv/
 .venv/
 *.egg-info/
-dist/
-build/
 
 # Node
 node_modules/
@@ -33,6 +31,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # Docker
 *.log
@@ -43,7 +42,32 @@ htmlcov/
 .pytest_cache/
 coverage/
 
-# Build
+# Build artifacts
 dist/
 build/
 *.egg-info/
+*.spec
+
+# Electron
+electron/dist/
+electron/backend-dist/main
+electron/backend-dist/main.exe
+electron/renderer/
+
+# Mobile (Expo)
+mobile/.expo/
+mobile/ios/
+mobile/android/
+
+# MkDocs
+site/
+
+# PyInstaller
+backend/dist/
+backend/build/
+
+# Database (local dev)
+*.db
+*.db-journal
+.psms/
+backend/file::memory:

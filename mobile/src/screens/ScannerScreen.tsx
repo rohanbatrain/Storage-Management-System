@@ -10,7 +10,7 @@ import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-ca
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import { qrApi } from '../services/api';
+import { qrApi, saveApiBaseUrl } from '../services/api';
 
 export default function ScannerScreen() {
     const navigation = useNavigation<any>();
@@ -31,6 +31,34 @@ export default function ScannerScreen() {
 
         // Haptic feedback
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Check if it's a server connection URL
+        if (result.data.startsWith('http://') || result.data.startsWith('https://')) {
+            Alert.alert(
+                'Connect to Server?',
+                `Do you want to connect your mobile app to this server?\n\n${result.data}`,
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        onPress: () => {
+                            setScanned(false);
+                            setScanning(true);
+                        },
+                    },
+                    {
+                        text: 'Connect',
+                        onPress: async () => {
+                            await saveApiBaseUrl(result.data);
+                            Alert.alert('Connected!', 'Successfully connected to server.', [
+                                { text: 'OK', onPress: () => navigation.navigate('Home') }
+                            ]);
+                        },
+                    },
+                ]
+            );
+            return;
+        }
 
         // Extract QR code ID from the scanned URL
         // Expected formats: 

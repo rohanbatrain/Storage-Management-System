@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.compatibility import GUID, JSONCompatible
 import enum
 
 
@@ -28,32 +28,33 @@ class Item(Base):
     """
     __tablename__ = "items"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, index=True)
     description = Column(String(500), nullable=True)
     current_location_id = Column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("locations.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
     permanent_location_id = Column(
-        UUID(as_uuid=True),
+        GUID(),
         ForeignKey("locations.id", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
     quantity = Column(Integer, default=1, nullable=False)
-    tags = Column(JSONB, default=[])
+    tags = Column(JSONCompatible(), default=[])
     is_temporary_placement = Column(Boolean, default=False, nullable=False)
     last_moved_at = Column(DateTime, nullable=True)
     qr_code_id = Column(String(100), unique=True, nullable=True, index=True)  # For QR scanning
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    device_id = Column(String(64), nullable=True, index=True)  # Sync: which device last modified this
     
     # Wardrobe Module Extensions
     item_type = Column(SQLEnum(ItemType), default=ItemType.GENERIC, nullable=False, index=True)
-    item_data = Column(JSONB, default={})  # Domain-specific data (clothing: category, wear_count, etc.)
+    item_data = Column(JSONCompatible(), default={})  # Domain-specific data (clothing: category, wear_count, etc.)
     image_url = Column(String(1000), nullable=True)  # External image URL
     
     # Loan Tracking

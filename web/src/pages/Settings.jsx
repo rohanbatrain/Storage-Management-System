@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Printer, Settings as SettingsIcon, Database, RefreshCw } from 'lucide-react';
+import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { exportApi } from '../services/api';
 
 function Settings() {
@@ -8,6 +8,10 @@ function Settings() {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
+    const [exportingArchive, setExportingArchive] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const [importResult, setImportResult] = useState(null);
+    const fileInputRef = useRef(null);
 
     const loadSummary = async () => {
         try {
@@ -30,7 +34,6 @@ function Settings() {
             const res = await exportApi.exportFull();
             const exportData = JSON.stringify(res.data, null, 2);
 
-            // Download as file
             const blob = new Blob([exportData], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -43,6 +46,72 @@ function Settings() {
             alert('Failed to export data');
         } finally {
             setExporting(false);
+        }
+    };
+
+    const handleExportArchive = async () => {
+        try {
+            setExportingArchive(true);
+            const res = await exportApi.exportArchive();
+
+            const url = URL.createObjectURL(res.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `psms-archive-${new Date().toISOString().split('T')[0]}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to export archive:', error);
+            alert('Failed to export archive');
+        } finally {
+            setExportingArchive(false);
+        }
+    };
+
+    const handleImportClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleImportFile = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Reset file input so same file can be re-selected
+        e.target.value = '';
+
+        if (!file.name.endsWith('.zip')) {
+            alert('Please select a .zip archive file exported from PSMS.');
+            return;
+        }
+
+        const confirmed = window.confirm(
+            '⚠️ WARNING: Importing will REPLACE all existing data (locations, items, outfits, history, and uploaded images).\n\n' +
+            'This action cannot be undone.\n\n' +
+            'Are you sure you want to proceed?'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setImporting(true);
+            setImportResult(null);
+            const res = await exportApi.importArchive(file);
+            setImportResult({
+                success: true,
+                data: res.data.restored,
+            });
+            // Refresh summary
+            loadSummary();
+        } catch (error) {
+            console.error('Failed to import:', error);
+            setImportResult({
+                success: false,
+                error: error.response?.data?.detail || error.message || 'Import failed',
+            });
+        } finally {
+            setImporting(false);
         }
     };
 
@@ -67,7 +136,7 @@ function Settings() {
                         📊 Your Data
                     </h2>
                     <div className="card" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '1.5rem' }}>
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
                                     {summary.locations_count}
@@ -86,6 +155,14 @@ function Settings() {
                                 </div>
                                 <div style={{ color: 'var(--color-text-muted)' }}>👔 Outfits</div>
                             </div>
+                            {summary.uploads_count > 0 && (
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
+                                        {summary.uploads_count}
+                                    </div>
+                                    <div style={{ color: 'var(--color-text-muted)' }}>🖼️ Images ({summary.uploads_size_mb} MB)</div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>
@@ -97,8 +174,34 @@ function Settings() {
                     💾 Backup & Export
                 </h2>
                 <div className="card">
+                    {/* Export Archive (primary) */}
                     <button
-                        className="settings-item"
+                        onClick={handleExportArchive}
+                        disabled={exportingArchive}
+                        style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem' }}>
+                            <div style={{ fontSize: '1.5rem' }}>📦</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                    {exportingArchive ? 'Exporting Archive...' : 'Export Full Archive'}
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                                    Download a .zip with all data + images — for device migration
+                                </div>
+                            </div>
+                            {exportingArchive ? (
+                                <RefreshCw size={20} className="spinning" style={{ color: 'var(--color-text-muted)' }} />
+                            ) : (
+                                <Archive size={20} style={{ color: 'var(--color-text-muted)' }} />
+                            )}
+                        </div>
+                    </button>
+
+                    <div style={{ borderTop: '1px solid var(--color-border)' }} />
+
+                    {/* Export JSON */}
+                    <button
                         onClick={handleExport}
                         disabled={exporting}
                         style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
@@ -107,18 +210,20 @@ function Settings() {
                             <div style={{ fontSize: '1.5rem' }}>📤</div>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                    {exporting ? 'Exporting...' : 'Export All Data'}
+                                    {exporting ? 'Exporting...' : 'Export Data (JSON)'}
                                 </div>
                                 <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                                    Download a JSON backup of everything
+                                    Lightweight backup — database only, no images
                                 </div>
                             </div>
                             <Download size={20} style={{ color: 'var(--color-text-muted)' }} />
                         </div>
                     </button>
+
                     <div style={{ borderTop: '1px solid var(--color-border)' }} />
+
+                    {/* Print QR Codes */}
                     <button
-                        className="settings-item"
                         onClick={() => navigate('/qr-print')}
                         style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
                     >
@@ -135,6 +240,78 @@ function Settings() {
                             <Printer size={20} style={{ color: 'var(--color-text-muted)' }} />
                         </div>
                     </button>
+                </div>
+            </section>
+
+            {/* Import / Restore */}
+            <section style={{ marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    📥 Import / Restore
+                </h2>
+                <div className="card">
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".zip"
+                        onChange={handleImportFile}
+                        style={{ display: 'none' }}
+                    />
+                    <button
+                        onClick={handleImportClick}
+                        disabled={importing}
+                        style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem' }}>
+                            <div style={{ fontSize: '1.5rem' }}>📥</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                    {importing ? 'Importing...' : 'Import Archive'}
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                                    Restore from a .zip archive — replaces all current data
+                                </div>
+                            </div>
+                            {importing ? (
+                                <RefreshCw size={20} className="spinning" style={{ color: 'var(--color-text-muted)' }} />
+                            ) : (
+                                <Upload size={20} style={{ color: 'var(--color-text-muted)' }} />
+                            )}
+                        </div>
+                    </button>
+
+                    {/* Import Result */}
+                    {importResult && (
+                        <div style={{
+                            padding: '1rem',
+                            borderTop: '1px solid var(--color-border)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '0.75rem',
+                        }}>
+                            {importResult.success ? (
+                                <>
+                                    <CheckCircle size={20} style={{ color: '#22c55e', flexShrink: 0, marginTop: 2 }} />
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#22c55e', marginBottom: 4 }}>Import Successful!</div>
+                                        <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                                            Restored: {importResult.data.locations} locations, {importResult.data.items} items, {importResult.data.outfits} outfits, {importResult.data.history} history entries
+                                            {importResult.data.uploads > 0 && `, ${importResult.data.uploads} images`}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <AlertTriangle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: 2 }} />
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>Import Failed</div>
+                                        <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                                            {importResult.error}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </section>
 

@@ -294,10 +294,16 @@ function AppContent() {
     );
 }
 
+import { ServerProvider } from './src/context/ServerContext';
+import ServerConnectionModal from './src/components/ServerConnectionModal';
+
 export default function App() {
     return (
         <SafeAreaProvider>
-            <AppContent />
+            <ServerProvider>
+                <AppContent />
+                <ServerConnectionModal />
+            </ServerProvider>
         </SafeAreaProvider>
     );
 }
