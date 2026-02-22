@@ -199,7 +199,19 @@ def create_location(location_data: LocationCreate, db: Session = Depends(get_db)
         parent = db.query(Location).filter(Location.id == location_data.parent_id).first()
         if not parent:
             raise HTTPException(status_code=400, detail="Parent location not found")
-    
+
+    # Prevent duplicate names within the same parent (or at root level)
+    duplicate = db.query(Location).filter(
+        Location.name == location_data.name,
+        Location.parent_id == location_data.parent_id
+    ).first()
+    if duplicate:
+        scope = f"inside '{parent.name}'" if parent else "at the root level"
+        raise HTTPException(
+            status_code=409,
+            detail=f"A location named '{location_data.name}' already exists {scope}."
+        )
+
     # Validate parent-child hierarchy
     validate_location_hierarchy(location_data.kind, parent)
     
