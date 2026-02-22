@@ -261,6 +261,7 @@ async def execute_tool(tool_name: str, arguments: dict, api_base: str) -> dict:
 
 # In-memory conversation store (per conversation_id)
 _conversations: dict[str, list] = {}
+_conversation_meta: dict[str, dict] = {}  # { id: { title, created_at, updated_at } }
 MAX_HISTORY = 20  # Keep last N messages per conversation
 
 
@@ -301,6 +302,18 @@ async def chat(
 
     # Add user message
     history.append({"role": "user", "content": message})
+
+    # Track metadata
+    import datetime
+    now = datetime.datetime.utcnow().isoformat() + "Z"
+    if conversation_id not in _conversation_meta:
+        _conversation_meta[conversation_id] = {
+            "title": message[:60].strip() or "New Chat",
+            "created_at": now,
+            "updated_at": now,
+        }
+    else:
+        _conversation_meta[conversation_id]["updated_at"] = now
 
     # Truncate history to keep it manageable
     if len(history) > MAX_HISTORY:
@@ -382,20 +395,27 @@ async def chat(
                     })
             else:
                 # LLM gave a final text response
-                reply = msg.get("content", "I'm not sure how to help with that.")
-                # Strip <think>...</think> blocks used by reasoning models
-                reply = re.sub(r'<think>.*?</think>', '', reply, flags=re.DOTALL).strip()
-                if not reply and msg.get("content"):
-                    reply = "I've thought about it, but have nothing else to say." # Fallback if model only outputs thoughts
+                raw_content = msg.get("content", "I'm not sure how to help with that.")
+                
+                # Extract <think>...</think> blocks used by reasoning models
+                thinking = ""
+                think_match = re.search(r'<think>(.*?)</think>', raw_content, flags=re.DOTALL)
+                if think_match:
+                    thinking = think_match.group(1).strip()
+                
+                reply = re.sub(r'<think>.*?</think>', '', raw_content, flags=re.DOTALL).strip()
+                if not reply and raw_content:
+                    reply = "I've thought about it, but have nothing else to say."
                 
                 history.append({"role": "assistant", "content": reply})
                 _conversations[conversation_id] = history
-                return {"reply": reply, "actions": actions}
+                return {"reply": reply, "actions": actions, "thinking": thinking}
 
     # Fell through the loop (too many tool calls)
     return {
         "reply": "I ran into a complex query. Could you try rephrasing?",
         "actions": actions,
+        "thinking": "",
     }
 
 
@@ -427,3 +447,26 @@ def _summarize_tool_result(tool_name: str, result: Any) -> str:
 def clear_conversation(conversation_id: str = "default"):
     """Clear conversation history."""
     _conversations.pop(conversation_id, None)
+    _conversation_meta.pop(conversation_id, None)
+
+
+def list_conversations() -> list:
+    """List all conversations with metadata."""
+    result = []
+    for cid, meta in _conversation_meta.items():
+        msgs = _conversations.get(cid, [])
+        result.append({
+            "id": cid,
+            "title": meta.get("title", "Untitled"),
+            "created_at": meta.get("created_at", ""),
+            "updated_at": meta.get("updated_at", ""),
+            "message_count": len(msgs),
+        })
+    # Sort by updated_at descending
+    result.sort(key=lambda x: x["updated_at"], reverse=True)
+    return result
+
+
+def get_conversation_messages(conversation_id: str) -> list:
+    """Get full message history for a conversation."""
+    return _conversations.get(conversation_id, [])

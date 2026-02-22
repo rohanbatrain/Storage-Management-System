@@ -16,7 +16,7 @@ import logging
 from pathlib import Path
 
 from app.config import get_settings
-from app.services.llm_service import chat as llm_chat, clear_conversation
+from app.services.llm_service import chat as llm_chat, clear_conversation, list_conversations, get_conversation_messages
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -101,6 +101,7 @@ class ChatResponse(BaseModel):
     reply: str
     actions: List[ToolAction]
     conversation_id: str
+    thinking: Optional[str] = None
 
 
 class LLMSettingsRequest(BaseModel):
@@ -208,6 +209,7 @@ async def send_message(req: ChatRequest):
         reply=result["reply"],
         actions=[ToolAction(**a) for a in result["actions"]],
         conversation_id=conv_id,
+        thinking=result.get("thinking", ""),
     )
 
 
@@ -216,3 +218,23 @@ def delete_conversation(conversation_id: str):
     """Clear conversation history."""
     clear_conversation(conversation_id)
     return {"status": "cleared", "conversation_id": conversation_id}
+
+
+@router.get("/conversations")
+def get_conversations():
+    """List all conversations with metadata."""
+    return list_conversations()
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation(conversation_id: str):
+    """Get full message history for a conversation."""
+    messages = get_conversation_messages(conversation_id)
+    return {"conversation_id": conversation_id, "messages": messages}
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation_by_id(conversation_id: str):
+    """Delete a specific conversation."""
+    clear_conversation(conversation_id)
+    return {"status": "deleted", "conversation_id": conversation_id}

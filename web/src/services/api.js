@@ -150,6 +150,9 @@ export const chatApi = {
     getSettings: () => api.get('/chat/settings'),
     updateSettings: (data) => api.put('/chat/settings', data),
     testConnection: () => api.post('/chat/test'),
+    listConversations: () => api.get('/chat/conversations'),
+    getConversation: (id) => api.get(`/chat/conversations/${id}`),
+    deleteConversation: (id) => api.delete(`/chat/conversations/${id}`),
 };
 
 // Visual Lens / Identify API
