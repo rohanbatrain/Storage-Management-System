@@ -44,7 +44,8 @@
         "mac": {
             "category": "public.app-category.productivity",
             "icon": "build/icon.icns",
-            "identity": null
+            "identity": "-",
+            "gatekeeperAssess": false
         },
         "win": {
             "icon": "build/icon.png"
