@@ -146,6 +146,9 @@ export const chatApi = {
         api.post('/chat', { message, conversation_id: conversationId }),
     clearHistory: (conversationId) =>
         api.delete(`/chat/history/${conversationId}`),
+    getSettings: () => api.get('/chat/settings'),
+    updateSettings: (data) => api.put('/chat/settings', data),
+    testConnection: () => api.post('/chat/test'),
 };
 
 // Visual Lens / Identify API

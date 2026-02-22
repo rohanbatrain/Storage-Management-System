@@ -18,7 +18,55 @@ from app.models.location import Location
 from app.models.item import Item
 from app.schemas.location import LocationResponse
 
+from PIL import Image, ImageDraw, ImageFont
+
 router = APIRouter(prefix="/qr", tags=["QR Codes"])
+
+
+def add_text_to_qr(img: Image.Image, text: str, size: int) -> Image.Image:
+    text_height = max(30, int(size * 0.15))
+    new_img = Image.new('RGB', (size, size + text_height), 'white')
+    new_img.paste(img, (0, 0))
+    
+    draw = ImageDraw.Draw(new_img)
+    try:
+        font = ImageFont.truetype("arial.ttf", int(text_height * 0.45))
+    except IOError:
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(text_height * 0.45))
+        except IOError:
+            try:
+                # Pillow 10+ supports size in load_default
+                font = ImageFont.load_default(size=int(text_height * 0.45))
+            except TypeError:
+                font = ImageFont.load_default()
+            
+    if hasattr(draw, 'textbbox'):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+    else:
+        text_w, text_h = draw.textsize(text, font=font)
+        
+    margin = 10
+    if text_w > size - margin:
+        while text_w > size - margin and len(text) > 3:
+            text = text[:-4] + "..."
+            if hasattr(draw, 'textbbox'):
+                bbox = draw.textbbox((0, 0), text, font=font)
+                text_w = bbox[2] - bbox[0]
+            else:
+                text_w, text_h = draw.textsize(text, font=font)
+                
+    text_x = (size - text_w) / 2
+    
+    if hasattr(draw, 'textbbox'):
+        text_y = size + (text_height - text_h) / 2 - bbox[1]
+    else:
+        text_y = size + (text_height - text_h) / 2
+        
+    draw.text((text_x, text_y), text, fill="black", font=font)
+    return new_img
 
 
 # IMPORTANT: Static routes must come BEFORE dynamic routes like /{location_id}
@@ -303,11 +351,19 @@ def generate_item_qr_code(
     
     # Generate image
     img = qr.make_image(fill_color="black", back_color="white")
-    img = img.resize((size, size))
+    if hasattr(img, 'convert'):
+        pil_img = img.convert('RGB')
+    else:
+        pil_img = img.get_image().convert('RGB')
+    
+    pil_img = pil_img.resize((size, size))
+    
+    display_title = f"{item.name} ({seq}/{of})" if seq and of else item.name
+    final_img = add_text_to_qr(pil_img, display_title, size)
     
     # Convert to bytes
     img_bytes = io.BytesIO()
-    img.save(img_bytes, format='PNG')
+    final_img.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     
     return StreamingResponse(
@@ -352,13 +408,19 @@ def generate_qr_code(
     
     # Generate image
     img = qr.make_image(fill_color="black", back_color="white")
+    if hasattr(img, 'convert'):
+        pil_img = img.convert('RGB')
+    else:
+        pil_img = img.get_image().convert('RGB')
     
     # Resize if needed
-    img = img.resize((size, size))
+    pil_img = pil_img.resize((size, size))
+    
+    final_img = add_text_to_qr(pil_img, location.name, size)
     
     # Convert to bytes
     img_bytes = io.BytesIO()
-    img.save(img_bytes, format='PNG')
+    final_img.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     
     return StreamingResponse(

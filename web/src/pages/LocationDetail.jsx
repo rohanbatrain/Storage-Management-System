@@ -318,6 +318,7 @@ function LocationDetail() {
     const [showAddSub, setShowAddSub] = useState(false);
     const [showEditLocation, setShowEditLocation] = useState(false);
     const [showQR, setShowQR] = useState(false);
+    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
     useEffect(() => {
         loadLocation();
@@ -339,15 +340,15 @@ function LocationDetail() {
     };
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this location? All items and sub-locations will be removed.')) {
-            return;
-        }
         try {
+            console.log("Attempting to delete location:", id);
             await locationApi.delete(id);
+            alert("Location successfully deleted!");
             navigate('/');
             window.location.reload();
         } catch (error) {
             console.error('Failed to delete location:', error);
+            alert(error.response?.data?.detail || error.message || 'Failed to delete location');
         }
     };
 
@@ -421,7 +422,7 @@ function LocationDetail() {
                     <button className="btn btn-secondary btn-icon" onClick={() => setShowEditLocation(true)}>
                         <Edit2 size={18} />
                     </button>
-                    <button className="btn btn-secondary btn-icon" onClick={handleDelete}>
+                    <button className="btn btn-secondary btn-icon" onClick={() => setShowConfirmDelete(true)}>
                         <Trash2 size={18} />
                     </button>
                 </div>
@@ -554,6 +555,40 @@ function LocationDetail() {
                         setShowEditLocation(false);
                     }}
                 />
+            )}
+
+            {showConfirmDelete && (
+                <div className="modal-overlay" onClick={() => setShowConfirmDelete(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Delete Location</h2>
+                            <button className="btn btn-ghost btn-icon" onClick={() => setShowConfirmDelete(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p>Are you sure you want to delete <strong>{location?.name}</strong>?</p>
+                            <p style={{ color: 'var(--color-danger)', marginTop: 'var(--space-sm)' }}>
+                                All items and sub-locations inside this location will also be permanently deleted.
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-secondary" onClick={() => setShowConfirmDelete(false)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}
+                                onClick={() => {
+                                    setShowConfirmDelete(false);
+                                    handleDelete();
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

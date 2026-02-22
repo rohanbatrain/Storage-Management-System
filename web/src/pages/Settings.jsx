@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2 } from 'lucide-react';
-import { exportApi, identifyApi } from '../services/api';
+import { exportApi, identifyApi, chatApi } from '../services/api';
 
 function Settings() {
     const navigate = useNavigate();
@@ -22,6 +22,16 @@ function Settings() {
     const [downloadUrl, setDownloadUrl] = useState('');
     const [downloadFilename, setDownloadFilename] = useState('');
 
+    // AI Assistant state
+    const [aiProvider, setAiProvider] = useState('ollama');
+    const [aiBaseUrl, setAiBaseUrl] = useState('http://localhost:11434/v1');
+    const [aiApiKey, setAiApiKey] = useState('');
+    const [aiModel, setAiModel] = useState('qwen3:8b');
+    const [aiProviders, setAiProviders] = useState({});
+    const [aiTestResult, setAiTestResult] = useState(null);
+    const [aiTesting, setAiTesting] = useState(false);
+    const [aiSaving, setAiSaving] = useState(false);
+
     const loadSummary = async () => {
         try {
             const res = await exportApi.exportSummary();
@@ -36,6 +46,7 @@ function Settings() {
     useEffect(() => {
         loadSummary();
         loadVisualLens();
+        loadAiSettings();
     }, []);
 
     const loadVisualLens = async () => {
@@ -102,6 +113,69 @@ function Settings() {
             alert('Upload failed: ' + (err.response?.data?.detail || err.message));
         } finally {
             setVlLoading(false);
+        }
+    };
+
+    // AI Assistant handlers
+    const loadAiSettings = async () => {
+        try {
+            const res = await chatApi.getSettings();
+            const d = res.data;
+            setAiProvider(d.provider || 'ollama');
+            setAiBaseUrl(d.base_url || '');
+            setAiModel(d.model || '');
+            setAiProviders(d.providers || {});
+            // Don't overwrite key with masked value
+        } catch (err) {
+            console.error('AI settings load failed:', err);
+        }
+    };
+
+    const handleAiProviderChange = (provider) => {
+        setAiProvider(provider);
+        const preset = aiProviders[provider];
+        if (preset) {
+            setAiBaseUrl(preset.base_url || '');
+            setAiModel(preset.default_model || '');
+            if (!preset.needs_key) setAiApiKey('');
+        }
+        setAiTestResult(null);
+    };
+
+    const handleAiSave = async () => {
+        try {
+            setAiSaving(true);
+            await chatApi.updateSettings({
+                provider: aiProvider,
+                base_url: aiBaseUrl,
+                api_key: aiApiKey,
+                model: aiModel,
+            });
+            setAiTestResult({ status: 'saved', message: 'Settings saved!' });
+        } catch (err) {
+            setAiTestResult({ status: 'error', message: err.response?.data?.detail || 'Save failed' });
+        } finally {
+            setAiSaving(false);
+        }
+    };
+
+    const handleAiTest = async () => {
+        // Save first, then test
+        try {
+            setAiTesting(true);
+            setAiTestResult(null);
+            await chatApi.updateSettings({
+                provider: aiProvider,
+                base_url: aiBaseUrl,
+                api_key: aiApiKey,
+                model: aiModel,
+            });
+            const res = await chatApi.testConnection();
+            setAiTestResult({ status: 'ok', message: `✅ Connected! Model: ${res.data.model} — "${res.data.reply}"` });
+        } catch (err) {
+            setAiTestResult({ status: 'error', message: err.response?.data?.detail || 'Connection failed' });
+        } finally {
+            setAiTesting(false);
         }
     };
 
@@ -402,6 +476,120 @@ function Settings() {
                 </div>
             </section>
 
+            {/* AI Assistant Settings */}
+            <section style={{ marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🤖 AI Assistant
+                </h2>
+                <div className="card">
+                    <div className="card-header">
+                        <h3 className="card-title">Language Model</h3>
+                    </div>
+                    <div style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+                            Choose a provider to power the chat assistant. Ollama runs locally for free.
+                        </p>
+
+                        {/* Provider selector */}
+                        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                            {['ollama', 'openai', 'openrouter', 'custom'].map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => handleAiProviderChange(p)}
+                                    style={{
+                                        padding: 'var(--space-sm) var(--space-md)',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: aiProvider === p ? '2px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
+                                        background: aiProvider === p ? 'var(--color-accent-primary)15' : 'var(--color-bg-tertiary)',
+                                        color: aiProvider === p ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
+                                        fontWeight: 600,
+                                        fontSize: 'var(--font-size-sm)',
+                                        cursor: 'pointer',
+                                        textTransform: 'capitalize',
+                                    }}
+                                >
+                                    {p === 'ollama' ? '🦙 Ollama' : p === 'openai' ? '🔑 OpenAI' : p === 'openrouter' ? '🌐 OpenRouter' : '⚙️ Custom'}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Model */}
+                        <div>
+                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Model</label>
+                            <input
+                                type="text"
+                                value={aiModel}
+                                onChange={e => setAiModel(e.target.value)}
+                                placeholder={aiProvider === 'ollama' ? 'qwen3:8b' : 'gpt-4o-mini'}
+                                style={inputStyle}
+                            />
+                        </div>
+
+                        {/* API Key (not for Ollama) */}
+                        {aiProvider !== 'ollama' && (
+                            <div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API Key</label>
+                                <input
+                                    type="password"
+                                    value={aiApiKey}
+                                    onChange={e => setAiApiKey(e.target.value)}
+                                    placeholder="sk-..."
+                                    style={inputStyle}
+                                />
+                            </div>
+                        )}
+
+                        {/* Base URL */}
+                        <div>
+                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API URL</label>
+                            <input
+                                type="text"
+                                value={aiBaseUrl}
+                                onChange={e => setAiBaseUrl(e.target.value)}
+                                placeholder="http://localhost:11434/v1"
+                                style={inputStyle}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+                            <button
+                                onClick={handleAiSave}
+                                disabled={aiSaving}
+                                className="btn btn-primary"
+                                style={{ fontSize: 'var(--font-size-sm)' }}
+                            >
+                                {aiSaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                                onClick={handleAiTest}
+                                disabled={aiTesting}
+                                className="btn btn-secondary"
+                                style={{ fontSize: 'var(--font-size-sm)' }}
+                            >
+                                {aiTesting ? 'Testing...' : '🔌 Test Connection'}
+                            </button>
+                        </div>
+
+                        {/* Test result */}
+                        {aiTestResult && (
+                            <div style={{
+                                padding: 'var(--space-sm) var(--space-md)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: 'var(--font-size-sm)',
+                                background: aiTestResult.status === 'ok' || aiTestResult.status === 'saved'
+                                    ? '#22c55e15' : '#ef444415',
+                                color: aiTestResult.status === 'ok' || aiTestResult.status === 'saved'
+                                    ? '#22c55e' : '#ef4444',
+                                border: `1px solid ${aiTestResult.status === 'ok' || aiTestResult.status === 'saved' ? '#22c55e30' : '#ef444430'}`,
+                            }}>
+                                {aiTestResult.message}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
+
             {/* Visual Lens — Model Management */}
             <section style={{ marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -619,3 +807,14 @@ function Settings() {
 }
 
 export default Settings;
+
+const inputStyle = {
+    width: '100%',
+    padding: 'var(--space-sm) var(--space-md)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    background: 'var(--color-bg-tertiary)',
+    color: 'var(--color-text-primary)',
+    fontSize: 'var(--font-size-sm)',
+    outline: 'none',
+};

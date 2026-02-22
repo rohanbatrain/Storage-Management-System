@@ -59,8 +59,8 @@ function createWindow() {
     if (isDev) {
         // Wait for Vite to start? Or assume it's running.
         // For now, let's assume the user runs the dev server separately or via a concurrently script
-        // But for better UX, we can try to connect to localhost:3000
-        mainWindow.loadURL('http://localhost:3000');
+        // But for better UX, we can try to connect to localhost:3001
+        mainWindow.loadURL('http://localhost:3001');
         mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
@@ -91,7 +91,7 @@ async function startBackend() {
         const venvPython = path.join(__dirname, '..', 'backend', 'venv', 'bin', 'python');
         const mainScript = path.join(__dirname, '..', 'backend', 'app', 'main.py');
         if (fs.existsSync(venvPython) && fs.existsSync(mainScript)) {
-            backendProcess = spawn(venvPython, [mainScript], {
+            backendProcess = spawn(venvPython, ['-m', 'app.main'], {
                 env: { ...process.env, PORT: backendPort.toString() },
                 cwd: path.join(__dirname, '..', 'backend')
             });

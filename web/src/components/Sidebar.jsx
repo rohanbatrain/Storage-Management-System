@@ -15,7 +15,8 @@ import {
     Package,
     MapPin,
     Handshake,
-    AlertTriangle
+    AlertTriangle,
+    MessageSquare
 } from 'lucide-react';
 import { locationApi } from '../services/api';
 import ServerInfo from './ServerInfo';
@@ -381,6 +382,13 @@ function Sidebar() {
                         label="Dashboard"
                         color="#6366f1"
                         isActive={location.pathname === '/'}
+                    />
+                    <NavItem
+                        to="/chat"
+                        icon={MessageSquare}
+                        label="Ask SMS (Chat)"
+                        color="#8b5cf6"
+                        isActive={location.pathname === '/chat'}
                     />
                     <NavItem
                         to="/wardrobe"

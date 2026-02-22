@@ -8,6 +8,7 @@ Configure via LLM_API_KEY, LLM_BASE_URL, LLM_MODEL env vars.
 import httpx
 import json
 import logging
+import re
 from typing import Any
 
 from app.config import get_settings
@@ -263,6 +264,12 @@ _conversations: dict[str, list] = {}
 MAX_HISTORY = 20  # Keep last N messages per conversation
 
 
+def _get_llm_config() -> dict:
+    """Load LLM settings: runtime JSON file first, then env vars."""
+    from app.routers.chat import _load_llm_settings
+    return _load_llm_settings()
+
+
 async def chat(
     message: str,
     conversation_id: str = "default",
@@ -272,14 +279,17 @@ async def chat(
     Send a message to the LLM with tool calling support.
     Returns { reply: str, actions: [{ tool, args, result_summary }] }
     """
-    settings = get_settings()
+    llm_cfg = _get_llm_config()
+    llm_base_url = llm_cfg.get("base_url", "")
+    llm_api_key = llm_cfg.get("api_key", "")
+    llm_model = llm_cfg.get("model", "")
 
-    if not settings.llm_api_key:
+    if not llm_base_url or not llm_model:
         return {
             "reply": (
-                "💡 LLM is not configured. Set `LLM_API_KEY` in your `.env` file "
-                "to enable natural language chat.\n\n"
-                "Supported providers: OpenAI, OpenRouter, Ollama (set `LLM_BASE_URL` too)."
+                "💡 LLM is not configured yet.\n\n"
+                "Go to **Settings → AI Assistant** to choose a provider "
+                "(Ollama, OpenAI, or OpenRouter) and select a model."
             ),
             "actions": [],
         }
@@ -303,18 +313,19 @@ async def chat(
     actions = []
     max_tool_rounds = 5  # Prevent infinite loops
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         for _ in range(max_tool_rounds):
             # Call LLM
             try:
+                headers = {"Content-Type": "application/json"}
+                if llm_api_key:
+                    headers["Authorization"] = f"Bearer {llm_api_key}"
+
                 response = await client.post(
-                    f"{settings.llm_base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {settings.llm_api_key}",
-                        "Content-Type": "application/json",
-                    },
+                    f"{llm_base_url}/chat/completions",
+                    headers=headers,
                     json={
-                        "model": settings.llm_model,
+                        "model": llm_model,
                         "messages": messages,
                         "tools": TOOLS,
                         "tool_choice": "auto",
@@ -372,6 +383,11 @@ async def chat(
             else:
                 # LLM gave a final text response
                 reply = msg.get("content", "I'm not sure how to help with that.")
+                # Strip <think>...</think> blocks used by reasoning models
+                reply = re.sub(r'<think>.*?</think>', '', reply, flags=re.DOTALL).strip()
+                if not reply and msg.get("content"):
+                    reply = "I've thought about it, but have nothing else to say." # Fallback if model only outputs thoughts
+                
                 history.append({"role": "assistant", "content": reply})
                 _conversations[conversation_id] = history
                 return {"reply": reply, "actions": actions}

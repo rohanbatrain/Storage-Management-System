@@ -160,9 +160,12 @@ export default function LocationDetailScreen() {
             await locationApi.delete(id);
             setDeleteDialogVisible(false);
             Alert.alert('Deleted', 'Location has been deleted');
-            navigation.goBack();
+            // Force navigate to a safe screen instead of goBack() which might loop or fail
+            navigation.navigate('Dashboard');
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.detail || 'Failed to delete location');
+            console.error('Delete error:', error);
+            Alert.alert('Error', error.response?.data?.detail || error.message || 'Failed to delete location');
+        } finally {
             setActionLoading(false);
         }
     };

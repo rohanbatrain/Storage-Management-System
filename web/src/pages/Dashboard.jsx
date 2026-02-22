@@ -72,9 +72,8 @@ function AddLocationModal({ onClose, onSuccess }) {
 
         setLoading(true);
         try {
-            await locationApi.create({ name, kind });
-            onSuccess();
-            onClose();
+            const response = await locationApi.create({ name, kind });
+            onSuccess(response.data);
         } catch (error) {
             console.error('Failed to create location:', error);
             alert(error.response?.data?.detail || 'Failed to create location');
@@ -438,10 +437,17 @@ function Dashboard() {
                 <EmptyStateOnboarding onAddLocation={() => setShowAddModal(true)} />
                 {showAddModal && (
                     <AddLocationModal
-                        onClose={() => setShowAddModal(false)}
-                        onSuccess={() => {
-                            loadDashboardData();
-                            window.location.reload();
+                        onClose={() => {
+                            setShowAddModal(false);
+                            navigate('/', { replace: true });
+                        }}
+                        onSuccess={(newLocation) => {
+                            setShowAddModal(false);
+                            if (newLocation && newLocation.id) {
+                                navigate(`/location/${newLocation.id}`);
+                            } else {
+                                loadDashboardData();
+                            }
                         }}
                     />
                 )}
@@ -612,9 +618,13 @@ function Dashboard() {
                         setShowAddModal(false);
                         navigate('/', { replace: true });
                     }}
-                    onSuccess={() => {
-                        loadDashboardData();
-                        window.location.reload();
+                    onSuccess={(newLocation) => {
+                        setShowAddModal(false);
+                        if (newLocation && newLocation.id) {
+                            navigate(`/location/${newLocation.id}`);
+                        } else {
+                            loadDashboardData();
+                        }
                     }}
                 />
             )}
