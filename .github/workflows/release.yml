@@ -112,7 +112,8 @@ jobs:
 
   # ─── Publish mobile app to Expo (optional — needs EXPO_TOKEN secret) ───
   publish-mobile:
-    if: ${{ secrets.EXPO_TOKEN != '' }}
+    needs: test
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

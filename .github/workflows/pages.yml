@@ -33,6 +33,7 @@ jobs:
         run: |
           cp landing/index.html site/index.html
           cp landing/styles.css site/styles.css
+          cp landing/logo-icon.svg site/logo-icon.svg
           cp landing/robots.txt site/robots.txt
 
       - uses: actions/upload-pages-artifact@v3
