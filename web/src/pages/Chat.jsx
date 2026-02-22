@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 
 const parseReply = (content) => {
@@ -32,10 +32,107 @@ const TOOL_ICONS = {
     list_locations: '📍',
     list_all_items: '📦',
     get_item_details: '📋',
-    move_item: '📦',
+    move_item: '🚚',
     wear_item: '👔',
     wash_item: '🫧',
 };
+
+const TOOL_LABELS = {
+    search_items: 'Search Items',
+    list_laundry: 'List Laundry',
+    list_rewearable: 'Check Rewearable',
+    list_lent_items: 'List Lent Items',
+    list_lost_items: 'List Lost Items',
+    get_wardrobe_stats: 'Wardrobe Stats',
+    list_locations: 'List Locations',
+    list_all_items: 'List All Items',
+    get_item_details: 'Get Item Details',
+    move_item: 'Move Item',
+    wear_item: 'Log Wear',
+    wash_item: 'Mark Washed',
+};
+
+function formatArgs(args) {
+    if (!args || Object.keys(args).length === 0) return null;
+    return Object.entries(args)
+        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+        .join('  ·  ');
+}
+
+function ToolCallBlock({ action, index }) {
+    const [expanded, setExpanded] = useState(false);
+    const icon = TOOL_ICONS[action.tool] || '🔧';
+    const label = TOOL_LABELS[action.tool] || action.tool;
+    const argStr = formatArgs(action.args);
+    const isError = action.summary?.startsWith('❌');
+
+    return (
+        <div style={{
+            marginBottom: '6px',
+            marginLeft: '4px',
+            borderRadius: '10px',
+            border: `1px solid ${isError ? 'rgba(239,68,68,0.25)' : 'rgba(6,182,212,0.2)'}`,
+            background: isError ? 'rgba(239,68,68,0.05)' : 'rgba(6,182,212,0.04)',
+            overflow: 'hidden',
+        }}>
+            <button
+                onClick={() => setExpanded(!expanded)}
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                }}
+            >
+                <Zap size={12} style={{ color: isError ? '#ef4444' : '#06b6d4', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isError ? '#ef4444' : '#06b6d4' }}>
+                    {icon} {label}
+                </span>
+                {argStr && !expanded && (
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--color-text-muted)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1,
+                    }}>
+                        — {argStr}
+                    </span>
+                )}
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
+                    {action.summary}
+                </span>
+                {expanded
+                    ? <ChevronDown size={12} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                    : <ChevronRight size={12} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                }
+            </button>
+            {expanded && argStr && (
+                <div style={{
+                    padding: '4px 12px 10px 32px',
+                    fontSize: '0.78rem',
+                    color: 'var(--color-text-muted)',
+                    fontFamily: 'monospace',
+                    borderTop: '1px solid var(--color-border)',
+                }}>
+                    {Object.entries(action.args).map(([k, v]) => (
+                        <div key={k}>
+                            <span style={{ color: '#06b6d4' }}>{k}</span>
+                            <span style={{ color: 'var(--color-text-muted)' }}> = </span>
+                            <span style={{ color: 'var(--color-text-primary)' }}>{JSON.stringify(v)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 function ThinkingBlock({ thinking }) {
     const [expanded, setExpanded] = useState(false);
@@ -318,17 +415,11 @@ function Chat() {
                                             <ThinkingBlock thinking={m.thinking} />
                                         )}
 
-                                        {/* Tool actions */}
+                                        {/* Tool Calls */}
                                         {m.actions && m.actions.length > 0 && (
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', marginLeft: m.role === 'assistant' ? '1rem' : 0 }}>
+                                            <div style={{ marginBottom: '0.5rem', marginLeft: '4px', width: '100%', maxWidth: '85%' }}>
                                                 {m.actions.map((a, j) => (
-                                                    <div key={j} style={{
-                                                        fontSize: '0.75rem', background: 'var(--color-bg-tertiary)',
-                                                        color: 'var(--color-text-muted)', padding: '4px 10px', borderRadius: '12px',
-                                                        border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '4px'
-                                                    }}>
-                                                        <span>{TOOL_ICONS[a.tool] || '🔧'}</span> <span>{a.summary}</span>
-                                                    </div>
+                                                    <ToolCallBlock key={j} action={a} index={j} />
                                                 ))}
                                             </div>
                                         )}
