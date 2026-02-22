@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCP Server for Personal Storage Management System (SMS).
+MCP Server for Storage Management System (SMS).
 
 Standalone stdio-based JSON-RPC server implementing the Model Context Protocol.
 Connect from Claude Desktop, Cursor, or any MCP-compatible client.

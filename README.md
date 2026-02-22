@@ -7,9 +7,9 @@
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </p>
 
-# 📦 Personal Storage Management System (SMS)
+# 📦 Storage Management System (SMS)
 
-**Stop losing things.** SMS is a full-stack personal storage management app that lets you digitally organize, search, and track every physical item you own — from bedroom drawers to travel bags.
+**Stop losing things.** SMS is a full-stack storage management app that lets you digitally organize, search, and track every physical item you own — from bedroom drawers to travel bags.
 
 > A single-user, self-hosted system with a web dashboard, Electron desktop app, and React Native mobile app — all syncing over your local network.
 

@@ -357,7 +357,7 @@ export default function SettingsScreen() {
                         </View>
                         <View style={styles.aboutItem}>
                             <Text style={styles.aboutLabel}>App</Text>
-                            <Text style={styles.aboutValue}>Personal Storage Manager</Text>
+                            <Text style={styles.aboutValue}>Storage Management System</Text>
                         </View>
                     </View>
                 </View>

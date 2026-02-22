@@ -848,7 +848,7 @@ function Settings() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0' }}>
                         <span style={{ color: 'var(--color-text-muted)' }}>App</span>
-                        <span style={{ color: 'var(--color-text-primary)' }}>Personal Storage Manager</span>
+                        <span style={{ color: 'var(--color-text-primary)' }}>Storage Management System</span>
                     </div>
                 </div>
             </section>

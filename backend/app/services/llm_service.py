@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are SMS Assistant — a helpful AI for the Personal Storage Management System (SMS).
+SYSTEM_PROMPT = """You are SMS Assistant — a helpful AI for the Storage Management System (SMS).
 
 You help users find items, check laundry status, manage their wardrobe, and organize storage.
 

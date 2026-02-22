@@ -10,7 +10,7 @@ settings = get_settings()
 # Create FastAPI app
 app = FastAPI(
     title=settings.app_name,
-    description="API for managing personal storage locations and items",
+    description="API for managing storage locations and items",
     version="0.0.1",
     docs_url="/docs",
     redoc_url="/redoc"

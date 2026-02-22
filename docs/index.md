@@ -1,6 +1,6 @@
-# Personal Storage Management System (SMS)
+# Storage Management System (SMS)
 
-Welcome to the documentation for the **Personal Storage Management System**. SMS is a comprehensive, self-hosted solution to digitally organize, track, and search every physical item you own — from wardrobe clothing to stored electronics to borrowed items.
+Welcome to the documentation for the **Storage Management System**. SMS is a comprehensive, self-hosted solution to digitally organize, track, and search every physical item you own — from wardrobe clothing to stored electronics to borrowed items.
 
 ## Key Features
 

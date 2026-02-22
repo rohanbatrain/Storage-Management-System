@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://sms_user:sms_password@localhost:5432/sms"
     
     # Application
-    app_name: str = "Personal Storage Management System"
+    app_name: str = "Storage Management System"
     debug: bool = False
     secret_key: str = "dev-secret-key-change-in-production"
 
