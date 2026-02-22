@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          pip install -r requirements.txt
+          pip install -r requirements.txt pyinstaller
       - name: Build executable
         run: |
           cd backend
