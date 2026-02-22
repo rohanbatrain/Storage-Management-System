@@ -70,5 +70,5 @@ backend/build/
 # Database (local dev)
 *.db
 *.db-journal
-.psms/
+.sms/
 backend/file::memory:

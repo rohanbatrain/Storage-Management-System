@@ -1,13 +1,13 @@
 /**
  * Sync manager for cross-device LAN synchronization.
  *
- * Uses mDNS (Bonjour/Zeroconf) to discover peer PSMS instances on the LAN,
+ * Uses mDNS (Bonjour/Zeroconf) to discover peer SMS instances on the LAN,
  * then periodically syncs data via REST API calls.
  */
 const { Bonjour } = require('bonjour-service');
 const http = require('http');
 
-const SERVICE_TYPE = 'psms-sync';
+const SERVICE_TYPE = 'sms-sync';
 const SYNC_INTERVAL_MS = 30_000; // 30 seconds
 
 class SyncManager {
@@ -29,7 +29,7 @@ class SyncManager {
     start() {
         // Advertise our service
         this.published = this.bonjour.publish({
-            name: `PSMS-${require('os').hostname()}`,
+            name: `SMS-${require('os').hostname()}`,
             type: SERVICE_TYPE,
             port: this.localPort,
         });

@@ -63,10 +63,10 @@ def generate_bulk_pdf(
                 loc = db.query(Location).filter(Location.id == loc_id).first()
                 if loc:
                     if not loc.qr_code_id:
-                        loc.qr_code_id = f"psms-loc-{uuid_lib.uuid4().hex[:8]}"
+                        loc.qr_code_id = f"sms-loc-{uuid_lib.uuid4().hex[:8]}"
                         db.commit()
                     name = loc.name[:32] + '...' if len(loc.name) > 32 else loc.name
-                    qr_entries.append((name, f"psms://location/{loc.qr_code_id}", loc.qr_code_id))
+                    qr_entries.append((name, f"sms://location/{loc.qr_code_id}", loc.qr_code_id))
             except:
                 continue
     elif type == 'items':
@@ -75,17 +75,17 @@ def generate_bulk_pdf(
                 item = db.query(Item).filter(Item.id == item_id).first()
                 if item:
                     if not item.qr_code_id:
-                        item.qr_code_id = f"psms-item-{uuid_lib.uuid4().hex[:8]}"
+                        item.qr_code_id = f"sms-item-{uuid_lib.uuid4().hex[:8]}"
                         db.commit()
                     # For items with qty > 1, create multiple entries
                     qty = item.quantity or 1
                     for seq in range(1, qty + 1):
                         if qty > 1:
                             name = f"{item.name[:25]}... ({seq}/{qty})" if len(item.name) > 25 else f"{item.name} ({seq}/{qty})"
-                            qr_data = f"psms://item/{item.qr_code_id}?seq={seq}&of={qty}"
+                            qr_data = f"sms://item/{item.qr_code_id}?seq={seq}&of={qty}"
                         else:
                             name = item.name[:32] + '...' if len(item.name) > 32 else item.name
-                            qr_data = f"psms://item/{item.qr_code_id}"
+                            qr_data = f"sms://item/{item.qr_code_id}"
                         qr_entries.append((name, qr_data, item.qr_code_id))
             except:
                 continue
@@ -281,7 +281,7 @@ def generate_item_qr_code(
         raise HTTPException(status_code=404, detail="Item not found")
     
     if not item.qr_code_id:
-        item.qr_code_id = f"psms-item-{uuid_lib.uuid4().hex[:8]}"
+        item.qr_code_id = f"sms-item-{uuid_lib.uuid4().hex[:8]}"
         db.commit()
     
     # Create QR code
@@ -294,9 +294,9 @@ def generate_item_qr_code(
     
     # Build QR data with optional sequence info
     if seq and of:
-        qr_data = f"psms://item/{item.qr_code_id}?seq={seq}&of={of}"
+        qr_data = f"sms://item/{item.qr_code_id}?seq={seq}&of={of}"
     else:
-        qr_data = f"psms://item/{item.qr_code_id}"
+        qr_data = f"sms://item/{item.qr_code_id}"
     
     qr.add_data(qr_data)
     qr.make(fit=True)
@@ -346,7 +346,7 @@ def generate_qr_code(
     )
     
     # Encode the QR code ID (can be used for app deep linking)
-    qr_data = f"psms://location/{location.qr_code_id}"
+    qr_data = f"sms://location/{location.qr_code_id}"
     qr.add_data(qr_data)
     qr.make(fit=True)
     

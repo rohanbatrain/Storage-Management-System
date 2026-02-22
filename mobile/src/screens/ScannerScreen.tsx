@@ -62,10 +62,10 @@ export default function ScannerScreen() {
 
         // Extract QR code ID from the scanned URL
         // Expected formats: 
-        // - psms://location/psms-loc-xxxxxxxx
-        // - psms://item/psms-item-xxxxxxxx
-        const locationMatch = result.data.match(/psms:\/\/location\/(.+)/);
-        const itemMatch = result.data.match(/psms:\/\/item\/(.+)/);
+        // - sms://location/sms-loc-xxxxxxxx
+        // - sms://item/sms-item-xxxxxxxx
+        const locationMatch = result.data.match(/sms:\/\/location\/(.+)/);
+        const itemMatch = result.data.match(/sms:\/\/item\/(.+)/);
 
         const qrCodeId = locationMatch?.[1] || itemMatch?.[1];
 
@@ -133,7 +133,7 @@ export default function ScannerScreen() {
         } else {
             Alert.alert(
                 'Invalid QR Code',
-                'This QR code is not a valid PSMS code.',
+                'This QR code is not a valid SMS code.',
                 [
                     {
                         text: 'Scan Again',

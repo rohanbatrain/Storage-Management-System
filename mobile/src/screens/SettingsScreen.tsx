@@ -48,7 +48,7 @@ export default function SettingsScreen() {
     };
 
     const loadApiUrl = async () => {
-        const url = await AsyncStorage.getItem('@psms_api_url');
+        const url = await AsyncStorage.getItem('@sms_api_url');
         if (url) {
             setApiUrl(url);
         }
@@ -104,15 +104,15 @@ export default function SettingsScreen() {
 
             // For mobile, we share the archive download URL directly
             // since blob handling on React Native is limited
-            const url = await AsyncStorage.getItem('@psms_api_url');
+            const url = await AsyncStorage.getItem('@sms_api_url');
             const baseUrl = url || 'http://localhost:8000';
             const archiveUrl = `${baseUrl}/api/export/archive`;
 
             await Share.share({
                 url: archiveUrl,
-                title: 'PSMS Full Archive',
+                title: 'SMS Full Archive',
                 message: Platform.OS === 'android'
-                    ? `Download your full PSMS archive (data + images): ${archiveUrl}`
+                    ? `Download your full SMS archive (data + images): ${archiveUrl}`
                     : undefined,
             });
         } catch (error: any) {
@@ -343,7 +343,7 @@ export default function SettingsScreen() {
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Server URL</Text>
                         <Text style={styles.modalText}>
-                            Enter the address of your PSMS desktop or Docker server (e.g. http://192.168.1.100:8000).
+                            Enter the address of your SMS desktop or Docker server (e.g. http://192.168.1.100:8000).
                         </Text>
                         <TextInput
                             style={styles.textInput}

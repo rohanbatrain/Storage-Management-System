@@ -204,7 +204,7 @@ def create_location(location_data: LocationCreate, db: Session = Depends(get_db)
     validate_location_hierarchy(location_data.kind, parent)
     
     # Generate QR code ID
-    qr_code_id = f"psms-loc-{uuid.uuid4().hex[:8]}"
+    qr_code_id = f"sms-loc-{uuid.uuid4().hex[:8]}"
     
     location = Location(
         name=location_data.name,

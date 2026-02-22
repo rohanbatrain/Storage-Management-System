@@ -57,7 +57,7 @@ function Settings() {
             const url = URL.createObjectURL(res.data);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `psms-archive-${new Date().toISOString().split('T')[0]}.zip`;
+            a.download = `sms-archive-${new Date().toISOString().split('T')[0]}.zip`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (error) {
@@ -82,7 +82,7 @@ function Settings() {
         e.target.value = '';
 
         if (!file.name.endsWith('.zip')) {
-            alert('Please select a .zip archive file exported from PSMS.');
+            alert('Please select a .zip archive file exported from SMS.');
             return;
         }
 

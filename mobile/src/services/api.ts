@@ -16,7 +16,7 @@ const api = axios.create({
 let connectionErrorCallback: (() => void) | null = null;
 
 // Load persisted URL on startup
-AsyncStorage.getItem('@psms_api_url').then(url => {
+AsyncStorage.getItem('@sms_api_url').then(url => {
     if (url) {
         setApiBaseUrl(url);
     }
@@ -43,7 +43,7 @@ export const saveApiBaseUrl = async (url: string) => {
     }
 
     setApiBaseUrl(cleanUrl);
-    await AsyncStorage.setItem('@psms_api_url', cleanUrl);
+    await AsyncStorage.setItem('@sms_api_url', cleanUrl);
 };
 
 api.interceptors.response.use(

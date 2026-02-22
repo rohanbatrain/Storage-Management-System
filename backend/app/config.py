@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # Database
-    database_url: str = "postgresql://psms_user:psms_password@localhost:5432/psms"
+    database_url: str = "postgresql://sms_user:sms_password@localhost:5432/sms"
     
     # Application
     app_name: str = "Personal Storage Management System"
@@ -46,12 +46,12 @@ class Settings(BaseSettings):
         if self.is_frozen:
             # Electron / packaged mode
             home = Path.home()
-            app_data = home / ".psms"
+            app_data = home / ".sms"
             app_data.mkdir(parents=True, exist_ok=True)
             self.data_dir = str(app_data)
             
             # Override database URL to use SQLite
-            db_path = app_data / "psms.db"
+            db_path = app_data / "sms.db"
             self.database_url = f"sqlite:///{db_path}"
             
             # Set upload dir inside app data

@@ -314,7 +314,7 @@ def export_all_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     return JSONResponse(
         content=export_data,
         headers={
-            "Content-Disposition": f"attachment; filename=psms_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            "Content-Disposition": f"attachment; filename=sms_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
         },
     )
 
@@ -350,7 +350,7 @@ def export_archive(db: Session = Depends(get_db)):
         buf,
         media_type="application/zip",
         headers={
-            "Content-Disposition": f"attachment; filename=psms_archive_{timestamp}.zip"
+            "Content-Disposition": f"attachment; filename=sms_archive_{timestamp}.zip"
         },
     )
 

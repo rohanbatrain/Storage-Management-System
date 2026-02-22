@@ -1,6 +1,6 @@
 # Release Process
 
-Step-by-step standard operating procedure for releasing a new version of PSMS.
+Step-by-step standard operating procedure for releasing a new version of SMS.
 
 ## Overview
 

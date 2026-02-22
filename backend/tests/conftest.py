@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 # Only connect to PostgreSQL if DATABASE_URL points to postgres (not SQLite)
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql://psms_user:psms_password@localhost:5432/psms_test",
+    "postgresql://sms_user:sms_password@localhost:5432/sms_test",
 )
 
 if DATABASE_URL.startswith("postgresql"):

@@ -3,7 +3,7 @@
 ## Core Concepts
 
 ### Locations
-Everything in PSMS lives in a **Location**. Locations are hierarchical.
+Everything in SMS lives in a **Location**. Locations are hierarchical.
 - **Example**: `Home` -> `Bedroom` -> `Wardrobe` -> `Top Shelf` -> `Blue Box`.
 - **Root Locations**: Start by creating high-level locations like "Home" or "Office".
 

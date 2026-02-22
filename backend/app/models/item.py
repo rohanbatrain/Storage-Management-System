@@ -5,6 +5,9 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 from app.models.compatibility import GUID, JSONCompatible
 import enum
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.models.item_embedding import ItemEmbedding
 
 
 class ItemType(str, enum.Enum):
@@ -89,6 +92,13 @@ class Item(Base):
         "MovementHistory",
         back_populates="item",
         order_by="desc(MovementHistory.moved_at)",
+        lazy="selectin"
+    )
+    
+    embeddings = relationship(
+        "ItemEmbedding",
+        back_populates="item",
+        cascade="all, delete-orphan",
         lazy="selectin"
     )
     

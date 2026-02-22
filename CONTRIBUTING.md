@@ -1,4 +1,4 @@
-# Contributing to PSMS
+# Contributing to SMS
 
 Thanks for your interest in contributing! This document covers our branching strategy, development workflow, and release process.
 

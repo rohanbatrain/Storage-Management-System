@@ -14,7 +14,7 @@ interface ServerContextType {
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
 
-export const SERVER_URL_KEY = 'psms_server_url';
+export const SERVER_URL_KEY = 'sms_server_url';
 
 export function ServerProvider({ children }: { children: React.ReactNode }) {
     const [serverUrl, setServerUrlState] = useState<string>('');

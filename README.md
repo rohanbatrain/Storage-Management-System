@@ -7,9 +7,9 @@
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </p>
 
-# 📦 Personal Storage Management System (PSMS)
+# 📦 Personal Storage Management System (SMS)
 
-**Stop losing things.** PSMS is a full-stack personal storage management app that lets you digitally organize, search, and track every physical item you own — from bedroom drawers to travel bags.
+**Stop losing things.** SMS is a full-stack personal storage management app that lets you digitally organize, search, and track every physical item you own — from bedroom drawers to travel bags.
 
 > A single-user, self-hosted system with a web dashboard, Electron desktop app, and React Native mobile app — all syncing over your local network.
 
@@ -35,7 +35,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                     PSMS Stack                         │
+│                     SMS Stack                         │
 ├──────────┬──────────┬───────────┬──────────────────────┤
 │ Web UI   │ Desktop  │ Mobile    │ API Docs             │
 │ React    │ Electron │ Expo RN   │ Swagger UI           │
@@ -45,7 +45,7 @@
 ├────────────────────────┬───────────────────────────────┤
 │   PostgreSQL (Docker)  │  SQLite (Desktop/standalone)  │
 ├────────────────────────┼───────────────────────────────┤
-│   Local FS (uploads)   │  Local FS (~/.psms/uploads)   │
+│   Local FS (uploads)   │  Local FS (~/.sms/uploads)   │
 └────────────────────────┴───────────────────────────────┘
 ```
 
@@ -94,7 +94,7 @@ npm install
 npm run dist
 ```
 
-The desktop app uses **SQLite** and stores data at `~/.psms/`.
+The desktop app uses **SQLite** and stores data at `~/.sms/`.
 
 ### Option 3: Development Mode
 
@@ -149,7 +149,7 @@ personal-storage-management/
 
 ## 🔄 Multi-Device Sync
 
-When running as a desktop app, PSMS instances on the same LAN automatically discover each other via **mDNS** (Bonjour/Zeroconf) and sync every 30 seconds:
+When running as a desktop app, SMS instances on the same LAN automatically discover each other via **mDNS** (Bonjour/Zeroconf) and sync every 30 seconds:
 
 - ✅ **Zero configuration** — devices find each other automatically
 - ✅ **Offline-first** — each machine works independently
@@ -187,7 +187,7 @@ Full interactive docs at **http://localhost:8000/docs**.
 |-------|-----------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic |
 | Database | PostgreSQL 15 (Docker) / SQLite (Desktop) |
-| Image Storage | Local filesystem (Docker volume / Desktop `~/.psms/uploads/`) |
+| Image Storage | Local filesystem (Docker volume / Desktop `~/.sms/uploads/`) |
 | Web Frontend | React 18, Vite 5, Lucide Icons |
 | Desktop | Electron 28, bonjour-service (mDNS) |
 | Mobile | React Native, Expo, expo-camera |

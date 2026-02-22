@@ -103,7 +103,7 @@ export default function ServerInfo() {
                             </div>
                             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px' }}>Connect Mobile App</h3>
                             <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                                Scan this QR code in the PSMS mobile app to connect to this server.
+                                Scan this QR code in the SMS mobile app to connect to this server.
                             </p>
                         </div>
 

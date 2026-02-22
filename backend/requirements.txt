@@ -12,3 +12,6 @@ fpdf2==2.7.8
 pytest
 httpx<0.28
 pyinstaller
+onnxruntime==1.24.1
+Pillow==10.2.0
+numpy==1.26.3

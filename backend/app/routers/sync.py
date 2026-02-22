@@ -49,7 +49,7 @@ def _get_device_id() -> str:
     if settings.data_dir:
         id_file = Path(settings.data_dir) / ".device_id"
     else:
-        id_file = Path.home() / ".psms" / ".device_id"
+        id_file = Path.home() / ".sms" / ".device_id"
 
     id_file.parent.mkdir(parents=True, exist_ok=True)
 

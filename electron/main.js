@@ -130,8 +130,8 @@ app.whenReady().then(async () => {
     // --- Export / Import archive via native file dialogs ---
     ipcMain.handle('save-archive', async (_event, arrayBuffer) => {
         const result = await dialog.showSaveDialog(mainWindow, {
-            title: 'Save PSMS Archive',
-            defaultPath: `psms-archive-${new Date().toISOString().split('T')[0]}.zip`,
+            title: 'Save SMS Archive',
+            defaultPath: `sms-archive-${new Date().toISOString().split('T')[0]}.zip`,
             filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
         });
         if (result.canceled || !result.filePath) return { canceled: true };
@@ -141,7 +141,7 @@ app.whenReady().then(async () => {
 
     ipcMain.handle('open-archive', async () => {
         const result = await dialog.showOpenDialog(mainWindow, {
-            title: 'Open PSMS Archive',
+            title: 'Open SMS Archive',
             filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
             properties: ['openFile'],
         });

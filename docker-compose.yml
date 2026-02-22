@@ -1,17 +1,17 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: psms-db
+    container_name: sms-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-psms}
-      POSTGRES_USER: ${POSTGRES_USER:-psms_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-psms_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sms}
+      POSTGRES_USER: ${POSTGRES_USER:-sms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sms_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-psms_user} -d ${POSTGRES_DB:-psms}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sms_user} -d ${POSTGRES_DB:-sms}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,12 +20,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: psms-backend
+    container_name: sms-backend
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-psms_user}:${POSTGRES_PASSWORD:-psms_password}@db:5432/${POSTGRES_DB:-psms}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sms_user}:${POSTGRES_PASSWORD:-sms_password}@db:5432/${POSTGRES_DB:-sms}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
       DEBUG: ${DEBUG:-false}
       UPLOAD_DIR: /data/uploads
@@ -40,7 +40,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
-    container_name: psms-web
+    container_name: sms-web
     depends_on:
       - backend
     ports:

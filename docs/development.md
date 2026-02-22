@@ -85,7 +85,7 @@ docker-compose up -d --build
 
 | Mode | Engine | Location |
 |------|--------|----------|
-| Electron | SQLite | `~/.psms/psms.db` |
+| Electron | SQLite | `~/.sms/sms.db` |
 | Docker | PostgreSQL | Docker volume |
 | Dev | Either | Configurable via `DATABASE_URL` |
 

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import locations, items, search, qr, wardrobe, export
+from app.routers import locations, items, search, qr, wardrobe, export, identify
 
 settings = get_settings()
 
@@ -47,6 +47,7 @@ app.include_router(search.router, prefix=settings.api_v1_prefix)
 app.include_router(qr.router, prefix=settings.api_v1_prefix)
 app.include_router(wardrobe.router, prefix=settings.api_v1_prefix)
 app.include_router(export.router, prefix=settings.api_v1_prefix)
+app.include_router(identify.router, prefix=settings.api_v1_prefix)
 from app.routers import upload
 app.include_router(upload.router, prefix=settings.api_v1_prefix)
 from app.routers import sync as sync_router

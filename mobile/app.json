@@ -1,7 +1,7 @@
 {
     "expo": {
-        "name": "PSMS",
-        "slug": "psms-mobile",
+        "name": "SMS",
+        "slug": "sms-mobile",
         "version": "1.0.0",
         "orientation": "portrait",
         "icon": "./assets/icon.png",
@@ -19,20 +19,20 @@
                 "foregroundImage": "./assets/adaptive-icon.png",
                 "backgroundColor": "#0f0f14"
             },
-            "package": "com.psms.mobile",
+            "package": "com.sms.mobile",
             "permissions": [
                 "android.permission.CAMERA"
             ]
         },
         "ios": {
             "supportsTablet": true,
-            "bundleIdentifier": "com.psms.mobile"
+            "bundleIdentifier": "com.sms.mobile"
         },
         "plugins": [
             [
                 "expo-camera",
                 {
-                    "cameraPermission": "Allow PSMS to access your camera to scan QR codes"
+                    "cameraPermission": "Allow SMS to access your camera to scan QR codes"
                 }
             ]
         ]

@@ -38,9 +38,9 @@ The system uses reasonable defaults, but you can configure it via a `.env` file 
 
 ```env
 # Database Credentials
-POSTGRES_USER=psms_user
-POSTGRES_PASSWORD=psms_password
-POSTGRES_DB=psms
+POSTGRES_USER=sms_user
+POSTGRES_PASSWORD=sms_password
+POSTGRES_DB=sms
 
 # Backend Settings
 SECRET_KEY=your-secret-key-here

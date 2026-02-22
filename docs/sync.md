@@ -1,6 +1,6 @@
 # Multi-Device Sync
 
-PSMS supports connecting your mobile phone to the desktop app over your local WiFi network.
+SMS supports connecting your mobile phone to the desktop app over your local WiFi network.
 
 ## How It Works
 
@@ -22,7 +22,7 @@ Open the Electron app. The backend server starts automatically on a random avail
 ### 2. Connect Mobile
 1. Click **Connect Mobile** in the desktop sidebar
 2. A QR code appears with the local server URL (e.g., `http://192.168.1.42:8123`)
-3. Open the PSMS mobile app on your phone
+3. Open the SMS mobile app on your phone
 4. Tap **Scan** and point at the QR code
 
 ### 3. Use

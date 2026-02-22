@@ -165,7 +165,7 @@ function AnimatedSplash({ onFinish }: { onFinish: () => void }) {
                 ]}
             >
                 <Text style={styles.splashIcon}>📦</Text>
-                <Text style={styles.splashTitle}>PSMS</Text>
+                <Text style={styles.splashTitle}>SMS</Text>
                 <Text style={styles.splashSubtitle}>Personal Storage Manager</Text>
             </Animated.View>
         </View>
