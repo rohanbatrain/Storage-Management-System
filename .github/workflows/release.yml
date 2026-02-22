@@ -110,8 +110,9 @@ jobs:
             electron/dist/*.AppImage
             electron/dist/*.deb
 
-  # ─── Publish mobile app to Expo ───
+  # ─── Publish mobile app to Expo (optional — needs EXPO_TOKEN secret) ───
   publish-mobile:
+    if: ${{ secrets.EXPO_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -133,7 +134,7 @@ jobs:
 
   # ─── Create GitHub Release ───
   create-release:
-    needs: [build-electron, publish-mobile]
+    needs: [build-electron]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
