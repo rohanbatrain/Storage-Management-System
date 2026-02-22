@@ -19,6 +19,7 @@ import OutfitsScreen from './src/screens/OutfitsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import QRPrintScreen from './src/screens/QRPrintScreen';
 import MenuScreen from './src/screens/MenuScreen';
+import ChatScreen from './src/screens/ChatScreen';
 import { colors } from './src/styles/theme';
 
 // Keep the splash screen visible while we fetch resources
@@ -287,6 +288,11 @@ function AppContent() {
                         name="QRPrint"
                         component={QRPrintScreen}
                         options={{ title: 'Print QR Codes' }}
+                    />
+                    <Stack.Screen
+                        name="Chat"
+                        component={ChatScreen}
+                        options={{ title: 'Ask SMS' }}
                     />
                 </Stack.Navigator>
             </NavigationContainer>

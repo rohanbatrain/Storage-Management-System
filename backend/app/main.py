@@ -52,6 +52,8 @@ from app.routers import upload
 app.include_router(upload.router, prefix=settings.api_v1_prefix)
 from app.routers import sync as sync_router
 app.include_router(sync_router.router, prefix=settings.api_v1_prefix)
+from app.routers import chat as chat_router
+app.include_router(chat_router.router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")

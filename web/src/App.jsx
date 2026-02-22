@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import QRPrint from './pages/QRPrint';
 import LentItems from './pages/LentItems';
 import LostItems from './pages/LostItems';
+import ChatDrawer from './components/ChatDrawer';
 
 function App() {
     return (
@@ -31,6 +32,7 @@ function App() {
                     <Route path="/lost" element={<LostItems />} />
                 </Routes>
             </main>
+            <ChatDrawer />
         </div>
     );
 }

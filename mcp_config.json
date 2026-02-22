@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+        "sms": {
+            "command": "python",
+            "args": [
+                "backend/mcp_server.py"
+            ],
+            "env": {
+                "SMS_API_URL": "http://localhost:8000/api"
+            }
+        }
+    }
+}

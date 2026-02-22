@@ -206,6 +206,14 @@ export const imageApi = {
     },
 };
 
+// Chat API
+export const chatApi = {
+    send: (message: string, conversationId?: string) =>
+        api.post('/chat', { message, conversation_id: conversationId }),
+    clearHistory: (conversationId: string) =>
+        api.delete(`/chat/history/${conversationId}`),
+};
+
 // Visual Lens / Identify API
 export const identifyApi = {
     // Identify an item from a photo

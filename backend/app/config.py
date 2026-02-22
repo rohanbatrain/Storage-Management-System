@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     app_name: str = "Personal Storage Management System"
     debug: bool = False
     secret_key: str = "dev-secret-key-change-in-production"
+
+    # LLM (OpenAI-compatible)
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.openai.com/v1"
+    llm_model: str = "gpt-4o-mini"
     
     # API
     api_v1_prefix: str = "/api"

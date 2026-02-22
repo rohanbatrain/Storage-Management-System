@@ -57,6 +57,11 @@ export default function MenuScreen() {
                     <Text style={styles.sectionTitle}>Tools & Settings</Text>
                     <View style={styles.menuGroup}>
                         <MenuItem
+                            icon="💬"
+                            label="Ask SMS"
+                            onPress={() => navigation.navigate('Chat')}
+                        />
+                        <MenuItem
                             icon="🖨️"
                             label="Print QR Codes"
                             onPress={() => navigation.navigate('QRPrint')}
