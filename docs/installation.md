@@ -12,7 +12,7 @@
 
 1.  **Clone the Repository**
     ```bash
-    git clone https://github.com/rohan/personal-storage-management
+    git clone https://github.com/rohanbatrain/Storage-Management-System.git
     cd personal-storage-management
     ```
 2.  **Start the Application**

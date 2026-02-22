@@ -126,4 +126,4 @@ When filing an issue, please include:
 
 ## Questions?
 
-Open a [Discussion](https://github.com/rohanbatrain/Personal-Storage-Management/discussions) — we're happy to help.
+Open a [Discussion](https://github.com/rohanbatrain/Storage-Management-System/discussions) — we're happy to help.

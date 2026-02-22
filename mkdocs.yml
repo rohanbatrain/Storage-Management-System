@@ -1,8 +1,8 @@
 site_name: Personal Storage Management System
 site_description: Documentation for PSMS — organize, track, and search every physical item you own.
 site_author: Rohan
-site_url: https://rohanbatrain.github.io/Personal-Storage-Management/docs/
-repo_url: https://github.com/rohanbatrain/Personal-Storage-Management
+site_url: https://rohanbatrain.github.io/Storage-Management-System/docs/
+repo_url: https://github.com/rohanbatrain/Storage-Management-System
 site_dir: site/docs
 
 theme:

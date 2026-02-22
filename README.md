@@ -54,7 +54,7 @@
 ### Option 1: Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/rohan/personal-storage-management.git
+git clone https://github.com/rohanbatrain/Storage-Management-System.git
 cd personal-storage-management
 
 # Copy and configure environment

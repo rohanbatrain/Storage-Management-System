@@ -79,7 +79,7 @@ git push origin --delete release/v1.1.0
 
 ### Step 7: Verify GitHub Release
 
-1. Go to [Releases](https://github.com/rohanbatrain/Personal-Storage-Management/releases)
+1. Go to [Releases](https://github.com/rohanbatrain/Storage-Management-System/releases)
 2. Verify the auto-generated release has all artifacts
 3. Edit the release notes if needed
 
