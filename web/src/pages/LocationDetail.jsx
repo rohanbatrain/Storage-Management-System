@@ -341,11 +341,8 @@ function LocationDetail() {
 
     const handleDelete = async () => {
         try {
-            console.log("Attempting to delete location:", id);
             await locationApi.delete(id);
-            alert("Location successfully deleted!");
             navigate('/');
-            window.location.reload();
         } catch (error) {
             console.error('Failed to delete location:', error);
             alert(error.response?.data?.detail || error.message || 'Failed to delete location');
@@ -534,7 +531,6 @@ function LocationDetail() {
                     onClose={() => setShowAddSub(false)}
                     onSuccess={() => {
                         loadLocation();
-                        window.location.reload();
                     }}
                 />
             )}
