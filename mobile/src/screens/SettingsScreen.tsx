@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../styles/theme';
-import { exportApi, saveApiBaseUrl, locationApi } from '../services/api';
+import { exportApi, saveApiBaseUrl, locationApi, testBackend } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ConfirmDialog } from '../components/FormModal';
 
@@ -41,6 +41,8 @@ export default function SettingsScreen() {
 
     const [deletingAll, setDeletingAll] = useState(false);
     const [confirmDeleteAllVisible, setConfirmDeleteAllVisible] = useState(false);
+    const [connTesting, setConnTesting] = useState(false);
+    const [connResult, setConnResult] = useState<{ ok: boolean; message: string } | null>(null);
 
     const loadSummary = async () => {
         try {
@@ -82,6 +84,22 @@ export default function SettingsScreen() {
             Alert.alert('Error', error.response?.data?.detail || error.message || 'Failed to delete locations');
         } finally {
             setDeletingAll(false);
+        }
+    };
+
+    const handleTestConnection = async () => {
+        if (connTesting) return;
+        setConnTesting(true);
+        setConnResult(null);
+        try {
+            const start = Date.now();
+            await testBackend();
+            const ms = Date.now() - start;
+            setConnResult({ ok: true, message: `Connected — ${ms}ms` });
+        } catch (err: any) {
+            setConnResult({ ok: false, message: err.message || 'Server not reachable' });
+        } finally {
+            setConnTesting(false);
         }
     };
 
@@ -341,10 +359,26 @@ export default function SettingsScreen() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                        <Text style={{ padding: spacing.md, paddingTop: 0, fontSize: 13, color: colors.textMuted }}>
-                            Tap the URL to edit manually, or scan the QR code on your desktop app to auto-connect.
-                        </Text>
+                        <SettingsItem
+                            icon={connTesting ? '⏳' : connResult?.ok ? '✅' : connResult ? '❌' : '🔌'}
+                            title={connTesting ? 'Testing...' : 'Test Connection'}
+                            subtitle="Check that the server is reachable"
+                            onPress={handleTestConnection}
+                            loading={connTesting}
+                        />
                     </View>
+                    {connResult && (
+                        <View style={[
+                            styles.resultBanner,
+                            connResult.ok ? styles.resultSuccess : styles.resultError,
+                        ]}>
+                            <Text style={styles.resultIcon}>{connResult.ok ? '✅' : '❌'}</Text>
+                            <Text style={styles.resultText}>{connResult.message}</Text>
+                        </View>
+                    )}
+                    <Text style={{ padding: spacing.md, paddingTop: spacing.sm, fontSize: 13, color: colors.textMuted }}>
+                        Tap the URL to edit manually, or scan the QR code on your desktop app to auto-connect.
+                    </Text>
                 </View>
 
                 {/* App Info */}

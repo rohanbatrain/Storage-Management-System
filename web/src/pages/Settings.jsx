@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X } from 'lucide-react';
-import { exportApi, identifyApi, chatApi, locationApi } from '../services/api';
+import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X, Wifi } from 'lucide-react';
+import { exportApi, identifyApi, chatApi, locationApi, testBackend } from '../services/api';
 
 function Settings() {
     const navigate = useNavigate();
@@ -35,6 +35,10 @@ function Settings() {
     // Danger Zone state
     const [deletingAll, setDeletingAll] = useState(false);
     const [showConfirmDeleteAll, setShowConfirmDeleteAll] = useState(false);
+
+    // Backend connection test
+    const [backendTesting, setBackendTesting] = useState(false);
+    const [backendTestResult, setBackendTestResult] = useState(null);
 
     const loadSummary = async () => {
         try {
@@ -295,6 +299,21 @@ function Settings() {
         }
     };
 
+    const handleBackendTest = async () => {
+        try {
+            setBackendTesting(true);
+            setBackendTestResult(null);
+            const start = Date.now();
+            await testBackend();
+            const ms = Date.now() - start;
+            setBackendTestResult({ ok: true, message: `✅ Connected — ${ms}ms` });
+        } catch (err) {
+            setBackendTestResult({ ok: false, message: `❌ ${err.message || 'Server not reachable'}` });
+        } finally {
+            setBackendTesting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -523,6 +542,39 @@ function Settings() {
                             )}
                         </div>
                     </button>
+                </div>
+            </section>
+
+            {/* Backend Connection */}
+            <section style={{ marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🌐 Backend Connection
+                </h2>
+                <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                        Test whether the local backend server is reachable.
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={handleBackendTest}
+                            disabled={backendTesting}
+                            className="btn btn-secondary"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                            {backendTesting
+                                ? <RefreshCw size={16} className="spinning" />
+                                : <Wifi size={16} />}
+                            {backendTesting ? 'Testing...' : 'Test Connection'}
+                        </button>
+                        {backendTestResult && (
+                            <span style={{
+                                fontSize: '0.875rem', fontWeight: 500,
+                                color: backendTestResult.ok ? '#22c55e' : '#ef4444',
+                            }}>
+                                {backendTestResult.message}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </section>
 

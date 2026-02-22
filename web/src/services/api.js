@@ -155,6 +155,9 @@ export const chatApi = {
     deleteConversation: (id) => api.delete(`/chat/conversations/${id}`),
 };
 
+// Backend health check
+export const testBackend = () => api.get('/health', { timeout: 5000 });
+
 // Visual Lens / Identify API
 export const identifyApi = {
     // Identify an item from a photo

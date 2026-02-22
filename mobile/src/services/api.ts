@@ -215,6 +215,9 @@ export const chatApi = {
         api.delete(`/chat/history/${conversationId}`),
 };
 
+// Backend health check (used in settings connection test)
+export const testBackend = () => api.get('/health', { timeout: 5000 });
+
 // Visual Lens / Identify API
 export const identifyApi = {
     // Identify an item from a photo
