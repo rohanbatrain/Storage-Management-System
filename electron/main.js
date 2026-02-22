@@ -74,8 +74,8 @@ async function startBackend() {
     let backendExecutable;
     if (app.isPackaged) {
         // Path to the bundled backend executable
-        backendExecutable = path.join(process.resourcesPath, 'backend-dist', 'psms-server');
-        // On Windows it would be 'psms-server.exe'
+        backendExecutable = path.join(process.resourcesPath, 'backend-dist', 'sms-server');
+        // On Windows it would be 'sms-server.exe'
         if (process.platform === 'win32') {
             backendExecutable += '.exe';
         }

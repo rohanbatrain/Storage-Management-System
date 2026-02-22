@@ -45,13 +45,14 @@ coverage/
 # Build artifacts
 dist/
 build/
+!electron/build/
 *.egg-info/
 *.spec
 
 # Electron
 electron/dist/
-electron/backend-dist/main
-electron/backend-dist/main.exe
+electron/backend-dist/sms-server
+electron/backend-dist/sms-server.exe
 electron/renderer/
 
 # Mobile (Expo)

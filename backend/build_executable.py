@@ -6,7 +6,7 @@ import shutil
 # backend/build_executable.py
 # Builds the PSMS backend into a single branded executable.
 
-APP_NAME = "psms-server"
+APP_NAME = "sms-server"
 ICON_PATH = os.path.join("..", "electron", "build", "icon.ico")
 
 

@@ -85,7 +85,7 @@ jobs:
           path: electron/backend-dist/
       - name: Make backend executable
         if: runner.os != 'Windows'
-        run: chmod +x electron/backend-dist/psms-server
+        run: chmod +x electron/backend-dist/sms-server
       - name: Build web frontend
         run: |
           cd web
