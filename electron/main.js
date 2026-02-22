@@ -53,17 +53,23 @@ function createWindow() {
     });
 
     // In production, load the built files
-    // In development, load the vite dev server
+    // In development, try the vite dev server first, fall back to built renderer
     const isDev = !app.isPackaged;
+    const rendererPath = path.join(__dirname, 'renderer', 'index.html');
 
     if (isDev) {
-        // Wait for Vite to start? Or assume it's running.
-        // For now, let's assume the user runs the dev server separately or via a concurrently script
-        // But for better UX, we can try to connect to localhost:3001
-        mainWindow.loadURL('http://localhost:3000');
+        mainWindow.loadURL('http://localhost:3000/').catch(() => {
+            // Dev server not running — fall back to built renderer if available
+            if (fs.existsSync(rendererPath)) {
+                console.log('Dev server unavailable, loading built renderer...');
+                mainWindow.loadFile(rendererPath);
+            } else {
+                console.error('No dev server and no built renderer found. Run "npm run build" in web/ first.');
+            }
+        });
         mainWindow.webContents.openDevTools();
     } else {
-        mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+        mainWindow.loadFile(rendererPath);
     }
 }
 
