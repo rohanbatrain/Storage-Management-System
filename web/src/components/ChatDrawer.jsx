@@ -1,15 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Trash2, ChevronRight } from 'lucide-react';
-import { chatApi } from '../services/api';
+import { useRef, useEffect } from 'react';
+import { MessageCircle, X, Send, Trash2, Maximize2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useChat } from '../contexts/ChatContext';
 
 function ChatDrawer() {
     const navigate = useNavigate();
-    const [open, setOpen] = useState(false);
-    const [messages, setMessages] = useState([]);
-    const [input, setInput] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [conversationId, setConversationId] = useState(null);
+    const {
+        messages,
+        input,
+        setInput,
+        loading,
+        isDrawerOpen: open,
+        setDrawerOpen: setOpen,
+        handleSend: contextHandleSend,
+        handleClear
+    } = useChat();
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -23,41 +28,8 @@ function ChatDrawer() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleSend = async () => {
-        const text = input.trim();
-        if (!text || loading) return;
-
-        setInput('');
-        setMessages(prev => [...prev, { role: 'user', content: text }]);
-        setLoading(true);
-
-        try {
-            const res = await chatApi.send(text, conversationId);
-            const data = res.data;
-            if (!conversationId) setConversationId(data.conversation_id);
-
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: data.reply,
-                actions: data.actions || [],
-            }]);
-        } catch (err) {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '❌ Failed to get response. Is the server running?',
-                actions: [],
-            }]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleClear = async () => {
-        if (conversationId) {
-            try { await chatApi.clearHistory(conversationId); } catch { }
-        }
-        setMessages([]);
-        setConversationId(null);
+    const handleSend = () => {
+        contextHandleSend();
     };
 
     const handleKeyDown = (e) => {
@@ -145,6 +117,9 @@ function ChatDrawer() {
                         </span>
                         <button onClick={handleClear} style={iconBtn} title="Clear chat">
                             <Trash2 size={14} />
+                        </button>
+                        <button onClick={() => { setOpen(false); navigate('/chat'); }} style={iconBtn} title="Expand to full page">
+                            <Maximize2 size={14} />
                         </button>
                         <button onClick={() => setOpen(false)} style={iconBtn} title="Close">
                             <X size={16} />

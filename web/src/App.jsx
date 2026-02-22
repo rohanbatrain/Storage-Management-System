@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import LocationDetail from './pages/LocationDetail';
@@ -11,9 +11,12 @@ import Settings from './pages/Settings';
 import QRPrint from './pages/QRPrint';
 import LentItems from './pages/LentItems';
 import LostItems from './pages/LostItems';
+import Chat from './pages/Chat';
 import ChatDrawer from './components/ChatDrawer';
 
 function App() {
+    const location = useLocation();
+
     return (
         <div className="app-layout">
             <Sidebar />
@@ -30,9 +33,10 @@ function App() {
                     <Route path="/qr-print" element={<QRPrint />} />
                     <Route path="/lent" element={<LentItems />} />
                     <Route path="/lost" element={<LostItems />} />
+                    <Route path="/chat" element={<Chat />} />
                 </Routes>
             </main>
-            <ChatDrawer />
+            {location.pathname !== '/chat' && <ChatDrawer />}
         </div>
     );
 }
