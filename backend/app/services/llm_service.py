@@ -202,6 +202,212 @@ TOOLS = [
             }
         }
     },
+    # ---- Location Management ----
+    {
+        "type": "function",
+        "function": {
+            "name": "create_location",
+            "description": "Create a new storage location. Kind must be one of: room, furniture, container, surface, portable, laundry_worn, laundry_dirty. Rooms can only be root locations (no parent). Furniture goes in rooms. Containers go in rooms, furniture, surfaces, or other containers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the location (e.g. 'Bedroom', 'Wardrobe')"},
+                    "kind": {"type": "string", "description": "Type of location: room, furniture, container, surface, portable, laundry_worn, laundry_dirty"},
+                    "description": {"type": "string", "description": "Optional description"},
+                    "parent_id": {"type": "string", "description": "Optional UUID of the parent location"},
+                    "is_wardrobe": {"type": "boolean", "description": "Whether this location is a wardrobe (clothing storage)", "default": False}
+                },
+                "required": ["name", "kind"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_location",
+            "description": "Update an existing location's name, description, or other properties.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location_id": {"type": "string", "description": "UUID of the location to update"},
+                    "name": {"type": "string", "description": "New name for the location"},
+                    "description": {"type": "string", "description": "New description"},
+                    "is_wardrobe": {"type": "boolean", "description": "Whether this is a wardrobe location"}
+                },
+                "required": ["location_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_location",
+            "description": "Delete a location and all its children and items. Use with caution — this is irreversible.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location_id": {"type": "string", "description": "UUID of the location to delete"}
+                },
+                "required": ["location_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_alias",
+            "description": "Add an alternate name (alias) to a location so it can be found by multiple names.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location_id": {"type": "string", "description": "UUID of the location"},
+                    "alias": {"type": "string", "description": "The alternate name to add"}
+                },
+                "required": ["location_id", "alias"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_alias",
+            "description": "Remove an alternate name (alias) from a location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location_id": {"type": "string", "description": "UUID of the location"},
+                    "alias": {"type": "string", "description": "The alias to remove"}
+                },
+                "required": ["location_id", "alias"]
+            }
+        }
+    },
+    # ---- Item Management ----
+    {
+        "type": "function",
+        "function": {
+            "name": "create_item",
+            "description": "Create a new item and place it in a location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the item"},
+                    "location_id": {"type": "string", "description": "UUID of the location where the item will be stored"},
+                    "description": {"type": "string", "description": "Optional description of the item"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional list of tags"}
+                },
+                "required": ["name", "location_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_item",
+            "description": "Update an item's name, description, or tags.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item to update"},
+                    "name": {"type": "string", "description": "New name for the item"},
+                    "description": {"type": "string", "description": "New description"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "New list of tags"}
+                },
+                "required": ["item_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_item",
+            "description": "Permanently delete an item from the system.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item to delete"}
+                },
+                "required": ["item_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_item_history",
+            "description": "Get the full movement history for an item — where it has been over time.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item"}
+                },
+                "required": ["item_id"]
+            }
+        }
+    },
+    # ---- Loan & Status Tracking ----
+    {
+        "type": "function",
+        "function": {
+            "name": "lend_item",
+            "description": "Lend an item to someone. Records the borrower name, optional due date, and notes.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item to lend"},
+                    "borrower": {"type": "string", "description": "Name of the person borrowing the item"},
+                    "due_date": {"type": "string", "description": "Optional ISO 8601 due date (e.g. '2025-03-15')"},
+                    "notes": {"type": "string", "description": "Optional notes about the loan"}
+                },
+                "required": ["item_id", "borrower"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "return_from_loan",
+            "description": "Mark a lent item as returned. Clears its loan status.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item being returned"},
+                    "notes": {"type": "string", "description": "Optional return notes"}
+                },
+                "required": ["item_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mark_lost",
+            "description": "Mark an item as lost so it appears in the lost items list.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item to mark as lost"},
+                    "notes": {"type": "string", "description": "Optional notes about when/where it was lost"}
+                },
+                "required": ["item_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mark_found",
+            "description": "Mark a previously lost item as found.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "UUID of the item to mark as found"},
+                    "notes": {"type": "string", "description": "Optional notes about where it was found"}
+                },
+                "required": ["item_id"]
+            }
+        }
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -221,9 +427,9 @@ async def execute_tool(tool_name: str, arguments: dict, api_base: str) -> dict:
             elif tool_name == "list_rewearable":
                 r = await client.get(f"{api_base}/wardrobe/rewear-safe")
             elif tool_name == "list_lent_items":
-                r = await client.get(f"{api_base}/items/lent")
+                r = await client.get(f"{api_base}/items/lent/all")
             elif tool_name == "list_lost_items":
-                r = await client.get(f"{api_base}/items/lost")
+                r = await client.get(f"{api_base}/items/lost/all")
             elif tool_name == "move_item":
                 r = await client.post(
                     f"{api_base}/items/{arguments['item_id']}/move",
@@ -245,6 +451,105 @@ async def execute_tool(tool_name: str, arguments: dict, api_base: str) -> dict:
                 if arguments.get("location_id"):
                     params["location_id"] = arguments["location_id"]
                 r = await client.get(f"{api_base}/items", params=params)
+            # ---- Location Management ----
+            elif tool_name == "create_location":
+                payload = {
+                    "name": arguments["name"],
+                    "kind": arguments["kind"],
+                }
+                if arguments.get("description"):
+                    payload["description"] = arguments["description"]
+                if arguments.get("parent_id"):
+                    payload["parent_id"] = arguments["parent_id"]
+                if arguments.get("is_wardrobe") is not None:
+                    payload["is_wardrobe"] = arguments["is_wardrobe"]
+                r = await client.post(f"{api_base}/locations", json=payload)
+            elif tool_name == "update_location":
+                payload = {}
+                for field in ["name", "description", "is_wardrobe"]:
+                    if arguments.get(field) is not None:
+                        payload[field] = arguments[field]
+                r = await client.put(f"{api_base}/locations/{arguments['location_id']}", json=payload)
+            elif tool_name == "delete_location":
+                r = await client.delete(f"{api_base}/locations/{arguments['location_id']}")
+                if r.status_code == 204:
+                    return {"success": True, "message": "Location deleted"}
+                r.raise_for_status()
+                return r.json()
+            elif tool_name == "add_alias":
+                r = await client.post(
+                    f"{api_base}/locations/{arguments['location_id']}/alias",
+                    json={"alias": arguments["alias"]}
+                )
+            elif tool_name == "remove_alias":
+                r = await client.delete(
+                    f"{api_base}/locations/{arguments['location_id']}/alias/{arguments['alias']}"
+                )
+                if r.status_code == 204:
+                    return {"success": True, "message": "Alias removed"}
+                r.raise_for_status()
+                return r.json()
+            # ---- Item Management ----
+            elif tool_name == "create_item":
+                payload = {
+                    "name": arguments["name"],
+                    "current_location_id": arguments["location_id"],
+                    "permanent_location_id": arguments["location_id"],
+                }
+                if arguments.get("description"):
+                    payload["description"] = arguments["description"]
+                if arguments.get("tags"):
+                    payload["tags"] = arguments["tags"]
+                r = await client.post(f"{api_base}/items", json=payload)
+            elif tool_name == "update_item":
+                payload = {}
+                for field in ["name", "description", "tags"]:
+                    if arguments.get(field) is not None:
+                        payload[field] = arguments[field]
+                r = await client.put(f"{api_base}/items/{arguments['item_id']}", json=payload)
+            elif tool_name == "delete_item":
+                r = await client.delete(f"{api_base}/items/{arguments['item_id']}")
+                if r.status_code == 204:
+                    return {"success": True, "message": "Item deleted"}
+                r.raise_for_status()
+                return r.json()
+            elif tool_name == "get_item_history":
+                r = await client.get(f"{api_base}/items/{arguments['item_id']}/history")
+            # ---- Loan & Status Tracking ----
+            elif tool_name == "lend_item":
+                params = {"borrower": arguments["borrower"]}
+                if arguments.get("due_date"):
+                    params["due_date"] = arguments["due_date"]
+                if arguments.get("notes"):
+                    params["notes"] = arguments["notes"]
+                r = await client.post(
+                    f"{api_base}/items/{arguments['item_id']}/lend",
+                    params=params
+                )
+            elif tool_name == "return_from_loan":
+                params = {}
+                if arguments.get("notes"):
+                    params["notes"] = arguments["notes"]
+                r = await client.post(
+                    f"{api_base}/items/{arguments['item_id']}/return-loan",
+                    params=params
+                )
+            elif tool_name == "mark_lost":
+                params = {}
+                if arguments.get("notes"):
+                    params["notes"] = arguments["notes"]
+                r = await client.post(
+                    f"{api_base}/items/{arguments['item_id']}/lost",
+                    params=params
+                )
+            elif tool_name == "mark_found":
+                params = {}
+                if arguments.get("notes"):
+                    params["notes"] = arguments["notes"]
+                r = await client.post(
+                    f"{api_base}/items/{arguments['item_id']}/found",
+                    params=params
+                )
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
 
@@ -437,6 +742,22 @@ def _summarize_tool_result(tool_name: str, result: Any) -> str:
         "move_item": lambda r: f"Moved {r.get('name', 'item')}",
         "wear_item": lambda r: f"Logged wear for {r.get('name', 'item')}",
         "wash_item": lambda r: f"Washed {r.get('name', 'item')}",
+        # Location management
+        "create_location": lambda r: f"Created location '{r.get('name', 'location')}'",
+        "update_location": lambda r: f"Updated location '{r.get('name', 'location')}'",
+        "delete_location": lambda r: "Location deleted",
+        "add_alias": lambda r: f"Added alias to '{r.get('name', 'location')}'",
+        "remove_alias": lambda r: "Alias removed",
+        # Item management
+        "create_item": lambda r: f"Created item '{r.get('name', 'item')}'",
+        "update_item": lambda r: f"Updated item '{r.get('name', 'item')}'",
+        "delete_item": lambda r: "Item deleted",
+        "get_item_history": lambda r: f"{len(r) if isinstance(r, list) else 0} history entries",
+        # Loan & status tracking
+        "lend_item": lambda r: f"Lent '{r.get('name', 'item')}' to {r.get('borrower_name', 'someone')}",
+        "return_from_loan": lambda r: f"'{r.get('name', 'item')}' marked as returned",
+        "mark_lost": lambda r: f"'{r.get('name', 'item')}' marked as lost",
+        "mark_found": lambda r: f"'{r.get('name', 'item')}' marked as found",
     }
     try:
         return summaries.get(tool_name, lambda r: "Done")(result)
