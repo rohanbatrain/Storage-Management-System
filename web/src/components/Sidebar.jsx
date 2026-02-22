@@ -16,7 +16,8 @@ import {
     MapPin,
     Handshake,
     AlertTriangle,
-    MessageSquare
+    MessageSquare,
+    RefreshCw
 } from 'lucide-react';
 import { locationApi } from '../services/api';
 import ServerInfo from './ServerInfo';
@@ -257,6 +258,11 @@ function Sidebar() {
         loadTree();
     }, []);
 
+    // Auto-refresh tree when route changes (e.g. after creating a location)
+    useEffect(() => {
+        loadTree();
+    }, [location.pathname]);
+
     const loadTree = async () => {
         try {
             const response = await locationApi.getTree();
@@ -438,6 +444,26 @@ function Sidebar() {
                 <SectionLabel>
                     <MapPin size={10} />
                     Locations
+                    <button
+                        onClick={loadTree}
+                        title="Refresh locations"
+                        style={{
+                            marginLeft: 'auto',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--color-text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '2px',
+                            borderRadius: '4px',
+                            transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--color-accent-primary)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                    >
+                        <RefreshCw size={10} />
+                    </button>
                 </SectionLabel>
 
                 {loading ? (
