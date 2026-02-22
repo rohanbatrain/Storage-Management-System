@@ -416,12 +416,14 @@ function Chat() {
                                             <ThinkingBlock thinking={m.thinking} />
                                         )}
 
-                                        {/* Tool Calls */}
-                                        {m.actions && m.actions.length > 0 && (
+                                        {/* Tool Calls — only show successful ones */}
+                                        {m.actions && m.actions.filter(a => !a.summary?.startsWith('❌')).length > 0 && (
                                             <div style={{ marginBottom: '0.5rem', marginLeft: '4px', width: '100%', maxWidth: '85%' }}>
-                                                {m.actions.map((a, j) => (
-                                                    <ToolCallBlock key={j} action={a} index={j} />
-                                                ))}
+                                                {m.actions
+                                                    .filter(a => !a.summary?.startsWith('❌'))
+                                                    .map((a, j) => (
+                                                        <ToolCallBlock key={j} action={a} index={j} />
+                                                    ))}
                                             </div>
                                         )}
 

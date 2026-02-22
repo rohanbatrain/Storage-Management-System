@@ -153,18 +153,20 @@ function ChatDrawer() {
                                 alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                                 maxWidth: '85%',
                             }}>
-                                {/* Tool action chips */}
-                                {msg.actions?.length > 0 && (
+                                {/* Tool action chips — only successful */}
+                                {msg.actions?.filter(a => !a.summary?.startsWith('❌')).length > 0 && (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
-                                        {msg.actions.map((a, i) => (
-                                            <span key={i} style={{
-                                                fontSize: '0.65rem', padding: '2px 6px',
-                                                borderRadius: 6, background: 'var(--color-bg-elevated)',
-                                                color: 'var(--color-text-muted)',
-                                            }}>
-                                                {toolIcons[a.tool] || '🔧'} {a.summary}
-                                            </span>
-                                        ))}
+                                        {msg.actions
+                                            .filter(a => !a.summary?.startsWith('❌'))
+                                            .map((a, i) => (
+                                                <span key={i} style={{
+                                                    fontSize: '0.65rem', padding: '2px 6px',
+                                                    borderRadius: 6, background: 'var(--color-bg-elevated)',
+                                                    color: 'var(--color-text-muted)',
+                                                }}>
+                                                    {toolIcons[a.tool] || '🔧'} {a.summary}
+                                                </span>
+                                            ))}
                                     </div>
                                 )}
 
