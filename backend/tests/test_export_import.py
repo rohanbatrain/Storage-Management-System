@@ -164,8 +164,10 @@ class TestExportArchive:
         """Archive bundles uploaded images."""
         _seed_data(client)
 
-        # Place a fake file in uploads dir
-        upload_dir = Path(_upload_dir)
+        # Use the actual upload dir that the app resolves to
+        from app.routers.export import _get_upload_dir
+        upload_dir = _get_upload_dir()
+        upload_dir.mkdir(parents=True, exist_ok=True)
         (upload_dir / "test_image.jpg").write_bytes(b"fake-image-data")
 
         resp = client.get("/api/export/archive")
