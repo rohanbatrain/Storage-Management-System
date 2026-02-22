@@ -305,6 +305,37 @@ def update_location(
     )
 
 
+@router.delete("/all", status_code=status.HTTP_204_NO_CONTENT)
+def delete_all_locations(db: Session = Depends(get_db)):
+    """Delete all locations (cascades to items and history)."""
+    from app.models.history import MovementHistory
+    from app.models.item import Item
+    from app.routers.upload import cleanup_image
+    
+    # Clean up image files for all items
+    all_items = db.query(Item).all()
+    for item in all_items:
+        if item.image_url:
+            cleanup_image(item.image_url)
+            
+    # Clean up image files for all locations
+    all_locations = db.query(Location).all()
+    for loc in all_locations:
+        if loc.image_url:
+            cleanup_image(loc.image_url)
+            
+    # Delete movement history
+    db.query(MovementHistory).delete(synchronize_session='fetch')
+    
+    # Delete all items
+    db.query(Item).delete(synchronize_session='fetch')
+    
+    # Delete all locations
+    db.query(Location).delete(synchronize_session='fetch')
+    
+    db.commit()
+
+
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     """Delete a location (cascades to children and items via database CASCADE)."""
@@ -317,17 +348,15 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     from sqlalchemy import text
     
     # Find all locations to delete (this location + all descendants)
-    descendant_query = text("""
-        WITH RECURSIVE descendants AS (
-            SELECT id FROM locations WHERE id = :id
-            UNION ALL
-            SELECT l.id FROM locations l
-            INNER JOIN descendants d ON l.parent_id = d.id
-        )
-        SELECT id FROM descendants
-    """)
-    result = db.execute(descendant_query, {"id": str(location_id)})
-    location_ids = [str(row[0]) for row in result.fetchall()]
+    # Using a Python BFS instead of raw SQL to avoid UUID format mismatch in SQLite
+    location_ids = []
+    queue = [location]
+    while queue:
+        current = queue.pop(0)
+        location_ids.append(current.id)
+        children = db.query(Location).filter(Location.parent_id == current.id).all()
+        queue.extend(children)
+    print("LOCATION_IDS:", location_ids)
     
     # Delete movement history records that reference these locations
     if location_ids:
@@ -338,7 +367,7 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
         db.query(MovementHistory).filter(
             (MovementHistory.to_location_id.in_(location_ids)) |
             (MovementHistory.from_location_id.in_(location_ids))
-        ).delete(synchronize_session=False)
+        ).delete(synchronize_session='fetch')
         
         # Clean up image files for items being deleted
         items_to_delete = db.query(Item).filter(
@@ -359,12 +388,12 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
         db.query(Item).filter(
             (Item.current_location_id.in_(location_ids)) |
             (Item.permanent_location_id.in_(location_ids))
-        ).delete(synchronize_session=False)
+        ).delete(synchronize_session='fetch')
         
         # Delete the locations
         db.query(Location).filter(
             Location.id.in_(location_ids)
-        ).delete(synchronize_session=False)
+        ).delete(synchronize_session='fetch')
     
     db.commit()
 

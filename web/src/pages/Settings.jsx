@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2 } from 'lucide-react';
-import { exportApi, identifyApi, chatApi } from '../services/api';
+import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X } from 'lucide-react';
+import { exportApi, identifyApi, chatApi, locationApi } from '../services/api';
 
 function Settings() {
     const navigate = useNavigate();
@@ -31,6 +31,10 @@ function Settings() {
     const [aiTestResult, setAiTestResult] = useState(null);
     const [aiTesting, setAiTesting] = useState(false);
     const [aiSaving, setAiSaving] = useState(false);
+
+    // Danger Zone state
+    const [deletingAll, setDeletingAll] = useState(false);
+    const [showConfirmDeleteAll, setShowConfirmDeleteAll] = useState(false);
 
     const loadSummary = async () => {
         try {
@@ -276,6 +280,21 @@ function Settings() {
         }
     };
 
+    const executeDeleteAll = async () => {
+        try {
+            setDeletingAll(true);
+            setShowConfirmDeleteAll(false);
+            await locationApi.deleteAll();
+            alert('✅ All locations and associated data have been permanently deleted.');
+            loadSummary(); // Refresh counts to 0
+        } catch (error) {
+            console.error('Failed to delete all locations:', error);
+            alert('Failed to delete locations: ' + (error.response?.data?.detail || error.message));
+        } finally {
+            setDeletingAll(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -473,6 +492,37 @@ function Settings() {
                             )}
                         </div>
                     )}
+                </div>
+            </section>
+
+            {/* Danger Zone */}
+            <section style={{ marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#ef4444', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🚨 Danger Zone
+                </h2>
+                <div className="card" style={{ border: '1px solid #ef444430' }}>
+                    <button
+                        onClick={() => setShowConfirmDeleteAll(true)}
+                        disabled={deletingAll}
+                        style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem' }}>
+                            <div style={{ fontSize: '1.5rem' }}>🗑️</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, color: '#ef4444' }}>
+                                    {deletingAll ? 'Deleting Data...' : 'Delete All Locations'}
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                                    Permanently erase all locations, items, and history. No undo.
+                                </div>
+                            </div>
+                            {deletingAll ? (
+                                <RefreshCw size={20} className="spinning" style={{ color: '#ef4444' }} />
+                            ) : (
+                                <Trash2 size={20} style={{ color: '#ef4444' }} />
+                            )}
+                        </div>
+                    </button>
                 </div>
             </section>
 
@@ -794,7 +844,7 @@ function Settings() {
                 <div className="card" style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--color-border)' }}>
                         <span style={{ color: 'var(--color-text-muted)' }}>Version</span>
-                        <span style={{ color: 'var(--color-text-primary)' }}>1.0.0</span>
+                        <span style={{ color: 'var(--color-text-primary)' }}>0.0.1</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0' }}>
                         <span style={{ color: 'var(--color-text-muted)' }}>App</span>
@@ -802,6 +852,46 @@ function Settings() {
                     </div>
                 </div>
             </section>
+
+            {/* Delete All Confirm Modal */}
+            {showConfirmDeleteAll && (
+                <div className="modal-overlay" onClick={() => setShowConfirmDeleteAll(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title" style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <AlertTriangle size={24} /> Extreme Warning
+                            </h2>
+                            <button className="btn btn-ghost btn-icon" onClick={() => setShowConfirmDeleteAll(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ marginBottom: '1rem', color: 'var(--color-text-primary)' }}>
+                                You are about to permanently delete <strong>ALL</strong> locations, items, outfits, and movement history.
+                            </p>
+                            <p style={{ color: '#ef4444', fontWeight: 600 }}>
+                                This action CANNOT be undone, and there is no recycle bin. If you do not have a backup, your data is gone forever.
+                            </p>
+                            <p style={{ marginTop: '1rem', color: 'var(--color-text-primary)' }}>
+                                Are you absolutely sure you want to completely wipe all locations?
+                            </p>
+                        </div>
+                        <div className="modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowConfirmDeleteAll(false)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="btn"
+                                style={{ background: '#ef4444', color: 'white', border: 'none' }}
+                                onClick={executeDeleteAll}
+                                disabled={deletingAll}
+                            >
+                                {deletingAll ? 'Deleting...' : 'Yes, Delete Everything'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

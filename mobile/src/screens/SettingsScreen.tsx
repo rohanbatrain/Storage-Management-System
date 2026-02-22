@@ -15,8 +15,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../styles/theme';
-import { exportApi, saveApiBaseUrl } from '../services/api';
+import { exportApi, saveApiBaseUrl, locationApi } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ConfirmDialog } from '../components/FormModal';
 
 // Optional: import document picker if available
 let DocumentPicker: any = null;
@@ -37,6 +38,9 @@ export default function SettingsScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [tempUrl, setTempUrl] = useState('');
     const [importResult, setImportResult] = useState<any>(null);
+
+    const [deletingAll, setDeletingAll] = useState(false);
+    const [confirmDeleteAllVisible, setConfirmDeleteAllVisible] = useState(false);
 
     const loadSummary = async () => {
         try {
@@ -65,6 +69,20 @@ export default function SettingsScreen() {
     const handleEditUrl = () => {
         setTempUrl(apiUrl);
         setModalVisible(true);
+    };
+
+    const executeDeleteAll = async () => {
+        try {
+            setDeletingAll(true);
+            setConfirmDeleteAllVisible(false);
+            await locationApi.deleteAll();
+            Alert.alert('Success', 'All locations and associated data have been permanently deleted.');
+            loadSummary();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || error.message || 'Failed to delete locations');
+        } finally {
+            setDeletingAll(false);
+        }
     };
 
     const saveUrl = async () => {
@@ -296,6 +314,21 @@ export default function SettingsScreen() {
                     )}
                 </View>
 
+                {/* Danger Zone */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: colors.error }]}>🚨 Danger Zone</Text>
+                    <View style={[styles.card, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                        <SettingsItem
+                            icon="🗑️"
+                            title={deletingAll ? 'Deleting Data...' : 'Delete All Locations'}
+                            subtitle="Permanently erase all locations, items, and history. No undo."
+                            onPress={() => setConfirmDeleteAllVisible(true)}
+                            loading={deletingAll}
+                            danger={true}
+                        />
+                    </View>
+                </View>
+
                 {/* Connection Settings */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>🌐 Connection</Text>
@@ -320,7 +353,7 @@ export default function SettingsScreen() {
                     <View style={styles.card}>
                         <View style={styles.aboutItem}>
                             <Text style={styles.aboutLabel}>Version</Text>
-                            <Text style={styles.aboutValue}>1.0.0</Text>
+                            <Text style={styles.aboutValue}>0.0.1</Text>
                         </View>
                         <View style={styles.aboutItem}>
                             <Text style={styles.aboutLabel}>App</Text>
@@ -366,6 +399,17 @@ export default function SettingsScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Delete All Confirmation Dialog */}
+            <ConfirmDialog
+                visible={confirmDeleteAllVisible}
+                title="Extreme Warning"
+                message={"You are about to permanently delete ALL locations, items, outfits, and movement history.\n\nThis action CANNOT be undone, and there is no recycle bin. If you do not have a backup, your data is gone forever.\n\nAre you absolutely sure?"}
+                confirmLabel="Yes, Delete It All"
+                onConfirm={executeDeleteAll}
+                onClose={() => setConfirmDeleteAllVisible(false)}
+                loading={deletingAll}
+            />
         </View>
     );
 }

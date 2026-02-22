@@ -11,7 +11,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description="API for managing personal storage locations and items",
-    version="1.0.0",
+    version="0.0.1",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -61,7 +61,7 @@ def root():
     """Root endpoint with API info."""
     return {
         "name": settings.app_name,
-        "version": "1.0.0",
+        "version": "0.0.1",
         "docs": "/docs",
         "api_prefix": settings.api_v1_prefix
     }

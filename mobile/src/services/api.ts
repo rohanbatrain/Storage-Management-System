@@ -68,6 +68,7 @@ export const locationApi = {
     create: (data: any) => api.post('/locations', data),
     update: (id: string, data: any) => api.put(`/locations/${id}`, data),
     delete: (id: string) => api.delete(`/locations/${id}`),
+    deleteAll: () => api.delete('/locations/all'),
     // Aliases
     addAlias: (id: string, alias: string) => api.post(`/locations/${id}/alias`, { alias }),
     removeAlias: (id: string, alias: string) => api.delete(`/locations/${id}/alias/${alias}`),

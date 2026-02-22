@@ -23,7 +23,7 @@ def upgrade() -> None:
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('item_id', sa.UUID(), nullable=False),
         sa.Column('image_url', sa.String(length=1000), nullable=False),
-        sa.Column('embedding', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column('embedding', sa.JSON(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['item_id'], ['items.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
