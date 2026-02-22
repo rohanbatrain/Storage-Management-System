@@ -16,7 +16,7 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
-import { itemApi, locationApi, qrApi, imageApi } from '../services/api';
+import { itemApi, locationApi, qrApi, imageApi, identifyApi } from '../services/api';
 
 function MoveItemModal({ item, onClose, onSuccess }) {
     const [locations, setLocations] = useState([]);
@@ -134,6 +134,8 @@ function ItemDetail() {
     const [showLostModal, setShowLostModal] = useState(false);
     const [lostNotes, setLostNotes] = useState('');
     const [lostLoading, setLostLoading] = useState(false);
+    const [isEnrolled, setIsEnrolled] = useState(false);
+    const [enrolling, setEnrolling] = useState(false);
 
     useEffect(() => {
         loadItem();
@@ -151,6 +153,46 @@ function ItemDetail() {
             console.error('Failed to load item:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (item?.embeddings && item.embeddings.length > 0) {
+            setIsEnrolled(true);
+        } else {
+            setIsEnrolled(false);
+        }
+    }, [item]);
+
+    const handleEnroll = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        try {
+            setEnrolling(true);
+            await identifyApi.enroll(id, file);
+            setIsEnrolled(true);
+            loadItem();
+        } catch (error) {
+            console.error('Enroll failed:', error);
+            alert(error.response?.data?.detail || 'Failed to enroll item');
+        } finally {
+            setEnrolling(false);
+        }
+    };
+
+    const handleUnenroll = async () => {
+        if (!window.confirm('Remove Visual ID enrollment?')) return;
+        try {
+            setEnrolling(true);
+            await identifyApi.unenroll(id);
+            setIsEnrolled(false);
+            loadItem();
+        } catch (error) {
+            console.error('Unenroll failed:', error);
+            alert(error.response?.data?.detail || 'Failed to unenroll');
+        } finally {
+            setEnrolling(false);
         }
     };
 
@@ -613,6 +655,73 @@ function ItemDetail() {
                             )}
                         </>
                     )}
+                </div>
+            </div>
+
+            {/* Visual ID */}
+            <div className="card" style={{ marginTop: 'var(--space-xl)' }}>
+                <div className="card-header">
+                    <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                        🔍 Visual ID
+                        <span style={{
+                            fontSize: 'var(--font-size-xs)',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 8,
+                            background: isEnrolled ? '#22c55e20' : 'var(--color-bg-tertiary)',
+                            color: isEnrolled ? '#22c55e' : 'var(--color-text-muted)',
+                            marginLeft: 'var(--space-sm)',
+                        }}>
+                            {isEnrolled ? '✓ Enrolled' : 'Not Enrolled'}
+                        </span>
+                    </h3>
+                </div>
+                <div style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+                        Enroll this item to identify it by pointing your camera at it from the mobile app.
+                    </p>
+                    <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+                        <label style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 'var(--space-sm)',
+                            padding: 'var(--space-sm) var(--space-lg)',
+                            background: 'var(--color-accent-primary)',
+                            color: '#fff',
+                            borderRadius: 'var(--radius-md)',
+                            fontWeight: 600,
+                            fontSize: 'var(--font-size-sm)',
+                            cursor: enrolling ? 'wait' : 'pointer',
+                            opacity: enrolling ? 0.6 : 1,
+                        }}>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleEnroll}
+                                disabled={enrolling}
+                                style={{ display: 'none' }}
+                            />
+                            📸 {isEnrolled ? 'Add Reference Photo' : 'Enroll for Visual ID'}
+                        </label>
+                        {isEnrolled && (
+                            <button
+                                onClick={handleUnenroll}
+                                disabled={enrolling}
+                                style={{
+                                    background: 'none',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 'var(--radius-md)',
+                                    padding: 'var(--space-sm) var(--space-lg)',
+                                    color: '#EF4444',
+                                    fontWeight: 600,
+                                    fontSize: 'var(--font-size-sm)',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Remove
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 

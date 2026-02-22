@@ -15,7 +15,8 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import { itemApi, locationApi, qrApi, imageApi } from '../services/api';
+import { itemApi, locationApi, qrApi, imageApi, identifyApi } from '../services/api';
+import { ActivityIndicator } from 'react-native';
 import FormModal, { ConfirmDialog, LocationPicker } from '../components/FormModal';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -47,6 +48,82 @@ export default function ItemDetailScreen() {
     // Lost state
     const [lostModalVisible, setLostModalVisible] = useState(false);
     const [lostNotes, setLostNotes] = useState('');
+
+    // Visual ID enrollment
+    const [isEnrolled, setIsEnrolled] = useState(false);
+    const [enrolling, setEnrolling] = useState(false);
+    const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+
+    const checkEnrollment = async () => {
+        try {
+            setCheckingEnrollment(true);
+            const res = await identifyApi.status();
+            // Check if this specific item has embeddings by trying to get item data
+            // The item object may have embeddings relationship loaded
+            if (item?.embeddings && item.embeddings.length > 0) {
+                setIsEnrolled(true);
+            } else {
+                setIsEnrolled(false);
+            }
+        } catch {
+            setIsEnrolled(false);
+        } finally {
+            setCheckingEnrollment(false);
+        }
+    };
+
+    const handleEnroll = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+            if (result.canceled) return;
+
+            setEnrolling(true);
+            const asset = result.assets[0];
+            await identifyApi.enroll(id, {
+                uri: asset.uri,
+                type: asset.mimeType || 'image/jpeg',
+                fileName: asset.fileName || 'enroll.jpg',
+            });
+            setIsEnrolled(true);
+            Alert.alert('Enrolled!', 'This item can now be identified by its photo.');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to enroll item');
+        } finally {
+            setEnrolling(false);
+        }
+    };
+
+    const handleUnenroll = async () => {
+        Alert.alert(
+            'Remove Visual ID?',
+            'This item will no longer be identifiable by photo.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Remove',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setEnrolling(true);
+                            await identifyApi.unenroll(id);
+                            setIsEnrolled(false);
+                            Alert.alert('Removed', 'Visual ID enrollment removed.');
+                        } catch (error: any) {
+                            Alert.alert('Error', error.response?.data?.detail || 'Failed to unenroll');
+                        } finally {
+                            setEnrolling(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     const handlePickImage = async () => {
         try {
@@ -238,6 +315,10 @@ export default function ItemDetailScreen() {
     useEffect(() => {
         loadData();
     }, [id]);
+
+    useEffect(() => {
+        if (item) checkEnrollment();
+    }, [item?.id]);
 
     if (loading || !item) {
         return (
@@ -504,6 +585,67 @@ export default function ItemDetailScreen() {
                                 <Text style={styles.detailValue}>{item.aliases.join(', ')}</Text>
                             </View>
                         )}
+                    </View>
+                </View>
+
+                {/* Visual ID Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🔍 Visual ID</Text>
+                    <View style={styles.detailsCard}>
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Status</Text>
+                            {checkingEnrollment ? (
+                                <ActivityIndicator size="small" color={colors.accentPrimary} />
+                            ) : (
+                                <View style={{
+                                    paddingVertical: 3,
+                                    paddingHorizontal: 10,
+                                    borderRadius: 12,
+                                    backgroundColor: isEnrolled ? colors.success + '20' : colors.bgTertiary,
+                                }}>
+                                    <Text style={{
+                                        fontSize: 12,
+                                        fontWeight: '600',
+                                        color: isEnrolled ? colors.success : colors.textMuted,
+                                    }}>
+                                        {isEnrolled ? '✓ Enrolled' : 'Not Enrolled'}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                            {!isEnrolled ? (
+                                <TouchableOpacity
+                                    style={[globalStyles.btnPrimary, { opacity: enrolling ? 0.6 : 1 }]}
+                                    onPress={handleEnroll}
+                                    disabled={enrolling}
+                                >
+                                    {enrolling ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text style={globalStyles.btnText}>📸 Enroll for Visual ID</Text>
+                                    )}
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={{ gap: spacing.sm }}>
+                                    <TouchableOpacity
+                                        style={globalStyles.btnPrimary}
+                                        onPress={handleEnroll}
+                                        disabled={enrolling}
+                                    >
+                                        <Text style={globalStyles.btnText}>📸 Add Reference Photo</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={globalStyles.btnSecondary}
+                                        onPress={handleUnenroll}
+                                        disabled={enrolling}
+                                    >
+                                        <Text style={[globalStyles.btnText, { color: colors.error }]}>Remove Visual ID</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
                     </View>
                 </View>
 

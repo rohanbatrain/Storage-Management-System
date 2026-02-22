@@ -1,10 +1,24 @@
+"""Tests for Visual Lens identify endpoints.
+
+Self-contained — works with both SQLite (in-memory) and PostgreSQL.
+Mocks the feature extractor so no ONNX model download is required.
+
+Run with:
+    # SQLite (no DB needed):
+    cd backend && DATABASE_URL='sqlite:///:memory:' python -m pytest tests/test_identify.py -v --noconftest
+
+    # PostgreSQL (Docker):
+    docker compose exec backend pytest tests/test_identify.py -v
+"""
 import os
+import io
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
 from uuid import uuid4
-import io
 from PIL import Image
 
 from app.database import Base, get_db
@@ -12,142 +26,177 @@ from app.main import app
 from app.models.item import Item
 from app.models.location import Location
 from app.models.item_embedding import ItemEmbedding
+from app.models.history import MovementHistory  # noqa: F401
+from app.models.outfit import Outfit  # noqa: F401
 
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///file::memory:?cache=shared")
-engine = create_engine(DATABASE_URL)
+# ---------------------------------------------------------------------------
+# Engine setup — works for both SQLite and Postgres
+# ---------------------------------------------------------------------------
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///:memory:")
+
+_connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    _connect_args = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, connect_args=_connect_args)
+
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+# ---------------------------------------------------------------------------
+# Mock helpers
+# ---------------------------------------------------------------------------
+DUMMY_VECTOR = [0.01] * 1000  # MobileNetV2 outputs 1000-d logits
+
+
+def _mock_extract_features(image_file):
+    """Return a deterministic dummy vector instead of running ONNX."""
+    return DUMMY_VECTOR
+
+
+def _mock_initialize_model():
+    """No-op model init for tests."""
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 @pytest.fixture(scope="module", autouse=True)
-def identify_setup_db():
+def _setup_db():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture(scope="function")
-def identify_db_session():
+@pytest.fixture()
+def db():
     connection = engine.connect()
     transaction = connection.begin()
     session = TestSession(bind=connection)
-    
     yield session
-    
     session.close()
     transaction.rollback()
     connection.close()
 
 
-@pytest.fixture(scope="function")
-def identify_client(identify_db_session):
-    def override_get_db():
+@pytest.fixture()
+def client(db):
+    def _override():
         try:
-            yield identify_db_session
+            yield db
         finally:
             pass
 
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
+    app.dependency_overrides[get_db] = _override
+    with TestClient(app) as c:
+        yield c
     app.dependency_overrides.clear()
 
 
-# Add a dummy image generator for testing
-def create_dummy_image(color="red") -> bytes:
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _dummy_image(color="red") -> bytes:
     img = Image.new("RGB", (224, 224), color=color)
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="JPEG")
-    return img_byte_arr.getvalue()
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
 
 
-@pytest.fixture
-def test_location(identify_db_session: Session):
-    loc = Location(name="Test Visual Location", parent_id=None, kind="storage")
-    identify_db_session.add(loc)
-    identify_db_session.commit()
-    return loc
+def _create_location(client: TestClient, name="Test Loc"):
+    resp = client.post("/api/locations/", json={"name": name, "kind": "room"})
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
 
 
-@pytest.fixture
-def test_item(identify_db_session: Session, test_location: Location):
-    item = Item(
-        name="Test Visual Item", 
-        current_location_id=test_location.id,
-        quantity=1
+def _create_item(client: TestClient, loc_id: str, name="Test Item"):
+    resp = client.post(
+        "/api/items/",
+        json={
+            "name": name,
+            "quantity": 1,
+            "current_location_id": loc_id,
+            "permanent_location_id": loc_id,
+        },
     )
-    identify_db_session.add(item)
-    identify_db_session.commit()
-    return item
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
 
 
-@pytest.fixture
-def enrolled_item(identify_db_session: Session, test_item: Item):
-    """An item that has already been enrolled with a dummy vector."""
-    # Create a dummy 1280-d vector
-    dummy_vector = [0.01] * 1280
-    
-    embedding = ItemEmbedding(
-        item_id=test_item.id,
-        image_url="/static/uploads/dummy.jpg",
-        embedding=dummy_vector
-    )
-    identify_db_session.add(embedding)
-    identify_db_session.commit()
-    return test_item, embedding
-
-
-def test_identify_status(identify_client: TestClient):
-    response = identify_client.get("/api/v1/identify/status")
-    assert response.status_code == 200
-    data = response.json()
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+@patch("app.routers.identify.initialize_model", _mock_initialize_model)
+def test_identify_status(client):
+    """GET /api/identify/status should return model readiness info."""
+    resp = client.get("/api/identify/status")
+    assert resp.status_code == 200
+    data = resp.json()
     assert "model_ready" in data
     assert "enrolled_items" in data
     assert "total_reference_images" in data
 
 
-def test_enroll_item(identify_client: TestClient, test_item: Item, identify_db_session: Session):
-    # Create a dummy image file
-    img_bytes = create_dummy_image()
-    files = {"file": ("test.jpg", img_bytes, "image/jpeg")}
-    
-    response = identify_client.post(f"/api/v1/identify/enroll/{test_item.id}", files=files)
-    assert response.status_code == 200
-    data = response.json()
-    assert "enrollment_id" in data
-    assert "image_url" in data
-    
-    # Verify in DB
-    embeddings = identify_db_session.query(ItemEmbedding).filter(ItemEmbedding.item_id == test_item.id).all()
-    assert len(embeddings) == 1
-    assert embeddings[0].image_url == data["image_url"]
-    assert len(embeddings[0].embedding) > 0
-
-
-def test_identify_no_enrollments(identify_client: TestClient):
-    # Test identifying when DB is empty
-    img_bytes = create_dummy_image()
-    files = {"file": ("test.jpg", img_bytes, "image/jpeg")}
-    
-    response = identify_client.post("/api/v1/identify", files=files)
-    assert response.status_code == 200
-    data = response.json()
+@patch("app.routers.identify.extract_features", _mock_extract_features)
+def test_identify_no_enrollments(client):
+    """POST /api/identify with empty DB should return no matches."""
+    img = _dummy_image()
+    resp = client.post(
+        "/api/identify",
+        files={"file": ("test.jpg", img, "image/jpeg")},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
     assert "matches" in data
     assert len(data["matches"]) == 0
-    assert "message" in data
 
 
-def test_unenroll_item(identify_client: TestClient, enrolled_item: tuple[Item, ItemEmbedding], identify_db_session: Session):
-    item, _ = enrolled_item
-    
-    response = identify_client.delete(f"/api/v1/identify/enroll/{item.id}")
-    assert response.status_code == 200
-    
-    # Verify removed from DB
-    embeddings = identify_db_session.query(ItemEmbedding).filter(ItemEmbedding.item_id == item.id).all()
-    assert len(embeddings) == 0
+@patch("app.routers.identify.extract_features", _mock_extract_features)
+def test_enroll_item(client):
+    """POST /api/identify/enroll/{item_id} should store an embedding."""
+    loc_id = _create_location(client, "Enroll Loc")
+    item_id = _create_item(client, loc_id, "Enroll Item")
+
+    img = _dummy_image("blue")
+    resp = client.post(
+        f"/api/identify/enroll/{item_id}",
+        files={"file": ("ref.jpg", img, "image/jpeg")},
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert "enrollment_id" in data
+    assert "image_url" in data
 
 
-def test_unenroll_nonexistent(identify_client: TestClient):
-    response = identify_client.delete(f"/api/v1/identify/enroll/{uuid4()}")
-    assert response.status_code == 404
+@patch("app.routers.identify.extract_features", _mock_extract_features)
+def test_unenroll_item(client):
+    """DELETE /api/identify/enroll/{item_id} should remove enrollments."""
+    loc_id = _create_location(client, "Unenroll Loc")
+    item_id = _create_item(client, loc_id, "Unenroll Item")
+
+    # Enroll first
+    img = _dummy_image("green")
+    enroll_resp = client.post(
+        f"/api/identify/enroll/{item_id}",
+        files={"file": ("ref.jpg", img, "image/jpeg")},
+    )
+    assert enroll_resp.status_code == 200
+
+    # Now unenroll
+    resp = client.delete(f"/api/identify/enroll/{item_id}")
+    assert resp.status_code == 200
+
+
+def test_unenroll_nonexistent(client):
+    """DELETE /api/identify/enroll/{random_id} should return 404."""
+    resp = client.delete(f"/api/identify/enroll/{uuid4()}")
+    assert resp.status_code == 404

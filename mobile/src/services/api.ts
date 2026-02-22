@@ -206,6 +206,49 @@ export const imageApi = {
     },
 };
 
+// Visual Lens / Identify API
+export const identifyApi = {
+    // Identify an item from a photo
+    identify: (photo: any) => {
+        const formData = new FormData();
+        formData.append('file', {
+            uri: photo.uri,
+            type: photo.type || 'image/jpeg',
+            name: photo.fileName || 'capture.jpg',
+        } as any);
+        return api.post('/identify', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+    },
+
+    // Enroll an item with a reference image
+    enroll: (itemId: string, photo: any) => {
+        const formData = new FormData();
+        formData.append('file', {
+            uri: photo.uri,
+            type: photo.type || 'image/jpeg',
+            name: photo.fileName || 'reference.jpg',
+        } as any);
+        return api.post(`/identify/enroll/${itemId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000,
+        });
+    },
+
+    // Remove enrollment for an item
+    unenroll: (itemId: string) => api.delete(`/identify/enroll/${itemId}`),
+
+    // Check model status and enrollment count
+    status: () => api.get('/identify/status'),
+
+    // List installed models
+    listModels: () => api.get('/identify/models'),
+
+    // Get curated model catalog
+    catalog: () => api.get('/identify/models/catalog'),
+};
+
 export default api;
 
 

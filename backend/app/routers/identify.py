@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Dict, Any, Optional
@@ -9,14 +9,88 @@ import math
 from app.database import get_db
 from app.models.item import Item
 from app.models.item_embedding import ItemEmbedding
-from app.services.feature_extractor import extract_features, compute_similarity, initialize_model
+from app.services.feature_extractor import (
+    extract_features, compute_similarity, initialize_model,
+    list_available_models, get_catalog, download_model,
+    save_uploaded_model, delete_model, activate_model,
+)
 from app.routers.items import item_to_response
 
 router = APIRouter(prefix="/identify", tags=["Identify"])
 
 # Threshold for considering something a match (cosine similarity)
-# MobileNetV2 logits max out at 1.0 when normalized, typical good matches are > 0.6
 MATCH_THRESHOLD = 0.60
+
+
+# ---------------------------------------------------------------------------
+# Model Management Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/models")
+def get_models():
+    """List installed ONNX models and which one is active."""
+    return {"models": list_available_models()}
+
+
+@router.get("/models/catalog")
+def get_model_catalog():
+    """Curated list of recommended models with install status."""
+    return {"catalog": get_catalog()}
+
+
+@router.post("/models/download")
+async def download_model_endpoint(
+    url: str = Query(..., description="URL to download the .onnx model from"),
+    filename: str = Query(..., description="Filename to save as (must end in .onnx)"),
+):
+    """Download an ONNX model from any URL."""
+    if not filename.endswith(".onnx"):
+        raise HTTPException(status_code=400, detail="Filename must end with .onnx")
+    try:
+        path = download_model(url, filename)
+        return {
+            "message": f"Model downloaded successfully",
+            "filename": filename,
+            "size_mb": round(path.stat().st_size / (1024 * 1024), 1),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/models/upload")
+async def upload_model_endpoint(file: UploadFile = File(...)):
+    """Upload a custom ONNX model."""
+    if not file.filename or not file.filename.endswith(".onnx"):
+        raise HTTPException(status_code=400, detail="File must be a .onnx model")
+    data = await file.read()
+    path = save_uploaded_model(file.filename, data)
+    return {
+        "message": "Model uploaded successfully",
+        "filename": file.filename,
+        "size_mb": round(len(data) / (1024 * 1024), 1),
+    }
+
+
+@router.post("/models/{filename}/activate")
+async def activate_model_endpoint(filename: str):
+    """Switch the active model (hot-swap, no restart needed)."""
+    try:
+        activate_model(filename)
+        return {"message": f"Active model switched to {filename}"}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/models/{filename}")
+async def delete_model_endpoint(filename: str):
+    """Delete an installed model (cannot delete the active model)."""
+    try:
+        delete_model(filename)
+        return {"message": f"Model {filename} deleted"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/status")
@@ -42,7 +116,7 @@ def get_status(db: Session = Depends(get_db)):
 @router.post("")
 async def identify_item(
     file: UploadFile = File(...),
-    limit: int = Form(5),
+    limit: int = Query(5, ge=1, le=20),
     db: Session = Depends(get_db)
 ):
     """
@@ -134,57 +208,46 @@ async def enroll_item(
         
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image type")
-    
-    # Process the file via the standard upload router
-    from app.routers.upload import upload_file
-    upload_result = await upload_file(file=file)
-    image_url = upload_result["url"]
-    
-    # We need to read the file again for feature extraction, but upload_file consumed it.
-    # We can read it from disk since upload_file just saved it
-    import os
-    from pathlib import Path
-    from app.config import get_settings
-    
-    settings = get_settings()
-    filename = image_url.split("/")[-1]
-    
-    if settings.is_frozen:
-        filepath = Path(settings.data_dir) / "uploads" / filename
-    else:
-        filepath = Path("backend/static/uploads") / filename
-        if not filepath.exists():
-            filepath = Path("data/uploads") / filename
-            
+
+    # Buffer the image bytes so we can use them for both upload and feature extraction
+    raw_bytes = await file.read()
+
+    # Extract features from the buffered image
     try:
-        with open(filepath, "rb") as f:
-            embedding_vector = extract_features(f)
-            
-        # Store embedding in database
-        embedding = ItemEmbedding(
-            item_id=item_id,
-            image_url=image_url,
-            embedding=embedding_vector
-        )
-        db.add(embedding)
-        db.commit()
-        db.refresh(embedding)
-        
-        # Update the item's primary image if it doesn't have one
-        if not item.image_url:
-            item.image_url = image_url
-            db.commit()
-            
-        return {
-            "message": "Item enrolled successfully",
-            "enrollment_id": embedding.id,
-            "image_url": image_url
-        }
+        embedding_vector = extract_features(io.BytesIO(raw_bytes))
     except Exception as e:
-        # Clean up the file if extraction failed
-        if filepath.exists():
-            filepath.unlink()
-        raise HTTPException(status_code=500, detail=f"Failed to enroll item: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract features: {str(e)}")
+
+    # Upload the file via the standard upload router (needs a fresh UploadFile)
+    from app.routers.upload import upload_file
+    fresh_file = UploadFile(
+        filename=file.filename or "reference.jpg",
+        file=io.BytesIO(raw_bytes),
+        headers=file.headers,
+    )
+    upload_result = await upload_file(file=fresh_file)
+    image_url = upload_result["url"]
+
+    # Store embedding in database
+    embedding = ItemEmbedding(
+        item_id=item_id,
+        image_url=image_url,
+        embedding=embedding_vector
+    )
+    db.add(embedding)
+    db.commit()
+    db.refresh(embedding)
+
+    # Update the item's primary image if it doesn't have one
+    if not item.image_url:
+        item.image_url = image_url
+        db.commit()
+
+    return {
+        "message": "Item enrolled successfully",
+        "enrollment_id": embedding.id,
+        "image_url": image_url
+    }
 
 
 @router.delete("/enroll/{item_id}")
