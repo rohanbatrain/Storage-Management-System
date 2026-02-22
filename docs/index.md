@@ -43,4 +43,4 @@ Welcome to the documentation for the **Personal Storage Management System**. PSM
 | Web Frontend | React 18, Vite 5 |
 | Mobile | React Native, Expo |
 | Desktop | Electron 28, mDNS (Bonjour) |
-| Infrastructure | Docker Compose, MinIO, PyInstaller |
+| Infrastructure | Docker Compose, PyInstaller |

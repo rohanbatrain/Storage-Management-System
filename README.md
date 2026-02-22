@@ -45,7 +45,7 @@
 ├────────────────────────┬───────────────────────────────┤
 │   PostgreSQL (Docker)  │  SQLite (Desktop/standalone)  │
 ├────────────────────────┼───────────────────────────────┤
-│     MinIO (images)     │  Local FS (Desktop images)    │
+│   Local FS (uploads)   │  Local FS (~/.psms/uploads)   │
 └────────────────────────┴───────────────────────────────┘
 ```
 
@@ -71,7 +71,6 @@ open http://localhost:3000
 |---------|-----|
 | Web App | http://localhost:3000 |
 | API Docs (Swagger) | http://localhost:8000/docs |
-| MinIO Console | http://localhost:9001 |
 
 ### Option 2: Desktop App (Electron)
 
@@ -188,7 +187,7 @@ Full interactive docs at **http://localhost:8000/docs**.
 |-------|-----------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic |
 | Database | PostgreSQL 15 (Docker) / SQLite (Desktop) |
-| Object Storage | MinIO (Docker) / Local filesystem (Desktop) |
+| Image Storage | Local filesystem (Docker volume / Desktop `~/.psms/uploads/`) |
 | Web Frontend | React 18, Vite 5, Lucide Icons |
 | Desktop | Electron 28, bonjour-service (mDNS) |
 | Mobile | React Native, Expo, expo-camera |
