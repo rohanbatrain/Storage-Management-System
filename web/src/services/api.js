@@ -143,8 +143,8 @@ export const imageApi = {
 
 // Chat API
 export const chatApi = {
-    send: (message, conversationId) =>
-        api.post('/chat', { message, conversation_id: conversationId }),
+    send: (message, conversationId, signal) =>
+        api.post('/chat', { message, conversation_id: conversationId }, { signal }),
     clearHistory: (conversationId) =>
         api.delete(`/chat/history/${conversationId}`),
     getSettings: () => api.get('/chat/settings'),

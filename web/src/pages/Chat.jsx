@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap } from 'lucide-react';
+import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap, Square } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 
 const parseReply = (content) => {
@@ -265,6 +265,7 @@ function Chat() {
         conversationId,
         conversations,
         handleSend,
+        handleStop,
         handleClear,
         newConversation,
         switchConversation,
@@ -479,18 +480,22 @@ function Chat() {
                                 onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
                             />
                             <button
-                                type="submit"
-                                disabled={!input.trim() || loading}
+                                type={loading ? 'button' : 'submit'}
+                                onClick={loading ? handleStop : undefined}
+                                disabled={!loading && !input.trim()}
+                                title={loading ? 'Stop response' : 'Send message'}
                                 style={{
                                     position: 'absolute', right: '0.5rem', top: '0.5rem',
-                                    background: 'var(--color-accent-primary)', color: '#fff', border: 'none',
+                                    background: loading ? '#ef4444' : 'var(--color-accent-primary)',
+                                    color: '#fff', border: 'none',
                                     borderRadius: '1.5rem', width: '2.5rem', height: '2.5rem',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: (!input.trim() || loading) ? 'not-allowed' : 'pointer',
-                                    opacity: (!input.trim() || loading) ? 0.5 : 1, transition: 'all 0.2s',
+                                    cursor: (!loading && !input.trim()) ? 'not-allowed' : 'pointer',
+                                    opacity: (!loading && !input.trim()) ? 0.5 : 1,
+                                    transition: 'all 0.2s',
                                 }}
                             >
-                                <Send size={16} />
+                                {loading ? <Square size={14} fill="#fff" /> : <Send size={16} />}
                             </button>
                         </form>
                     </div>

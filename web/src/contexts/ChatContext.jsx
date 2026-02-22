@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { chatApi } from '../services/api';
 
 const ChatContext = createContext();
@@ -10,6 +10,7 @@ export function ChatProvider({ children }) {
     const [conversationId, setConversationId] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [isDrawerOpen, setDrawerOpen] = useState(false);
+    const abortControllerRef = useRef(null);
 
     // Load conversation list on mount
     useEffect(() => {
@@ -25,16 +26,27 @@ export function ChatProvider({ children }) {
         }
     };
 
+    const handleStop = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+    };
+
     const handleSend = async (textOverride = null) => {
         const msg = (textOverride || input).trim();
         if (!msg || loading) return;
+
+        // Create a new AbortController for this request
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         setInput('');
         setMessages(prev => [...prev, { role: 'user', content: msg }]);
         setLoading(true);
 
         try {
-            const res = await chatApi.send(msg, conversationId);
+            const res = await chatApi.send(msg, conversationId, controller.signal);
             const data = res.data;
             if (!conversationId) setConversationId(data.conversation_id);
 
@@ -48,13 +60,25 @@ export function ChatProvider({ children }) {
             // Refresh conversations list
             loadConversations();
         } catch (err) {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '❌ Failed to get response. Is the server running?',
-                actions: [],
-                thinking: '',
-            }]);
+            // Don't show an error if the user intentionally stopped the request
+            const isCancelled = err?.code === 'ERR_CANCELED' || err?.name === 'AbortError' || err?.name === 'CanceledError';
+            if (isCancelled) {
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: '⏹️ Stopped.',
+                    actions: [],
+                    thinking: '',
+                }]);
+            } else {
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: '❌ Failed to get response. Is the server running?',
+                    actions: [],
+                    thinking: '',
+                }]);
+            }
         } finally {
+            abortControllerRef.current = null;
             setLoading(false);
         }
     };
@@ -119,6 +143,7 @@ export function ChatProvider({ children }) {
                 isDrawerOpen,
                 setDrawerOpen,
                 handleSend,
+                handleStop,
                 handleClear,
                 newConversation,
                 switchConversation,

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Trash2, Maximize2 } from 'lucide-react';
+import { MessageCircle, X, Send, Trash2, Maximize2, Square } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '../contexts/ChatContext';
 
@@ -13,6 +13,7 @@ function ChatDrawer() {
         isDrawerOpen: open,
         setDrawerOpen: setOpen,
         handleSend: contextHandleSend,
+        handleStop,
         handleClear
     } = useChat();
     const messagesEndRef = useRef(null);
@@ -224,17 +225,20 @@ function ChatDrawer() {
                             }}
                         />
                         <button
-                            onClick={handleSend}
-                            disabled={loading || !input.trim()}
+                            onClick={loading ? handleStop : handleSend}
+                            disabled={!loading && !input.trim()}
+                            title={loading ? 'Stop response' : 'Send'}
                             style={{
                                 padding: '0.5rem 0.75rem', borderRadius: 8,
-                                border: 'none', background: 'var(--color-accent-primary)',
+                                border: 'none',
+                                background: loading ? '#ef4444' : 'var(--color-accent-primary)',
                                 color: '#fff', cursor: 'pointer',
-                                opacity: loading || !input.trim() ? 0.4 : 1,
+                                opacity: (!loading && !input.trim()) ? 0.4 : 1,
                                 display: 'flex', alignItems: 'center',
+                                transition: 'background 0.2s',
                             }}
                         >
-                            <Send size={16} />
+                            {loading ? <Square size={14} fill="#fff" /> : <Send size={16} />}
                         </button>
                     </div>
                 </div>
