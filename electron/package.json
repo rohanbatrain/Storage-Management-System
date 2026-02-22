@@ -2,13 +2,17 @@
     "name": "personal-storage-management-electron",
     "version": "0.0.1",
     "description": "Electron desktop wrapper for Personal Storage Management",
+    "homepage": "https://github.com/rohanbatrain/Storage-Management-System",
     "main": "main.js",
     "scripts": {
         "start": "electron .",
         "pack": "electron-builder --dir",
         "dist": "electron-builder"
     },
-    "author": "Rohan",
+    "author": {
+        "name": "Rohan Batra",
+        "email": "rohanbatrain@gmail.com"
+    },
     "license": "MIT",
     "devDependencies": {
         "electron": "^28.1.0",
