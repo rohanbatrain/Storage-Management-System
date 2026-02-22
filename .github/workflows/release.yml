@@ -97,10 +97,13 @@ jobs:
           rm -rf electron/renderer
           mkdir -p electron/renderer
           cp -r web/dist/* electron/renderer/
-      - name: Install Electron deps & build
+      - name: Install Electron dependencies
         run: |
           cd electron
           npm ci
+      - name: Build Electron app
+        run: |
+          cd electron
           npx electron-builder ${{ matrix.electron_args }}
       - uses: actions/upload-artifact@v4
         with:
