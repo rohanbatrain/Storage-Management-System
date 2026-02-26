@@ -143,20 +143,32 @@ function ToolCallBlock({ action, index }) {
 
 function ThinkingBlock({ thinking, streaming }) {
     const [expanded, setExpanded] = useState(false);
+    const thinkingEndRef = useRef(null);
     if (!thinking) return null;
 
-    // Auto-expand while streaming thinking
     const isOpen = streaming || expanded;
+
+    // Auto-scroll thinking content
+    useEffect(() => {
+        if (streaming && thinkingEndRef.current) {
+            thinkingEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }, [thinking, streaming]);
 
     return (
         <div style={{
             marginBottom: '0.5rem',
-            marginLeft: '1rem',
-            borderRadius: '12px',
-            border: `1px solid ${streaming ? 'rgba(139, 92, 246, 0.35)' : 'rgba(139, 92, 246, 0.2)'}`,
-            background: streaming ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)',
+            width: '100%',
+            maxWidth: '85%',
+            borderRadius: '14px',
+            background: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
             overflow: 'hidden',
             transition: 'all 0.3s ease',
+            ...(streaming ? {
+                borderColor: 'rgba(139, 92, 246, 0.3)',
+                boxShadow: '0 0 20px rgba(139, 92, 246, 0.06)',
+            } : {}),
         }}>
             <button
                 onClick={() => setExpanded(!expanded)}
@@ -164,39 +176,58 @@ function ThinkingBlock({ thinking, streaming }) {
                     width: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 12px',
+                    gap: '8px',
+                    padding: '10px 14px',
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    color: 'var(--color-text-muted)',
+                    color: streaming ? '#a78bfa' : 'var(--color-text-muted)',
                     fontSize: '0.8rem',
-                    fontWeight: 500,
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                    transition: 'color 0.2s',
                 }}
             >
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                {streaming ? (
-                    <span className="tool-pulse" style={{ width: 10, height: 10, borderRadius: '50%', background: '#8b5cf6', display: 'inline-block', flexShrink: 0 }} />
-                ) : (
-                    <Brain size={14} style={{ color: '#8b5cf6' }} />
-                )}
-                <span>{streaming ? 'Thinking...' : 'Thinking'}</span>
+                <span style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 22, height: 22, borderRadius: '6px',
+                    background: streaming ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.08)',
+                    transition: 'background 0.2s',
+                }}>
+                    {streaming ? (
+                        <span className="thinking-spinner" style={{ width: 12, height: 12 }} />
+                    ) : (
+                        <Brain size={12} style={{ color: '#8b5cf6' }} />
+                    )}
+                </span>
+                <span>{streaming ? 'Reasoning...' : 'Thought process'}</span>
+                <span style={{ marginLeft: 'auto', opacity: 0.5 }}>
+                    {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </span>
             </button>
-            {isOpen && (
+            <div style={{
+                maxHeight: isOpen ? '250px' : '0',
+                overflow: 'hidden',
+                transition: 'max-height 0.3s ease',
+            }}>
                 <div style={{
-                    padding: '0 12px 10px',
-                    fontSize: '0.85rem',
+                    padding: '0 14px 12px',
+                    fontSize: '0.82rem',
                     color: 'var(--color-text-muted)',
-                    lineHeight: 1.6,
+                    lineHeight: 1.7,
                     fontStyle: 'italic',
                     whiteSpace: 'pre-wrap',
-                    maxHeight: '300px',
+                    maxHeight: '220px',
                     overflowY: 'auto',
+                    opacity: 0.85,
+                    borderTop: '1px solid var(--color-border)',
+                    paddingTop: '10px',
                 }}>
                     {thinking}
                     {streaming && <span className="streaming-cursor">▊</span>}
+                    <div ref={thinkingEndRef} />
                 </div>
-            )}
+            </div>
         </div>
     );
 }
@@ -456,11 +487,19 @@ function Chat() {
                                 ))}
 
                                 {loading && messages.length > 0 && messages[messages.length - 1]?.streaming && !messages[messages.length - 1]?.content && !messages[messages.length - 1]?.thinking && messages[messages.length - 1]?.actions?.length === 0 && (
-                                    <div style={{ alignSelf: 'flex-start', color: 'var(--color-text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '1.5rem', borderBottomLeftRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
-                                        <div className="typing-dot" style={{ animationDelay: '0ms' }}>•</div>
-                                        <div className="typing-dot" style={{ animationDelay: '150ms' }}>•</div>
-                                        <div className="typing-dot" style={{ animationDelay: '300ms' }}>•</div>
-                                        <span style={{ marginLeft: '4px' }}>Thinking...</span>
+                                    <div style={{
+                                        alignSelf: 'flex-start',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        padding: '14px 20px',
+                                        background: 'var(--color-bg-secondary)',
+                                        borderRadius: '1.5rem',
+                                        borderBottomLeftRadius: '0.5rem',
+                                        border: '1px solid var(--color-border)',
+                                        maxWidth: '200px',
+                                    }}>
+                                        <div className="shimmer-bar" />
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
