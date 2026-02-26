@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X, Wifi, Sparkles, Search, ImageOff } from 'lucide-react';
+import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X, Wifi, Sparkles, Search, ImageOff, ChevronDown } from 'lucide-react';
 import { exportApi, identifyApi, chatApi, locationApi, testBackend } from '../services/api';
 
 function Settings() {
@@ -33,6 +33,10 @@ function Settings() {
     const [backendTesting, setBackendTesting] = useState(false);
     const [backendTestResult, setBackendTestResult] = useState(null);
 
+    // Ollama installed models (for dropdown)
+    const [ollamaInstalledModels, setOllamaInstalledModels] = useState([]);
+    const [showAdvancedAi, setShowAdvancedAi] = useState(false);
+
     const loadSummary = async () => {
         try {
             const res = await exportApi.exportSummary();
@@ -48,7 +52,17 @@ function Settings() {
         loadSummary();
         loadVisualLens();
         loadAiSettings();
+        loadOllamaModels();
     }, []);
+
+    const loadOllamaModels = async () => {
+        try {
+            const res = await chatApi.ollamaModels();
+            setOllamaInstalledModels(res.data.models || []);
+        } catch (err) {
+            // Ollama might not be running, that's OK
+        }
+    };
 
     const loadVisualLens = async () => {
         try {
@@ -510,30 +524,24 @@ function Settings() {
                     🤖 AI Assistant
                 </h2>
                 <div className="card">
-                    <div className="card-header">
-                        <h3 className="card-title">Language Model</h3>
-                    </div>
                     <div style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
-                            Choose a provider to power the chat assistant. Ollama runs locally for free.
-                        </p>
 
                         {/* Provider selector */}
-                        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                             {['ollama', 'openai', 'openrouter', 'custom'].map(p => (
                                 <button
                                     key={p}
-                                    onClick={() => handleAiProviderChange(p)}
+                                    onClick={() => { handleAiProviderChange(p); if (p === 'ollama') loadOllamaModels(); }}
                                     style={{
-                                        padding: 'var(--space-sm) var(--space-md)',
-                                        borderRadius: 'var(--radius-md)',
+                                        padding: '8px 16px',
+                                        borderRadius: '24px',
                                         border: aiProvider === p ? '2px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
-                                        background: aiProvider === p ? 'var(--color-accent-primary)15' : 'var(--color-bg-tertiary)',
+                                        background: aiProvider === p ? 'rgba(99, 102, 241, 0.12)' : 'var(--color-bg-tertiary)',
                                         color: aiProvider === p ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
                                         fontWeight: 600,
-                                        fontSize: 'var(--font-size-sm)',
+                                        fontSize: '0.85rem',
                                         cursor: 'pointer',
-                                        textTransform: 'capitalize',
+                                        transition: 'all 0.15s',
                                     }}
                                 >
                                     {p === 'ollama' ? '🦙 Ollama' : p === 'openai' ? '🔑 OpenAI' : p === 'openrouter' ? '🌐 OpenRouter' : '⚙️ Custom'}
@@ -541,16 +549,46 @@ function Settings() {
                             ))}
                         </div>
 
-                        {/* Model */}
+                        {/* Model selector */}
                         <div>
                             <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Model</label>
-                            <input
-                                type="text"
-                                value={aiModel}
-                                onChange={e => setAiModel(e.target.value)}
-                                placeholder={aiProvider === 'ollama' ? 'qwen3:8b' : 'gpt-4o-mini'}
-                                style={inputStyle}
-                            />
+                            {aiProvider === 'ollama' && ollamaInstalledModels.length > 0 ? (
+                                <div style={{ position: 'relative' }}>
+                                    <select
+                                        value={aiModel}
+                                        onChange={e => setAiModel(e.target.value)}
+                                        style={{
+                                            ...inputStyle,
+                                            appearance: 'none',
+                                            paddingRight: '2.5rem',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {!ollamaInstalledModels.find(m => m.id === aiModel) && (
+                                            <option value={aiModel}>{aiModel} (configured)</option>
+                                        )}
+                                        {ollamaInstalledModels.map(m => (
+                                            <option key={m.id} value={m.id}>
+                                                {m.id} — {m.size_gb} GB
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={aiModel}
+                                    onChange={e => setAiModel(e.target.value)}
+                                    placeholder={aiProvider === 'ollama' ? 'qwen3:8b' : 'gpt-4o-mini'}
+                                    style={inputStyle}
+                                />
+                            )}
+                            {aiProvider === 'ollama' && ollamaInstalledModels.length === 0 && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                                    No Ollama models found. Download models from the Ollama Models section below.
+                                </div>
+                            )}
                         </div>
 
                         {/* API Key (not for Ollama) */}
@@ -567,20 +605,48 @@ function Settings() {
                             </div>
                         )}
 
-                        {/* Base URL */}
-                        <div>
-                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API URL</label>
-                            <input
-                                type="text"
-                                value={aiBaseUrl}
-                                onChange={e => setAiBaseUrl(e.target.value)}
-                                placeholder="http://localhost:11434/v1"
-                                style={inputStyle}
-                            />
-                        </div>
+                        {/* Advanced: Base URL (collapsed by default for Ollama) */}
+                        {aiProvider === 'ollama' ? (
+                            <div>
+                                <button
+                                    onClick={() => setShowAdvancedAi(!showAdvancedAi)}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'var(--color-text-muted)', fontSize: '0.8rem',
+                                        display: 'flex', alignItems: 'center', gap: '4px', padding: 0,
+                                    }}
+                                >
+                                    <ChevronDown size={14} style={{ transform: showAdvancedAi ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
+                                    Advanced Settings
+                                </button>
+                                {showAdvancedAi && (
+                                    <div style={{ marginTop: 'var(--space-sm)' }}>
+                                        <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API URL</label>
+                                        <input
+                                            type="text"
+                                            value={aiBaseUrl}
+                                            onChange={e => setAiBaseUrl(e.target.value)}
+                                            placeholder="http://localhost:11434/v1"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API URL</label>
+                                <input
+                                    type="text"
+                                    value={aiBaseUrl}
+                                    onChange={e => setAiBaseUrl(e.target.value)}
+                                    placeholder="https://api.openai.com/v1"
+                                    style={inputStyle}
+                                />
+                            </div>
+                        )}
 
                         {/* Actions */}
-                        <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
                             <button
                                 onClick={handleAiSave}
                                 disabled={aiSaving}
