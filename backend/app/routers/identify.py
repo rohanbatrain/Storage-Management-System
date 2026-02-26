@@ -154,12 +154,14 @@ async def identify_item(
 @router.post("/enroll/{item_id}")
 async def enroll_item(
     item_id: UUID,
+    auto_tag: bool = Query(False, description="Whether to automatically extract metadata and tags using the Vision LLM"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     """
     Enroll an item for Visual recognition by uploading a reference image.
     Automatically uploads the image, extracts features, and stores the embedding.
+    Optionally auto-tags the item using the configured Vision LLM.
     """
     # Verify item exists
     item = db.query(Item).filter(Item.id == item_id).first()
@@ -169,7 +171,7 @@ async def enroll_item(
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image type")
 
-    # Buffer the image bytes so we can use them for both upload and feature extraction
+    # Buffer the image bytes so we can use them for upload, feature extraction, and LLM
     raw_bytes = await file.read()
 
     # Extract features from the buffered image
@@ -195,18 +197,87 @@ async def enroll_item(
         embedding=embedding_vector
     )
     db.add(embedding)
-    db.commit()
-    db.refresh(embedding)
 
     # Update the item's primary image if it doesn't have one
     if not item.image_url:
         item.image_url = image_url
-        db.commit()
+
+    # Auto-tagging via LLM
+    extracted_data = None
+    if auto_tag:
+        import base64
+        import json
+        from app.services.llm_service import chat
+        
+        # Convert image to base64 for the LLM
+        b64_image = base64.b64encode(raw_bytes).decode('utf-8')
+        mime_type = file.content_type or "image/jpeg"
+        data_uri = f"data:{mime_type};base64,{b64_image}"
+        
+        prompt = (
+            "Analyze this clothing item image and reply ONLY with a valid JSON object. "
+            "Do NOT include markdown formatting or backticks. Structure MUST be exactly:\n"
+            "{\n"
+            "  \"color\": \"primary color name\",\n"
+            "  \"brand\": \"brand name if visible, else null\",\n"
+            "  \"category\": \"one of: tshirt, jeans, shorts, sweater, jacket, dress_shirt, etc\",\n"
+            "  \"style\": \"one of: casual, formal, sports, lounge, outerwear\",\n"
+            "  \"season\": \"one of: summer, winter, fall, spring, all\",\n"
+            "  \"tags\": [\"array\", \"of\", \"3-5\", \"descriptive\", \"keywords\"]\n"
+            "}"
+        )
+        
+        try:
+            llm_result = await chat(message=prompt, image_base64=data_uri)
+            reply_text = llm_result.get("reply", "").strip()
+            
+            # Clean up markdown if the LLM ignored instructions
+            if reply_text.startswith("```json"):
+                reply_text = reply_text[7:]
+            if reply_text.endswith("```"):
+                reply_text = reply_text[:-3]
+                
+            extracted_json = json.loads(reply_text.strip())
+            extracted_data = extracted_json
+            
+            # Update item tags
+            tags_to_add = extracted_json.get("tags", [])
+            if isinstance(tags_to_add, list):
+                # Ensure it's a list since JSON compatible stores it that way
+                current_tags = list(item.tags) if item.tags else []
+                for tag in tags_to_add:
+                    clean_tag = str(tag).strip().lower()
+                    if clean_tag and clean_tag not in current_tags:
+                        current_tags.append(clean_tag)
+                item.tags = current_tags
+                
+            # Read current clothing metadata
+            clothing_meta = item.metadata.get("clothing", {}) if item.metadata else {}
+            
+            # Update with LLM extraction
+            for field in ["color", "brand", "category", "style", "season"]:
+                val = extracted_json.get(field)
+                if val:
+                    clothing_meta[field] = str(val).lower()
+            
+            # Ensure metadata dict exists
+            if not item.metadata:
+                item.metadata = {}
+            item.metadata["clothing"] = clothing_meta
+            
+        except Exception as e:
+            # Don't fail the whole request if auto-tagging fails, just log it
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-tagging failed for {item_id}: {e}")
+
+    db.commit()
+    db.refresh(embedding)
 
     return {
         "message": "Item enrolled successfully",
         "enrollment_id": embedding.id,
-        "image_url": image_url
+        "image_url": image_url,
+        "auto_tagged_data": extracted_data
     }
 
 

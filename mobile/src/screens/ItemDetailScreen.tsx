@@ -53,6 +53,7 @@ export default function ItemDetailScreen() {
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+    const [autoTag, setAutoTag] = useState(false);
 
     const checkEnrollment = async () => {
         try {
@@ -84,13 +85,18 @@ export default function ItemDetailScreen() {
 
             setEnrolling(true);
             const asset = result.assets[0];
-            await identifyApi.enroll(id, {
+            const res = await identifyApi.enroll(id, {
                 uri: asset.uri,
                 type: asset.mimeType || 'image/jpeg',
                 fileName: asset.fileName || 'enroll.jpg',
-            });
+            }, autoTag);
             setIsEnrolled(true);
-            Alert.alert('Enrolled!', 'This item can now be identified by its photo.');
+
+            if (autoTag && res.data?.auto_tagged_data) {
+                Alert.alert('Enrolled & Tagged!', 'AI extracted metadata from your image.');
+            } else {
+                Alert.alert('Enrolled!', 'This item can now be identified by its photo.');
+            }
             loadData();
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.detail || 'Failed to enroll item');
@@ -616,17 +622,29 @@ export default function ItemDetailScreen() {
 
                         <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                             {!isEnrolled ? (
-                                <TouchableOpacity
-                                    style={[globalStyles.btnPrimary, { opacity: enrolling ? 0.6 : 1 }]}
-                                    onPress={handleEnroll}
-                                    disabled={enrolling}
-                                >
-                                    {enrolling ? (
-                                        <ActivityIndicator size="small" color="#fff" />
-                                    ) : (
-                                        <Text style={globalStyles.btnText}>📸 Enroll for Visual ID</Text>
-                                    )}
-                                </TouchableOpacity>
+                                <View style={{ gap: spacing.sm }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>✨ Auto-Extract Metadata (AI)</Text>
+                                        <Switch
+                                            value={autoTag}
+                                            onValueChange={setAutoTag}
+                                            trackColor={{ false: colors.bgTertiary, true: '#8B5CF6' + '60' }}
+                                            thumbColor={autoTag ? '#8B5CF6' : colors.textMuted}
+                                            disabled={enrolling}
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[globalStyles.btnPrimary, { opacity: enrolling ? 0.6 : 1 }]}
+                                        onPress={handleEnroll}
+                                        disabled={enrolling}
+                                    >
+                                        {enrolling ? (
+                                            <ActivityIndicator size="small" color="#fff" />
+                                        ) : (
+                                            <Text style={globalStyles.btnText}>📸 Enroll for Visual ID</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
                             ) : (
                                 <View style={{ gap: spacing.sm }}>
                                     <TouchableOpacity

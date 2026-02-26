@@ -235,14 +235,17 @@ export const identifyApi = {
     },
 
     // Enroll an item with a reference image
-    enroll: (itemId: string, photo: any) => {
+    enroll: (itemId: string, photo: any, autoTag?: boolean) => {
         const formData = new FormData();
         formData.append('file', {
             uri: photo.uri,
             type: photo.type || 'image/jpeg',
             name: photo.fileName || 'reference.jpg',
         } as any);
-        return api.post(`/identify/enroll/${itemId}`, formData, {
+
+        const url = `/identify/enroll/${itemId}` + (autoTag ? '?auto_tag=true' : '');
+
+        return api.post(url, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 30000,
         });
