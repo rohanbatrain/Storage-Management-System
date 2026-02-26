@@ -80,6 +80,6 @@ if __name__ == "__main__":
     # Get port from environment variable or default to 8000
     port = int(os.environ.get("PORT", 8000))
     
-    # Bind to 0.0.0.0 in frozen/Electron mode so LAN peers can sync
-    host = "0.0.0.0" if getattr(settings, 'is_frozen', False) else "127.0.0.1"
+    # Bind to 0.0.0.0 to allow LAN access from mobile testing and resolve IPv4/IPv6 localhost issues
+    host = "0.0.0.0"
     uvicorn.run(app, host=host, port=port, log_level="info")

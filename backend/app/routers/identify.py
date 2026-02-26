@@ -144,22 +144,46 @@ async def identify_item(
     # Compute similarities
     results = []
     
-    for emb in all_embeddings:
-        similarity = compute_similarity(query_vector, emb.embedding)
+    # Convert query to numpy array
+    import numpy as np
+    query_np = np.array(query_vector, dtype=np.float32)
+    
+    # Pre-allocate matrix for all embeddings
+    num_embeddings = len(all_embeddings)
+    embedding_dim = len(query_vector)
+    
+    # Fill matrix and keep track of items
+    embedding_matrix = np.zeros((num_embeddings, embedding_dim), dtype=np.float32)
+    item_map = []
+    
+    for i, emb in enumerate(all_embeddings):
+        embedding_matrix[i] = emb.embedding
+        item_map.append({
+            "item_id": emb.item_id,
+            "image_url": emb.image_url
+        })
+        
+    # Compute cosine similarity for all at once
+    # Since vectors are already L2 normalized (done in extract_features),
+    # dot product is equivalent to cosine similarity.
+    similarities = np.dot(embedding_matrix, query_np)
+    
+    results = []
+    for i, similarity in enumerate(similarities):
+        sim_val = float(similarity)
         
         # Only keep reasonable matches
-        if similarity >= MATCH_THRESHOLD:
+        if sim_val >= MATCH_THRESHOLD:
             # Convert cosine similarity (-1 to 1) to a raw percentage scale (0 to 100)
-            # A similarity of 1.0 = 100%, MATCH_THRESHOLD = 0%
             range_span = 1.0 - MATCH_THRESHOLD
-            adjusted_sim = (similarity - MATCH_THRESHOLD) / range_span
+            adjusted_sim = (sim_val - MATCH_THRESHOLD) / range_span
             confidence = round(math.pow(adjusted_sim, 0.5) * 100, 1) # Square root curve pushes perceived confidence up
             
             results.append({
-                "item_id": emb.item_id,
-                "similarity": similarity,
+                "item_id": item_map[i]["item_id"],
+                "similarity": sim_val,
                 "confidence": min(confidence, 99.9), # Cap at 99.9%
-                "reference_image": emb.image_url
+                "reference_image": item_map[i]["image_url"]
             })
             
     # Sort by similarity descending
