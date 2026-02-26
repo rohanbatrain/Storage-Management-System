@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../styles/theme';
-import { exportApi, saveApiBaseUrl, locationApi, testBackend, chatApi } from '../services/api';
+import { exportApi, saveApiBaseUrl, locationApi, testBackend, chatApi, identifyApi } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ConfirmDialog } from '../components/FormModal';
 
@@ -49,6 +49,9 @@ export default function SettingsScreen() {
     const [pullingModel, setPullingModel] = useState<string | null>(null);
     const [pullResult, setPullResult] = useState<{ [key: string]: string }>({});
 
+    // Visual Lens
+    const [vlStatus, setVlStatus] = useState<any>(null);
+
     const loadSummary = async () => {
         try {
             const res = await exportApi.exportSummary();
@@ -74,10 +77,20 @@ export default function SettingsScreen() {
         }
     };
 
+    const loadVisualLens = async () => {
+        try {
+            const res = await identifyApi.status();
+            setVlStatus(res.data);
+        } catch (error) {
+            console.log('Failed to load Visual Lens status:', error);
+        }
+    };
+
     React.useEffect(() => {
         loadSummary();
         loadApiUrl();
         loadOllamaPresets();
+        loadVisualLens();
 
         const interval = setInterval(loadApiUrl, 3000);
         return () => clearInterval(interval);
@@ -463,6 +476,72 @@ export default function SettingsScreen() {
                     </View>
                 )}
 
+                {/* Visual Lens */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🔍 Visual Lens</Text>
+                    <View style={styles.card}>
+                        {/* Status Row */}
+                        {vlStatus && (
+                            <View style={{ flexDirection: 'row', padding: spacing.md, gap: spacing.lg }}>
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 20, marginBottom: 4 }}>
+                                        {vlStatus.model_ready ? '🟢' : '🔴'}
+                                    </Text>
+                                    <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                                        {vlStatus.model_ready ? 'CLIP Ready' : 'Loading...'}
+                                    </Text>
+                                </View>
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.accentPrimary }}>
+                                        {vlStatus.enrolled_items}
+                                    </Text>
+                                    <Text style={{ fontSize: 11, color: colors.textMuted }}>Enrolled</Text>
+                                </View>
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.accentPrimary }}>
+                                        {vlStatus.total_reference_images}
+                                    </Text>
+                                    <Text style={{ fontSize: 11, color: colors.textMuted }}>Photos</Text>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Active Model */}
+                        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary, flex: 1 }}>
+                                    CLIP ViT-B/32
+                                </Text>
+                                <View style={{ backgroundColor: '#22c55e20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#22c55e' }}>Auto-Managed</Text>
+                                </View>
+                            </View>
+                            <Text style={{ fontSize: 12, color: colors.textMuted, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
+                                sentence-transformers/clip-ViT-B-32 · 512-d
+                            </Text>
+                        </View>
+
+                        {/* Capabilities */}
+                        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md }}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.sm }}>✨ Capabilities</Text>
+                            {[
+                                { icon: '🔎', title: 'Text-to-Image Search', desc: 'Find items by typing descriptions' },
+                                { icon: '📷', title: 'Photo Identification', desc: 'Snap a photo to identify enrolled items' },
+                                { icon: '✂️', title: 'Background Removal', desc: 'Auto-strips backgrounds for cleaner matches' },
+                                { icon: '🏷️', title: 'AI Auto-Tagging', desc: 'Extracts color, category, brand & style on enrollment' },
+                            ].map((f, i) => (
+                                <View key={i} style={[styles.vlFeature, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                                    <Text style={{ fontSize: 16, marginRight: spacing.sm }}>{f.icon}</Text>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{f.title}</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>{f.desc}</Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+
                 {/* App Info */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>ℹ️ About</Text>
@@ -744,5 +823,11 @@ const styles = StyleSheet.create({
     },
     downloadBtnText: {
         fontSize: 16,
-    }
+    },
+    // Visual Lens
+    vlFeature: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: spacing.sm,
+    },
 });

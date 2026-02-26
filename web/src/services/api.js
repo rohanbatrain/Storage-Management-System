@@ -171,10 +171,11 @@ export const identifyApi = {
     },
 
     // Enroll an item with a reference image
-    enroll: (itemId, file) => {
+    enroll: (itemId, file, autoTag = false) => {
         const formData = new FormData();
         formData.append('file', file);
-        return api.post(`/identify/enroll/${itemId}`, formData, {
+        const url = `/identify/enroll/${itemId}` + (autoTag ? '?auto_tag=true' : '');
+        return api.post(url, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 30000,
         });
@@ -185,22 +186,6 @@ export const identifyApi = {
 
     // Status
     status: () => api.get('/identify/status'),
-
-    // Model management
-    listModels: () => api.get('/identify/models'),
-    catalog: () => api.get('/identify/models/catalog'),
-    downloadModel: (url, filename) =>
-        api.post('/identify/models/download', null, { params: { url, filename } }),
-    uploadModel: (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return api.post('/identify/models/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 120000,
-        });
-    },
-    activateModel: (filename) => api.post(`/identify/models/${filename}/activate`),
-    deleteModel: (filename) => api.delete(`/identify/models/${filename}`),
 };
 
 export default api;

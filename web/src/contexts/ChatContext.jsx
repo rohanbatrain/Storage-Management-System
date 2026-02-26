@@ -114,6 +114,9 @@ export function ChatProvider({ children }) {
             setConversationId(id);
         } catch (err) {
             console.error('Failed to load conversation:', err);
+            setMessages([]);
+            setConversationId(null);
+            loadConversations();
         }
     };
 

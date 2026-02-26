@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap, Square } from 'lucide-react';
+import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap, Square, History, X, RefreshCw } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 
 const parseReply = (content) => {
@@ -270,9 +270,11 @@ function Chat() {
         newConversation,
         switchConversation,
         deleteConversation,
+        loadConversations,
     } = useChat();
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -287,81 +289,9 @@ function Chat() {
     }, []);
 
     return (
-        <div style={{ display: 'flex', height: '100%', width: '100%' }}>
-            {/* Conversation Sidebar */}
-            <div style={{
-                width: 260,
-                background: 'var(--color-bg-secondary)',
-                borderRight: '1px solid var(--color-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                flexShrink: 0,
-            }}>
-                {/* New Chat Button */}
-                <div style={{ padding: '16px 12px 8px' }}>
-                    <button
-                        onClick={newConversation}
-                        style={{
-                            width: '100%',
-                            padding: '10px',
-                            borderRadius: '10px',
-                            border: '1px solid var(--color-border)',
-                            background: 'var(--color-bg-primary)',
-                            color: 'var(--color-text-primary)',
-                            fontSize: '0.85rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
-                            e.currentTarget.style.color = 'var(--color-accent-primary)';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                            e.currentTarget.style.color = 'var(--color-text-primary)';
-                        }}
-                    >
-                        <Plus size={16} />
-                        New Chat
-                    </button>
-                </div>
-
-                {/* Conversations List */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '4px 8px' }}>
-                    {conversations.length === 0 ? (
-                        <div style={{
-                            padding: '2rem 1rem',
-                            textAlign: 'center',
-                            color: 'var(--color-text-muted)',
-                            fontSize: '0.8rem',
-                        }}>
-                            <MessageSquare size={24} style={{ opacity: 0.3, marginBottom: '8px' }} />
-                            <div>No conversations yet</div>
-                            <div style={{ fontSize: '0.7rem', marginTop: '4px', opacity: 0.7 }}>
-                                Start chatting to create one
-                            </div>
-                        </div>
-                    ) : (
-                        conversations.map(conv => (
-                            <ConversationItem
-                                key={conv.id}
-                                conv={conv}
-                                isActive={conv.id === conversationId}
-                                onSelect={switchConversation}
-                                onDelete={deleteConversation}
-                            />
-                        ))
-                    )}
-                </div>
-            </div>
-
+        <div style={{ display: 'flex', height: '100%', width: '100%', position: 'relative', overflow: 'hidden' }}>
             {/* Main Chat Area */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
                 {/* Header */}
                 <div style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
                     <div>
@@ -370,11 +300,33 @@ function Chat() {
                         </h1>
                         <p className="page-subtitle" style={{ margin: 0, marginTop: '4px' }}>Natural language assistant for your storage</p>
                     </div>
-                    {messages.length > 0 && (
-                        <button onClick={handleClear} className="btn btn-secondary" title="Clear conversation">
-                            <Trash2 size={16} /> Clear Chat
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        {messages.length > 0 && (
+                            <button onClick={handleClear} className="btn btn-secondary" title="Clear conversation">
+                                <Trash2 size={16} /> <span className="hide-mobile">Clear Chat</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={() => {
+                                newConversation();
+                                setIsHistoryOpen(false);
+                            }}
+                            className="btn btn-primary"
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            <Plus size={16} /> <span className="hide-mobile">New Chat</span>
                         </button>
-                    )}
+                        <button
+                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                            className="btn btn-secondary"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                background: isHistoryOpen ? 'var(--color-bg-tertiary)' : undefined
+                            }}
+                        >
+                            <History size={16} /> <span className="hide-mobile">History</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages */}
@@ -501,6 +453,129 @@ function Chat() {
                             </button>
                         </form>
                     </div>
+                </div>
+            </div>
+
+            {/* History Overlay Drawer */}
+            {isHistoryOpen && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0,0,0,0.2)',
+                        backdropFilter: 'blur(2px)',
+                        zIndex: 40,
+                        opacity: isHistoryOpen ? 1 : 0,
+                        transition: 'opacity 0.3s ease',
+                    }}
+                    onClick={() => setIsHistoryOpen(false)}
+                />
+            )}
+
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 320,
+                height: '100%',
+                background: 'var(--color-bg-primary)',
+                borderLeft: '1px solid var(--color-border)',
+                boxShadow: '-4px 0 24px rgba(0,0,0,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                transform: isHistoryOpen ? 'translateX(0)' : 'translateX(100%)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                zIndex: 50,
+            }}>
+                <div style={{
+                    padding: '1.25rem',
+                    borderBottom: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'var(--color-bg-secondary)',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <History size={18} className="text-accent" />
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Chat History</h3>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={loadConversations}
+                            title="Refresh History"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--color-text-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '6px',
+                                borderRadius: '6px',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-tertiary)'; e.currentTarget.style.color = 'var(--color-text-primary)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                        >
+                            <RefreshCw size={16} />
+                        </button>
+                        <button
+                            onClick={() => setIsHistoryOpen(false)}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--color-text-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '6px',
+                                borderRadius: '6px',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg-tertiary)'; e.currentTarget.style.color = 'var(--color-text-primary)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {conversations.length === 0 ? (
+                        <div style={{
+                            padding: '3rem 1rem',
+                            textAlign: 'center',
+                            color: 'var(--color-text-muted)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            <MessageSquare size={32} style={{ opacity: 0.2 }} />
+                            <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>No conversations found</div>
+                            <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                                Your chat history will appear here
+                            </div>
+                        </div>
+                    ) : (
+                        conversations.map(conv => (
+                            <ConversationItem
+                                key={conv.id}
+                                conv={conv}
+                                isActive={conv.id === conversationId}
+                                onSelect={(id) => {
+                                    switchConversation(id);
+                                    if (window.innerWidth < 768) setIsHistoryOpen(false);
+                                }}
+                                onDelete={deleteConversation}
+                            />
+                        ))
+                    )}
                 </div>
             </div>
 

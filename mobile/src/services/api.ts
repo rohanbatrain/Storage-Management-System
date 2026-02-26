@@ -260,12 +260,6 @@ export const identifyApi = {
 
     // Check model status and enrollment count
     status: () => api.get('/identify/status'),
-
-    // List installed models
-    listModels: () => api.get('/identify/models'),
-
-    // Get curated model catalog
-    catalog: () => api.get('/identify/models/catalog'),
 };
 
 export default api;

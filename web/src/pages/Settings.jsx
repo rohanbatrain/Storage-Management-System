@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X, Wifi } from 'lucide-react';
+import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X, Wifi, Sparkles, Search, ImageOff } from 'lucide-react';
 import { exportApi, identifyApi, chatApi, locationApi, testBackend } from '../services/api';
 
 function Settings() {
@@ -12,15 +12,8 @@ function Settings() {
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState(null);
     const fileInputRef = useRef(null);
-    const modelUploadRef = useRef(null);
-
     // Visual Lens state
     const [vlStatus, setVlStatus] = useState(null);
-    const [vlCatalog, setVlCatalog] = useState([]);
-    const [vlModels, setVlModels] = useState([]);
-    const [vlLoading, setVlLoading] = useState(false);
-    const [downloadUrl, setDownloadUrl] = useState('');
-    const [downloadFilename, setDownloadFilename] = useState('');
 
     // AI Assistant state
     const [aiProvider, setAiProvider] = useState('ollama');
@@ -59,68 +52,10 @@ function Settings() {
 
     const loadVisualLens = async () => {
         try {
-            const [statusRes, catalogRes, modelsRes] = await Promise.all([
-                identifyApi.status().catch(() => ({ data: null })),
-                identifyApi.catalog().catch(() => ({ data: { catalog: [] } })),
-                identifyApi.listModels().catch(() => ({ data: { models: [] } })),
-            ]);
+            const statusRes = await identifyApi.status().catch(() => ({ data: null }));
             setVlStatus(statusRes.data);
-            setVlCatalog(catalogRes.data?.catalog || []);
-            setVlModels(modelsRes.data?.models || []);
         } catch (err) {
             console.error('Visual Lens load failed:', err);
-        }
-    };
-
-    const handleModelDownload = async (url, filename) => {
-        try {
-            setVlLoading(true);
-            await identifyApi.downloadModel(url, filename);
-            await loadVisualLens();
-        } catch (err) {
-            alert('Download failed: ' + (err.response?.data?.detail || err.message));
-        } finally {
-            setVlLoading(false);
-        }
-    };
-
-    const handleModelActivate = async (filename) => {
-        try {
-            setVlLoading(true);
-            await identifyApi.activateModel(filename);
-            await loadVisualLens();
-        } catch (err) {
-            alert('Activation failed: ' + (err.response?.data?.detail || err.message));
-        } finally {
-            setVlLoading(false);
-        }
-    };
-
-    const handleModelDelete = async (filename) => {
-        if (!window.confirm(`Delete model "${filename}"?`)) return;
-        try {
-            setVlLoading(true);
-            await identifyApi.deleteModel(filename);
-            await loadVisualLens();
-        } catch (err) {
-            alert('Delete failed: ' + (err.response?.data?.detail || err.message));
-        } finally {
-            setVlLoading(false);
-        }
-    };
-
-    const handleModelUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = '';
-        try {
-            setVlLoading(true);
-            await identifyApi.uploadModel(file);
-            await loadVisualLens();
-        } catch (err) {
-            alert('Upload failed: ' + (err.response?.data?.detail || err.message));
-        } finally {
-            setVlLoading(false);
         }
     };
 
@@ -187,15 +122,6 @@ function Settings() {
         }
     };
 
-    const handleUrlDownload = async () => {
-        if (!downloadUrl || !downloadFilename) {
-            alert('Please enter both URL and filename');
-            return;
-        }
-        await handleModelDownload(downloadUrl, downloadFilename);
-        setDownloadUrl('');
-        setDownloadFilename('');
-    };
 
     const handleExport = async () => {
         try {
@@ -692,7 +618,7 @@ function Settings() {
                 </div>
             </section>
 
-            {/* Visual Lens — Model Management */}
+            {/* Visual Lens */}
             <section style={{ marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     🔍 Visual Lens
@@ -707,7 +633,7 @@ function Settings() {
                                     {vlStatus.model_ready ? '🟢' : '🔴'}
                                 </div>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                    {vlStatus.model_ready ? 'Model Ready' : 'No Model'}
+                                    {vlStatus.model_ready ? 'CLIP Ready' : 'Loading...'}
                                 </div>
                             </div>
                             <div style={{ textAlign: 'center' }}>
@@ -726,165 +652,60 @@ function Settings() {
                     </div>
                 )}
 
-                {/* Installed Models */}
-                {vlModels.length > 0 && (
-                    <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-                            <Cpu size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />
-                            Installed Models
-                        </div>
-                        {vlModels.map(m => (
-                            <div key={m.filename} style={{
-                                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                padding: '0.6rem 0', borderTop: '1px solid var(--color-border)',
-                            }}>
-                                <span style={{ flex: 1, fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
-                                    {m.filename}
-                                    <span style={{ color: 'var(--color-text-muted)', marginLeft: 6 }}>{m.size_mb} MB</span>
-                                </span>
-                                {m.active ? (
-                                    <span style={{
-                                        fontSize: '0.7rem', fontWeight: 600, color: '#22c55e',
-                                        background: '#22c55e20', padding: '3px 8px', borderRadius: 8,
-                                    }}>Active</span>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={() => handleModelActivate(m.filename)}
-                                            disabled={vlLoading}
-                                            style={{
-                                                background: 'var(--color-accent-primary)', color: '#fff',
-                                                border: 'none', borderRadius: 6, padding: '4px 10px',
-                                                fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-                                            }}
-                                        >Activate</button>
-                                        <button
-                                            onClick={() => handleModelDelete(m.filename)}
-                                            disabled={vlLoading}
-                                            style={{
-                                                background: 'none', border: 'none', cursor: 'pointer',
-                                                color: 'var(--color-text-muted)', padding: 4,
-                                            }}
-                                        ><Trash2 size={14} /></button>
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Model Catalog */}
+                {/* Active Model Info */}
                 <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
                     <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-                        📦 Model Catalog
+                        <Cpu size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />
+                        Active Model
                     </div>
-                    {vlCatalog.map(m => (
-                        <div key={m.filename} style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                            padding: '0.75rem 0', borderTop: '1px solid var(--color-border)',
-                        }}>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>
-                                    {m.name}
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                                    {m.description} — {m.size_mb} MB
-                                </div>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                        padding: '0.75rem', borderRadius: 8,
+                        background: 'var(--color-bg-tertiary)',
+                        border: '1px solid var(--color-border)',
+                    }}>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>
+                                CLIP ViT-B/32
                             </div>
-                            {m.installed ? (
-                                m.active ? (
-                                    <span style={{
-                                        fontSize: '0.7rem', fontWeight: 600, color: '#22c55e',
-                                        background: '#22c55e20', padding: '3px 8px', borderRadius: 8,
-                                    }}>Active</span>
-                                ) : (
-                                    <button
-                                        onClick={() => handleModelActivate(m.filename)}
-                                        disabled={vlLoading}
-                                        style={{
-                                            background: 'var(--color-accent-primary)', color: '#fff',
-                                            border: 'none', borderRadius: 6, padding: '4px 10px',
-                                            fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-                                        }}
-                                    >Activate</button>
-                                )
-                            ) : (
-                                <button
-                                    onClick={() => handleModelDownload(m.url, m.filename)}
-                                    disabled={vlLoading}
-                                    style={{
-                                        background: 'none', border: '1px solid var(--color-border)',
-                                        borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
-                                        fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-primary)',
-                                    }}
-                                >
-                                    <Download size={12} style={{ marginRight: 4, verticalAlign: 'text-bottom' }} />
-                                    Install
-                                </button>
-                            )}
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                                sentence-transformers/clip-ViT-B-32 · 512-d embeddings
+                            </div>
                         </div>
-                    ))}
+                        <span style={{
+                            fontSize: '0.7rem', fontWeight: 600, color: '#22c55e',
+                            background: '#22c55e20', padding: '4px 10px', borderRadius: 8,
+                        }}>Auto-Managed</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.75rem', lineHeight: 1.5 }}>
+                        The CLIP model is automatically downloaded and managed by the backend.
+                        It supports both image and text queries in a shared embedding space.
+                    </div>
                 </div>
 
-                {/* Custom Model Upload + URL */}
+                {/* Feature Highlights */}
                 <div className="card" style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-                        ⬆️ Add Custom Model
+                        ✨ Capabilities
                     </div>
-
-                    {/* Upload */}
-                    <input ref={modelUploadRef} type="file" accept=".onnx" onChange={handleModelUpload} style={{ display: 'none' }} />
-                    <button
-                        onClick={() => modelUploadRef.current?.click()}
-                        disabled={vlLoading}
-                        style={{
-                            width: '100%', padding: '0.75rem', borderRadius: 8,
-                            border: '1px dashed var(--color-border)', background: 'none',
-                            color: 'var(--color-text-secondary)', cursor: 'pointer',
-                            fontSize: '0.85rem', marginBottom: '0.75rem',
-                        }}
-                    >
-                        <Upload size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
-                        Upload .onnx file
-                    </button>
-
-                    {/* Download from URL */}
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input
-                            type="text"
-                            placeholder="Download URL"
-                            value={downloadUrl}
-                            onChange={e => setDownloadUrl(e.target.value)}
-                            style={{
-                                flex: 2, padding: '0.5rem 0.75rem', borderRadius: 6,
-                                border: '1px solid var(--color-border)', background: 'var(--color-bg-tertiary)',
-                                color: 'var(--color-text-primary)', fontSize: '0.8rem',
-                            }}
-                        />
-                        <input
-                            type="text"
-                            placeholder="filename.onnx"
-                            value={downloadFilename}
-                            onChange={e => setDownloadFilename(e.target.value)}
-                            style={{
-                                flex: 1, padding: '0.5rem 0.75rem', borderRadius: 6,
-                                border: '1px solid var(--color-border)', background: 'var(--color-bg-tertiary)',
-                                color: 'var(--color-text-primary)', fontSize: '0.8rem',
-                            }}
-                        />
-                        <button
-                            onClick={handleUrlDownload}
-                            disabled={vlLoading || !downloadUrl || !downloadFilename}
-                            style={{
-                                padding: '0.5rem 1rem', borderRadius: 6,
-                                border: 'none', background: 'var(--color-accent-primary)',
-                                color: '#fff', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer',
-                                opacity: vlLoading ? 0.5 : 1,
-                            }}
-                        >
-                            {vlLoading ? '...' : 'Download'}
-                        </button>
-                    </div>
+                    {[
+                        { icon: <Search size={16} />, title: 'Text-to-Image Search', desc: 'Type "red shirt" to find items by description instead of photos' },
+                        { icon: <Eye size={16} />, title: 'Photo Identification', desc: 'Take a photo of an item to identify it from enrolled references' },
+                        { icon: <ImageOff size={16} />, title: 'Background Removal', desc: 'Automatically strips backgrounds before embedding for cleaner matches (rembg)' },
+                        { icon: <Sparkles size={16} />, title: 'AI Auto-Tagging', desc: 'Extracts color, category, brand, and style when enrolling items with a Vision LLM' },
+                    ].map((f, i) => (
+                        <div key={i} style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                            padding: '0.6rem 0',
+                            borderTop: i > 0 ? '1px solid var(--color-border)' : 'none',
+                        }}>
+                            <div style={{ color: 'var(--color-accent-primary)', marginTop: 2, flexShrink: 0 }}>{f.icon}</div>
+                            <div>
+                                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-primary)' }}>{f.title}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 1 }}>{f.desc}</div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </section>
 
