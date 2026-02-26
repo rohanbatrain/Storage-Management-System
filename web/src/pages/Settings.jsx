@@ -164,7 +164,7 @@ function Settings() {
                 model: aiModel,
             });
             const res = await chatApi.testConnection();
-            setAiTestResult({ status: 'ok', message: `✅ Connected! Model: ${res.data.model} — "${res.data.reply}"` });
+            setAiTestResult({ status: 'ok', message: `✅ Connected! Model: ${res.data.model}${res.data.reply ? ` — "${res.data.reply}"` : ''}` });
         } catch (err) {
             setAiTestResult({ status: 'error', message: err.response?.data?.detail || 'Connection failed' });
         } finally {
