@@ -9,15 +9,18 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import { chatApi } from '../services/api';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    image_url?: string;
     actions?: { tool: string; args: any; summary: string }[];
 }
 
@@ -51,17 +54,41 @@ export default function ChatScreen() {
     const [loading, setLoading] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const flatListRef = useRef<FlatList>(null);
+    const [selectedImage, setSelectedImage] = useState<{ uri: string, base64: string } | null>(null);
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.5,
+            base64: true,
+        });
+
+        if (!result.canceled && result.assets[0].base64) {
+            setSelectedImage({
+                uri: result.assets[0].uri,
+                base64: result.assets[0].base64,
+            });
+        }
+    };
 
     const handleSend = async (text?: string) => {
         const msg = (text || input).trim();
-        if (!msg || loading) return;
+        if ((!msg && !selectedImage) || loading) return;
 
         setInput('');
-        setMessages(prev => [...prev, { role: 'user', content: msg }]);
+        const currentImage = selectedImage;
+        setSelectedImage(null);
+
+        setMessages(prev => [...prev, {
+            role: 'user',
+            content: msg,
+            image_url: currentImage ? currentImage.uri : undefined
+        }]);
         setLoading(true);
 
         try {
-            const res = await chatApi.send(msg, conversationId || undefined);
+            const res = await chatApi.send(msg, conversationId || undefined, currentImage?.base64);
             const data = res.data;
             if (!conversationId) setConversationId(data.conversation_id);
 
@@ -121,10 +148,18 @@ export default function ChatScreen() {
                 styles.bubble,
                 item.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
             ]}>
-                <Text style={[
-                    styles.bubbleText,
-                    item.role === 'user' && { color: '#fff' },
-                ]}>{item.content}</Text>
+                {item.image_url && (
+                    <Image
+                        source={{ uri: item.image_url }}
+                        style={styles.msgImage}
+                    />
+                )}
+                {!!item.content && (
+                    <Text style={[
+                        styles.bubbleText,
+                        item.role === 'user' && { color: '#fff' },
+                    ]}>{item.content}</Text>
+                )}
             </View>
         </View>
     );
@@ -173,24 +208,40 @@ export default function ChatScreen() {
             )}
 
             {/* Input */}
-            <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-                <TextInput
-                    style={styles.input}
-                    value={input}
-                    onChangeText={setInput}
-                    placeholder="Ask about your stuff..."
-                    placeholderTextColor={colors.textMuted}
-                    returnKeyType="send"
-                    onSubmitEditing={() => handleSend()}
-                    editable={!loading}
-                />
-                <TouchableOpacity
-                    style={[styles.sendButton, (!input.trim() || loading) && { opacity: 0.4 }]}
-                    onPress={() => handleSend()}
-                    disabled={!input.trim() || loading}
-                >
-                    <Text style={styles.sendIcon}>↑</Text>
-                </TouchableOpacity>
+            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+                {selectedImage && (
+                    <View style={styles.imagePreviewContainer}>
+                        <Image source={{ uri: selectedImage.uri }} style={styles.imagePreview} />
+                        <TouchableOpacity
+                            style={styles.removeImageBtn}
+                            onPress={() => setSelectedImage(null)}
+                        >
+                            <Text style={styles.removeImageText}>×</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+                <View style={styles.inputBar}>
+                    <TouchableOpacity style={styles.attachBtn} onPress={pickImage} disabled={loading}>
+                        <Text style={styles.attachIcon}>📷</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                        style={styles.input}
+                        value={input}
+                        onChangeText={setInput}
+                        placeholder="Ask about your stuff..."
+                        placeholderTextColor={colors.textMuted}
+                        returnKeyType="send"
+                        onSubmitEditing={() => handleSend()}
+                        editable={!loading}
+                    />
+                    <TouchableOpacity
+                        style={[styles.sendButton, (!input.trim() && !selectedImage || loading) && { opacity: 0.4 }]}
+                        onPress={() => handleSend()}
+                        disabled={(!input.trim() && !selectedImage) || loading}
+                    >
+                        <Text style={styles.sendIcon}>↑</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </KeyboardAvoidingView>
     );
@@ -257,15 +308,25 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: colors.textMuted,
     },
+    inputContainer: {
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.bgSecondary,
+    },
     inputBar: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.sm,
         paddingHorizontal: spacing.md,
         paddingTop: spacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        backgroundColor: colors.bgSecondary,
+    },
+    attachBtn: {
+        padding: spacing.xs,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    attachIcon: {
+        fontSize: 22,
     },
     input: {
         flex: 1,
@@ -277,6 +338,41 @@ const styles = StyleSheet.create({
         fontSize: 14,
         borderWidth: 1,
         borderColor: colors.border,
+        maxHeight: 100,
+    },
+    msgImage: {
+        width: 200,
+        height: 200,
+        borderRadius: 8,
+        marginBottom: spacing.xs,
+    },
+    imagePreviewContainer: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        flexDirection: 'row',
+    },
+    imagePreview: {
+        width: 60,
+        height: 60,
+        borderRadius: borderRadius.md,
+    },
+    removeImageBtn: {
+        position: 'absolute',
+        top: spacing.sm - 8,
+        left: spacing.md + 45,
+        backgroundColor: colors.error,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2,
+    },
+    removeImageText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginTop: -2,
     },
     sendButton: {
         width: 36,

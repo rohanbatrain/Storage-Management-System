@@ -587,6 +587,7 @@ def _get_llm_config() -> dict:
 
 async def chat(
     message: str,
+    image_base64: Optional[str] = None,
     conversation_id: str = "default",
     api_base: str = "http://127.0.0.1:8000/api",
 ) -> dict:
@@ -615,14 +616,28 @@ async def chat(
     history = _conversations[conversation_id]
 
     # Add user message
-    history.append({"role": "user", "content": message})
+    if image_base64:
+        # Ensure it's formatted as a proper data URI if not already
+        if not image_base64.startswith("data:"):
+            # A common prefix, adjust if frontend sends raw base64 without mimetype
+            clean_b64 = image_base64.replace(" ", "+")
+            image_base64 = f"data:image/jpeg;base64,{clean_b64}"
+            
+        content = [
+            {"type": "text", "text": message},
+            {"type": "image_url", "image_url": {"url": image_base64}}
+        ]
+    else:
+        content = message
+        
+    history.append({"role": "user", "content": content})
 
     # Track metadata
     import datetime
     now = datetime.datetime.utcnow().isoformat() + "Z"
     if conversation_id not in _conversation_meta:
         _conversation_meta[conversation_id] = {
-            "title": message[:60].strip() or "New Chat",
+            "title": (message[:60].strip() if message else "Image Search") or "New Chat",
             "created_at": now,
             "updated_at": now,
         }

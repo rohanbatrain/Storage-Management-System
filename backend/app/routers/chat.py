@@ -89,6 +89,7 @@ def _save_llm_settings(data: dict):
 class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
+    image_base64: Optional[str] = None
 
 
 class ToolAction(BaseModel):
@@ -201,6 +202,7 @@ async def send_message(req: ChatRequest):
 
     result = await llm_chat(
         message=req.message,
+        image_base64=req.image_base64,
         conversation_id=conv_id,
         api_base=api_base,
     )
