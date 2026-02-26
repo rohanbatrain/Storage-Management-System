@@ -45,13 +45,24 @@ def initialize_model() -> None:
         return
 
     try:
+        import warnings
         from sentence_transformers import SentenceTransformer
         
         # Point HuggingFace cache to our local data dir
         os.environ["HF_HOME"] = str(get_models_dir())
         
         logger.info(f"Loading CLIP model '{MODEL_NAME}'... (This may take a moment to download on first run)")
-        _model = SentenceTransformer(MODEL_NAME)
+        
+        # Suppress harmless CLIP loading warnings:
+        # - "UNEXPECTED position_ids" (safe to ignore for cross-task loading)
+        # - "CLIPImageProcessor fast processor" (functionally identical output)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*position_ids.*")
+            warnings.filterwarnings("ignore", message=".*fast processor.*")
+            logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
+            _model = SentenceTransformer(MODEL_NAME)
+            logging.getLogger("transformers.modeling_utils").setLevel(logging.WARNING)
+        
         logger.info(f"CLIP model loaded: {MODEL_NAME}")
     except Exception as e:
         logger.error(f"Failed to initialize CLIP model: {e}")
