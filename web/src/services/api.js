@@ -153,6 +153,8 @@ export const chatApi = {
     listConversations: () => api.get('/chat/conversations'),
     getConversation: (id) => api.get(`/chat/conversations/${id}`),
     deleteConversation: (id) => api.delete(`/chat/conversations/${id}`),
+    ollamaModels: () => api.get('/chat/ollama/models'),
+    switchModel: (model) => api.patch('/chat/model', { model }),
 };
 
 // Backend health check

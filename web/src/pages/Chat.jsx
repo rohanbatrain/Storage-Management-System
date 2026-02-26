@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap, Square, History, X, RefreshCw } from 'lucide-react';
+import { Send, Trash2, Brain, Plus, MessageSquare, ChevronDown, ChevronRight, Clock, Zap, Square, History, X, RefreshCw, Cpu } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
+import { chatApi } from '../services/api';
 
 const parseReply = (content) => {
     return content
@@ -275,6 +276,30 @@ function Chat() {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [installedModels, setInstalledModels] = useState([]);
+    const [activeModel, setActiveModel] = useState('');
+    const [showModelPicker, setShowModelPicker] = useState(false);
+    const modelPickerRef = useRef(null);
+
+    const loadModels = async () => {
+        try {
+            const res = await chatApi.ollamaModels();
+            setInstalledModels(res.data.models || []);
+            setActiveModel(res.data.active || '');
+        } catch (err) {
+            console.log('Could not load Ollama models:', err);
+        }
+    };
+
+    const handleModelSwitch = async (modelId) => {
+        try {
+            await chatApi.switchModel(modelId);
+            setActiveModel(modelId);
+            setShowModelPicker(false);
+        } catch (err) {
+            console.error('Model switch failed:', err);
+        }
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -286,7 +311,19 @@ function Chat() {
 
     useEffect(() => {
         inputRef.current?.focus();
+        loadModels();
     }, []);
+
+    // Close model picker on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (modelPickerRef.current && !modelPickerRef.current.contains(e.target)) {
+                setShowModelPicker(false);
+            }
+        };
+        if (showModelPicker) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showModelPicker]);
 
     return (
         <div style={{ display: 'flex', height: '100%', width: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -294,11 +331,75 @@ function Chat() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
                 {/* Header */}
                 <div style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
-                    <div>
-                        <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                            <Brain className="text-accent" /> Ask SMS
-                        </h1>
-                        <p className="page-subtitle" style={{ margin: 0, marginTop: '4px' }}>Natural language assistant for your storage</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div>
+                            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                                <Brain className="text-accent" /> Ask SMS
+                            </h1>
+                            <p className="page-subtitle" style={{ margin: 0, marginTop: '4px' }}>Natural language assistant for your storage</p>
+                        </div>
+                        {/* Model Selector Pill */}
+                        {installedModels.length > 0 && (
+                            <div ref={modelPickerRef} style={{ position: 'relative' }}>
+                                <button
+                                    onClick={() => setShowModelPicker(!showModelPicker)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        padding: '6px 12px', borderRadius: '20px',
+                                        border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg-tertiary)',
+                                        color: 'var(--color-text-secondary)',
+                                        fontSize: '0.8rem', fontWeight: 500,
+                                        cursor: 'pointer', transition: 'all 0.15s',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-accent-primary)'; e.currentTarget.style.color = 'var(--color-accent-primary)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
+                                >
+                                    <Cpu size={13} />
+                                    {activeModel || 'No model'}
+                                    <ChevronDown size={12} />
+                                </button>
+                                {showModelPicker && (
+                                    <div style={{
+                                        position: 'absolute', top: '100%', left: 0, marginTop: '6px',
+                                        background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)',
+                                        borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                                        zIndex: 100, minWidth: '220px', overflow: 'hidden',
+                                        animation: 'fadeIn 0.15s ease',
+                                    }}>
+                                        <div style={{ padding: '8px 12px', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--color-border)' }}>
+                                            Switch Model
+                                        </div>
+                                        {installedModels.map(m => (
+                                            <button
+                                                key={m.id}
+                                                onClick={() => handleModelSwitch(m.id)}
+                                                style={{
+                                                    width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+                                                    padding: '10px 12px', border: 'none', cursor: 'pointer',
+                                                    background: m.id === activeModel ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                                                    borderBottom: '1px solid var(--color-border)',
+                                                    textAlign: 'left', transition: 'background 0.1s',
+                                                }}
+                                                onMouseEnter={e => { if (m.id !== activeModel) e.currentTarget.style.background = 'var(--color-bg-tertiary)'; }}
+                                                onMouseLeave={e => { if (m.id !== activeModel) e.currentTarget.style.background = 'transparent'; }}
+                                            >
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.85rem', fontWeight: m.id === activeModel ? 600 : 500, color: m.id === activeModel ? 'var(--color-accent-primary)' : 'var(--color-text-primary)' }}>
+                                                        {m.id}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{m.size_gb} GB</div>
+                                                </div>
+                                                {m.id === activeModel && (
+                                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#22c55e', background: '#22c55e20', padding: '2px 8px', borderRadius: 8 }}>Active</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                         {messages.length > 0 && (

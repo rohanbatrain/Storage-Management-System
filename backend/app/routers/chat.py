@@ -171,10 +171,6 @@ async def pull_ollama_model(req: OllamaPullRequest):
     ollama_api = base_url.replace("/v1", "/api") if base_url.endswith("/v1") else f"{base_url}/api"
     
     try:
-        # Note: This just kicks off the request.
-        # Fully implementing a streaming progress bar requires a StreamingResponse.
-        # For simplicity, we trigger the pull and return immediately.
-        # Ollama will download it in the background.
         async with httpx.AsyncClient(timeout=5.0) as client:
             # Check if model already exists
             tags_resp = await client.get(f"{ollama_api}/tags")
@@ -183,15 +179,10 @@ async def pull_ollama_model(req: OllamaPullRequest):
                 if req.model in models or f"{req.model}:latest" in models:
                     return {"status": "already_installed", "model": req.model}
             
-            # Trigger background pull by sending the request without waiting for the full stream
-            # We use stream=True and just read the first chunk to ensure it started
             request = client.build_request("POST", f"{ollama_api}/pull", json={"model": req.model, "stream": False})
             response = await client.send(request, stream=True)
             
             if response.status_code == 200:
-                # We do not await reading the whole body, so it downloads in the background
-                # (httpx will eventually close the connection when the object is GC'd unless we structure it carefully,
-                # but for a simple local test this is okay. A better approach is using asyncio.create_task)
                 pass
             
             return {"status": "pulling", "model": req.model, "message": "Model download started in background"}
@@ -199,6 +190,45 @@ async def pull_ollama_model(req: OllamaPullRequest):
         raise HTTPException(status_code=503, detail="Cannot connect to Ollama daemon.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
+@router.get("/ollama/models")
+async def list_ollama_models():
+    """List all models currently installed in the local Ollama daemon."""
+    import httpx
+    settings = _load_llm_settings()
+    base_url = settings.get("base_url", "http://localhost:11434/v1")
+    ollama_api = base_url.replace("/v1", "/api") if base_url.endswith("/v1") else f"{base_url}/api"
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{ollama_api}/tags")
+            if resp.status_code != 200:
+                return {"models": [], "active": settings.get("model", "")}
+            raw_models = resp.json().get("models", [])
+            models = []
+            for m in raw_models:
+                name = m.get("name", "")
+                size_gb = round(m.get("size", 0) / (1024**3), 1)
+                models.append({"id": name, "size_gb": size_gb})
+            return {"models": models, "active": settings.get("model", "")}
+    except httpx.ConnectError:
+        return {"models": [], "active": settings.get("model", ""), "error": "Ollama not running"}
+    except Exception as e:
+        return {"models": [], "active": settings.get("model", ""), "error": str(e)[:100]}
+
+
+class ModelSwitchRequest(BaseModel):
+    model: str
+
+@router.patch("/model")
+def switch_model(req: ModelSwitchRequest):
+    """Quick-switch the active model without changing other settings."""
+    data = _load_llm_settings()
+    data["model"] = req.model
+    _save_llm_settings(data)
+    return {"model": req.model, "status": "switched"}
+
 
 
 @router.put("/settings")

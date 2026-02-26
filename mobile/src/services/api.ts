@@ -217,6 +217,8 @@ export const chatApi = {
     // Ollama management
     getOllamaPresets: () => api.get('/chat/ollama/presets'),
     pullOllamaModel: (model: string) => api.post('/chat/ollama/pull', { model }),
+    ollamaModels: () => api.get('/chat/ollama/models'),
+    switchModel: (model: string) => api.patch('/chat/model', { model }),
 };
 
 // Backend health check (used in settings connection test)

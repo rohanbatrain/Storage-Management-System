@@ -59,9 +59,14 @@ def initialize_model() -> None:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*position_ids.*")
             warnings.filterwarnings("ignore", message=".*fast processor.*")
+            warnings.filterwarnings("ignore", message=".*CLIPImageProcessor.*")
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
+            logging.getLogger("transformers.image_processing_utils").setLevel(logging.ERROR)
+            logging.getLogger("transformers.image_processing_utils_fast").setLevel(logging.ERROR)
             _model = SentenceTransformer(MODEL_NAME)
             logging.getLogger("transformers.modeling_utils").setLevel(logging.WARNING)
+            logging.getLogger("transformers.image_processing_utils").setLevel(logging.WARNING)
+            logging.getLogger("transformers.image_processing_utils_fast").setLevel(logging.WARNING)
         
         logger.info(f"CLIP model loaded: {MODEL_NAME}")
     except Exception as e:
