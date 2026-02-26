@@ -68,9 +68,32 @@ def extract_features(image_file) -> list[float]:
         if image.mode != "RGB":
             image = image.convert("RGB")
             
+        try:
+            import rembg
+            # rembg expects a PIL image and returns a PIL image with alpha channel
+            nobg_image = rembg.remove(image)
+            # sentence-transformers works better with RGB (it removes the alpha channel anyway, but it's cleaner)
+            if nobg_image.mode != "RGB":
+                # Create a white background instead of black for transparent pixels 
+                # (helps CLIP not focus on the black void)
+                background = Image.new("RGB", nobg_image.size, (255, 255, 255))
+                if nobg_image.mode == "RGBA":
+                    background.paste(nobg_image, mask=nobg_image.split()[3]) # 3 is the alpha channel
+                    image_for_clip = background
+                else:
+                    image_for_clip = nobg_image.convert("RGB")
+            else:
+                image_for_clip = nobg_image
+        except ImportError:
+            logger.warning("rembg not installed, skipping background removal")
+            image_for_clip = image
+        except Exception as e:
+            logger.warning(f"Background removal failed: {e}. Falling back to original image.")
+            image_for_clip = image
+            
         global _model
         # SentenceTransformer handles preprocessing automatically
-        embedding = _model.encode(image)
+        embedding = _model.encode(image_for_clip)
         
         # Ensure L2 normalization
         norm = np.linalg.norm(embedding)
