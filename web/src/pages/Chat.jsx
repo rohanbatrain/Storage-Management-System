@@ -141,18 +141,22 @@ function ToolCallBlock({ action, index }) {
     );
 }
 
-function ThinkingBlock({ thinking }) {
+function ThinkingBlock({ thinking, streaming }) {
     const [expanded, setExpanded] = useState(false);
     if (!thinking) return null;
+
+    // Auto-expand while streaming thinking
+    const isOpen = streaming || expanded;
 
     return (
         <div style={{
             marginBottom: '0.5rem',
             marginLeft: '1rem',
             borderRadius: '12px',
-            border: '1px solid rgba(139, 92, 246, 0.2)',
-            background: 'rgba(139, 92, 246, 0.05)',
+            border: `1px solid ${streaming ? 'rgba(139, 92, 246, 0.35)' : 'rgba(139, 92, 246, 0.2)'}`,
+            background: streaming ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)',
             overflow: 'hidden',
+            transition: 'all 0.3s ease',
         }}>
             <button
                 onClick={() => setExpanded(!expanded)}
@@ -170,11 +174,15 @@ function ThinkingBlock({ thinking }) {
                     fontWeight: 500,
                 }}
             >
-                {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <Brain size={14} style={{ color: '#8b5cf6' }} />
-                <span>Thinking</span>
+                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {streaming ? (
+                    <span className="tool-pulse" style={{ width: 10, height: 10, borderRadius: '50%', background: '#8b5cf6', display: 'inline-block', flexShrink: 0 }} />
+                ) : (
+                    <Brain size={14} style={{ color: '#8b5cf6' }} />
+                )}
+                <span>{streaming ? 'Thinking...' : 'Thinking'}</span>
             </button>
-            {expanded && (
+            {isOpen && (
                 <div style={{
                     padding: '0 12px 10px',
                     fontSize: '0.85rem',
@@ -186,6 +194,7 @@ function ThinkingBlock({ thinking }) {
                     overflowY: 'auto',
                 }}>
                     {thinking}
+                    {streaming && <span className="streaming-cursor">▊</span>}
                 </div>
             )}
         </div>
@@ -410,7 +419,7 @@ function Chat() {
                                     <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                                         {/* Thinking Block */}
                                         {m.role === 'assistant' && m.thinking && (
-                                            <ThinkingBlock thinking={m.thinking} />
+                                            <ThinkingBlock thinking={m.thinking} streaming={m.streaming && !m.content} />
                                         )}
 
                                         {/* Tool Calls — show all including running */}

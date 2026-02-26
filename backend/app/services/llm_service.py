@@ -904,6 +904,11 @@ async def chat_stream(
                         },
                     ) as stream_resp:
                         full_content = ""
+                        in_think = False
+                        thinking_content = ""
+                        reply_content = ""
+                        tag_buffer = ""  # Buffer for partial tag detection
+
                         async for line in stream_resp.aiter_lines():
                             if not line.startswith("data: "):
                                 continue
@@ -914,38 +919,75 @@ async def chat_stream(
                                 chunk = json.loads(payload)
                                 delta = chunk["choices"][0].get("delta", {})
                                 token = delta.get("content", "")
-                                if token:
-                                    full_content += token
-                                    yield json.dumps({"type": "token", "content": token}) + "\n"
+                                if not token:
+                                    continue
+
+                                full_content += token
+
+                                # Process token character-by-character for tag detection
+                                for ch in token:
+                                    if tag_buffer:
+                                        tag_buffer += ch
+                                        # Check if we've completed a tag
+                                        if tag_buffer == "<think>":
+                                            in_think = True
+                                            tag_buffer = ""
+                                        elif tag_buffer == "</think>":
+                                            in_think = False
+                                            tag_buffer = ""
+                                        elif not "<think>"[:len(tag_buffer)].startswith(tag_buffer) and \
+                                             not "</think>"[:len(tag_buffer)].startswith(tag_buffer):
+                                            # Not a valid tag prefix — flush buffer
+                                            buf = tag_buffer
+                                            tag_buffer = ""
+                                            if in_think:
+                                                thinking_content += buf
+                                                yield json.dumps({"type": "thinking", "content": buf}) + "\n"
+                                            else:
+                                                reply_content += buf
+                                                yield json.dumps({"type": "token", "content": buf}) + "\n"
+                                    elif ch == '<':
+                                        tag_buffer = ch
+                                    else:
+                                        if in_think:
+                                            thinking_content += ch
+                                            yield json.dumps({"type": "thinking", "content": ch}) + "\n"
+                                        else:
+                                            reply_content += ch
+                                            yield json.dumps({"type": "token", "content": ch}) + "\n"
                             except (json.JSONDecodeError, KeyError, IndexError):
                                 continue
+
+                        # Flush any leftover tag buffer
+                        if tag_buffer:
+                            if in_think:
+                                thinking_content += tag_buffer
+                                yield json.dumps({"type": "thinking", "content": tag_buffer}) + "\n"
+                            else:
+                                reply_content += tag_buffer
+                                yield json.dumps({"type": "token", "content": tag_buffer}) + "\n"
+
                 except Exception:
                     # Fallback: use the already-fetched non-streaming response
                     raw_content = msg.get("content", "")
-                    # Strip <think> blocks
-                    thinking = ""
                     think_match = re.search(r'<think>(.*?)</think>', raw_content, flags=re.DOTALL)
                     if think_match:
-                        thinking = think_match.group(1).strip()
+                        thinking_content = think_match.group(1).strip()
+                        if thinking_content:
+                            yield json.dumps({"type": "thinking", "content": thinking_content}) + "\n"
                     reply = re.sub(r'<think>.*?</think>', '', raw_content, flags=re.DOTALL).strip()
                     if reply:
                         yield json.dumps({"type": "token", "content": reply}) + "\n"
-                    full_content = reply
+                    reply_content = reply
 
-                # Extract thinking from accumulated content
-                thinking = ""
-                think_match = re.search(r'<think>(.*?)</think>', full_content, flags=re.DOTALL)
-                if think_match:
-                    thinking = think_match.group(1).strip()
-
-                clean_reply = re.sub(r'<think>.*?</think>', '', full_content, flags=re.DOTALL).strip()
+                clean_reply = reply_content.strip() if reply_content else ""
                 if not clean_reply and full_content:
                     clean_reply = "I've thought about it, but have nothing else to say."
 
                 history.append({"role": "assistant", "content": clean_reply})
                 _conversations[conversation_id] = history
 
-                yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": thinking}) + "\n"
+                yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": thinking_content.strip()}) + "\n"
                 return
 
     yield json.dumps({"type": "token", "content": "I ran into a complex query. Could you try rephrasing?"}) + "\n"

@@ -162,6 +162,20 @@ export function ChatProvider({ children }) {
                 });
                 break;
 
+            case 'thinking':
+                setMessages(prev => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (last?.role === 'assistant') {
+                        updated[updated.length - 1] = {
+                            ...last,
+                            thinking: (last.thinking || '') + event.content,
+                        };
+                    }
+                    return updated;
+                });
+                break;
+
             case 'token':
                 setMessages(prev => {
                     const updated = [...prev];
