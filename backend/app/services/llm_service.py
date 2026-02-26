@@ -957,10 +957,10 @@ async def chat_stream(
                                 # Emit batched output (one event per Ollama token)
                                 if think_batch:
                                     thinking_content += think_batch
-                                    yield json.dumps({"type": "thinking", "content": think_batch}) + "\n"
+                                    yield f'data: {json.dumps({"type": "thinking", "content": think_batch})}\n\n'
                                 if reply_batch:
                                     reply_content += reply_batch
-                                    yield json.dumps({"type": "token", "content": reply_batch}) + "\n"
+                                    yield f'data: {json.dumps({"type": "token", "content": reply_batch})}\n\n'
 
                             except (json.JSONDecodeError, KeyError, IndexError):
                                 continue
@@ -969,10 +969,10 @@ async def chat_stream(
                         if tag_buffer:
                             if in_think:
                                 thinking_content += tag_buffer
-                                yield json.dumps({"type": "thinking", "content": tag_buffer}) + "\n"
+                                yield f'data: {json.dumps({"type": "thinking", "content": tag_buffer})}\n\n'
                             else:
                                 reply_content += tag_buffer
-                                yield json.dumps({"type": "token", "content": tag_buffer}) + "\n"
+                                yield f'data: {json.dumps({"type": "token", "content": tag_buffer})}\n\n'
 
                 except Exception:
                     # Fallback: use the already-fetched non-streaming response
@@ -981,10 +981,10 @@ async def chat_stream(
                     if think_match:
                         thinking_content = think_match.group(1).strip()
                         if thinking_content:
-                            yield json.dumps({"type": "thinking", "content": thinking_content}) + "\n"
+                            yield f'data: {json.dumps({"type": "thinking", "content": thinking_content})}\n\n'
                     reply = re.sub(r'<think>.*?</think>', '', raw_content, flags=re.DOTALL).strip()
                     if reply:
-                        yield json.dumps({"type": "token", "content": reply}) + "\n"
+                        yield f'data: {json.dumps({"type": "token", "content": reply})}\n\n'
                     reply_content = reply
 
                 clean_reply = reply_content.strip() if reply_content else ""
@@ -994,11 +994,11 @@ async def chat_stream(
                 history.append({"role": "assistant", "content": clean_reply})
                 _conversations[conversation_id] = history
 
-                yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": thinking_content.strip()}) + "\n"
+                yield f'data: {json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": thinking_content.strip()})}\n\n'
                 return
 
-    yield json.dumps({"type": "token", "content": "I ran into a complex query. Could you try rephrasing?"}) + "\n"
-    yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": ""}) + "\n"
+    yield f'data: {json.dumps({"type": "token", "content": "I ran into a complex query. Could you try rephrasing?"})}\n\n'
+    yield f'data: {json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": ""})}\n\n'
 
 
 def _summarize_tool_result(tool_name: str, result: Any) -> str:

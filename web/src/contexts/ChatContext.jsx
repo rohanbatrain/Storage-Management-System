@@ -71,21 +71,32 @@ export function ChatProvider({ children }) {
                 for (const line of lines) {
                     const trimmed = line.trim();
                     if (!trimmed) continue;
-                    try {
-                        const event = JSON.parse(trimmed);
-                        handleStreamEvent(event, assistantIdx);
-                    } catch {
-                        // skip non-JSON lines
+
+                    // SSE format: "data: {...}"
+                    const dataPrefix = "data: ";
+                    if (trimmed.startsWith(dataPrefix)) {
+                        try {
+                            const jsonStr = trimmed.substring(dataPrefix.length);
+                            const event = JSON.parse(jsonStr);
+                            handleStreamEvent(event, assistantIdx);
+                        } catch {
+                            // skip malformed JSON
+                        }
                     }
                 }
             }
 
             // Process any remaining buffer
             if (buffer.trim()) {
-                try {
-                    const event = JSON.parse(buffer.trim());
-                    handleStreamEvent(event, assistantIdx);
-                } catch { }
+                const trimmed = buffer.trim();
+                const dataPrefix = "data: ";
+                if (trimmed.startsWith(dataPrefix)) {
+                    try {
+                        const jsonStr = trimmed.substring(dataPrefix.length);
+                        const event = JSON.parse(jsonStr);
+                        handleStreamEvent(event, assistantIdx);
+                    } catch { }
+                }
             }
         } catch (err) {
             const isCancelled = err?.name === 'AbortError';
