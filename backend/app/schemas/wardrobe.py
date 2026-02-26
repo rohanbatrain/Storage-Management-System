@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Literal
 from uuid import UUID
 from datetime import datetime
@@ -175,8 +175,7 @@ class ClothingMetadata(BaseModel):
     brand: Optional[str] = None
     season: Season = Season.ALL
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 # ============== Clothing Item Schemas ==============
@@ -231,8 +230,7 @@ class ClothingItemResponse(BaseModel):
     # Computed
     can_rewear: bool = True  # Computed based on wear count
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============== Outfit Schemas ==============
@@ -268,8 +266,7 @@ class OutfitResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OutfitWithItems(OutfitResponse):

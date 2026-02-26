@@ -10,88 +10,19 @@ from app.database import get_db
 from app.models.item import Item
 from app.models.item_embedding import ItemEmbedding
 from app.services.feature_extractor import (
-    extract_features, compute_similarity, initialize_model,
-    list_available_models, get_catalog, download_model,
-    save_uploaded_model, delete_model, activate_model,
+    extract_features, extract_text_features, compute_similarity, initialize_model,
 )
 from app.routers.items import item_to_response
 
 router = APIRouter(prefix="/identify", tags=["Identify"])
 
 # Threshold for considering something a match (cosine similarity)
-MATCH_THRESHOLD = 0.60
+MATCH_THRESHOLD = 0.25  # CLIP cosine similarities tend to be lower than MobileNet, adjusting threshold
 
 
 # ---------------------------------------------------------------------------
-# Model Management Endpoints
+# Visual Lens & Semantic Search Endpoints
 # ---------------------------------------------------------------------------
-
-@router.get("/models")
-def get_models():
-    """List installed ONNX models and which one is active."""
-    return {"models": list_available_models()}
-
-
-@router.get("/models/catalog")
-def get_model_catalog():
-    """Curated list of recommended models with install status."""
-    return {"catalog": get_catalog()}
-
-
-@router.post("/models/download")
-async def download_model_endpoint(
-    url: str = Query(..., description="URL to download the .onnx model from"),
-    filename: str = Query(..., description="Filename to save as (must end in .onnx)"),
-):
-    """Download an ONNX model from any URL."""
-    if not filename.endswith(".onnx"):
-        raise HTTPException(status_code=400, detail="Filename must end with .onnx")
-    try:
-        path = download_model(url, filename)
-        return {
-            "message": f"Model downloaded successfully",
-            "filename": filename,
-            "size_mb": round(path.stat().st_size / (1024 * 1024), 1),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/models/upload")
-async def upload_model_endpoint(file: UploadFile = File(...)):
-    """Upload a custom ONNX model."""
-    if not file.filename or not file.filename.endswith(".onnx"):
-        raise HTTPException(status_code=400, detail="File must be a .onnx model")
-    data = await file.read()
-    path = save_uploaded_model(file.filename, data)
-    return {
-        "message": "Model uploaded successfully",
-        "filename": file.filename,
-        "size_mb": round(len(data) / (1024 * 1024), 1),
-    }
-
-
-@router.post("/models/{filename}/activate")
-async def activate_model_endpoint(filename: str):
-    """Switch the active model (hot-swap, no restart needed)."""
-    try:
-        activate_model(filename)
-        return {"message": f"Active model switched to {filename}"}
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@router.delete("/models/{filename}")
-async def delete_model_endpoint(filename: str):
-    """Delete an installed model (cannot delete the active model)."""
-    try:
-        delete_model(filename)
-        return {"message": f"Model {filename} deleted"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
 
 @router.get("/status")
 def get_status(db: Session = Depends(get_db)):
@@ -115,26 +46,31 @@ def get_status(db: Session = Depends(get_db)):
 
 @router.post("")
 async def identify_item(
-    file: UploadFile = File(...),
+    text_query: Optional[str] = Query(None, description="Search by text description (Semantic Search)"),
+    file: Optional[UploadFile] = File(None, description="Search by uploaded image"),
     limit: int = Query(5, ge=1, le=20),
     db: Session = Depends(get_db)
 ):
     """
-    Identify an item from an uploaded photo.
+    Identify an item from an uploaded photo OR a semantic text query.
     Returns the top matches with confidence scores.
     """
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image type")
+    if not text_query and not file:
+        raise HTTPException(status_code=400, detail="Must provide either text_query or an image file")
         
-    # Read image
-    contents = await file.read()
-    image_stream = io.BytesIO(contents)
-    
     try:
-        # Extract features from target image
-        query_vector = extract_features(image_stream)
+        if file:
+            if not file.content_type or not file.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="File must be an image type")
+            
+            contents = await file.read()
+            image_stream = io.BytesIO(contents)
+            query_vector = extract_features(image_stream)
+        else:
+            query_vector = extract_text_features(text_query)
+            
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to process image: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to process query: {str(e)}")
         
     # Get all enrolled embeddings
     all_embeddings = db.query(ItemEmbedding).all()

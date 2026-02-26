@@ -216,7 +216,7 @@ export const chatApi = {
 };
 
 // Backend health check (used in settings connection test)
-export const testBackend = () => api.get('/health', { timeout: 5000 });
+export const testBackend = () => axios.get(`${API_BASE_URL}/health`, { timeout: 5000 });
 
 // Visual Lens / Identify API
 export const identifyApi = {

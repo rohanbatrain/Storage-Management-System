@@ -5,56 +5,57 @@ Mocks the feature extractor so no ONNX model download is required.
 
 Run with:
     # SQLite (no DB needed):
-    cd backend && DATABASE_URL='sqlite:///:memory:' python -m pytest tests/test_identify.py -v --noconftest
-
     # PostgreSQL (Docker):
     docker compose exec backend pytest tests/test_identify.py -v
 """
+
 import os
 import io
 from unittest.mock import patch
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from uuid import uuid4
 from PIL import Image
 
-from app.database import Base, get_db
-from app.main import app
-from app.models.item import Item
-from app.models.location import Location
-from app.models.item_embedding import ItemEmbedding
-from app.models.history import MovementHistory  # noqa: F401
-from app.models.outfit import Outfit  # noqa: F401
+# 1. Force environment variables so any generic code sees test DB
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["POSTGRES_USER"] = "test"
+os.environ["POSTGRES_PASSWORD"] = "test"
+os.environ["POSTGRES_DB"] = "test"
 
+# 2. Setup SQLite Engine
+engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 
-# ---------------------------------------------------------------------------
-# Engine setup — works for both SQLite and Postgres
-# ---------------------------------------------------------------------------
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///:memory:")
-
-_connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    _connect_args = {"check_same_thread": False}
-
-engine = create_engine(DATABASE_URL, connect_args=_connect_args)
-
-if DATABASE_URL.startswith("sqlite"):
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 3. Import app modules, patching `create_engine` just in case `app.database` tries to connect
+with patch("app.database.create_engine", return_value=engine), patch("app.database.SessionLocal", TestSession):
+    from app.database import Base, get_db
+    from app.main import app
+    from app.models.item import Item
+    from app.models.location import Location
+    from app.models.item_embedding import ItemEmbedding
+    from app.models.history import MovementHistory  # noqa: F401
+    from app.models.outfit import Outfit  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
 # Mock helpers
 # ---------------------------------------------------------------------------
-DUMMY_VECTOR = [0.01] * 1000  # MobileNetV2 outputs 1000-d logits
+DUMMY_VECTOR = [0.01] * 512  # CLIP vit-b-32 outputs 512-d embeddings
 
 
 def _mock_extract_features(image_file):

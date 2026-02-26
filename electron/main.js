@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const net = require('net');
+const http = require('http');
 
 let mainWindow;
 let backendProcess;
@@ -120,8 +121,36 @@ async function startBackend() {
     }
 }
 
+async function waitForBackend(port) {
+    console.log(`Waiting for backend on port ${port} to be ready...`);
+    return new Promise((resolve) => {
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            const req = http.get(`http://127.0.0.1:${port}/health`, (res) => {
+                if (res.statusCode === 200) {
+                    clearInterval(interval);
+                    console.log('Backend is ready!');
+                    resolve();
+                }
+            }).on('error', () => {
+                // Ignore connection error, backend is not ready yet
+            });
+            req.end();
+
+            // Timeout after 15 seconds (30 attempts * 500ms)
+            if (attempts > 30) {
+                clearInterval(interval);
+                console.log('Timeout waiting for backend, proceeding to load window anyway...');
+                resolve();
+            }
+        }, 500);
+    });
+}
+
 app.whenReady().then(async () => {
     await startBackend();
+    await waitForBackend(backendPort);
 
     // Store port in a global or pass it via IPC
     ipcMain.handle('get-api-url', () => `http://127.0.0.1:${backendPort}`);
