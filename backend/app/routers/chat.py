@@ -247,6 +247,9 @@ async def test_llm_connection():
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail=f"Cannot connect to {base_url}. Is the LLM server running?")
     except httpx.HTTPStatusError as e:
+        err_text = e.response.text.lower()
+        if e.response.status_code == 404 and ("model" in err_text and "not found" in err_text):
+            raise HTTPException(status_code=404, detail=f"Model '{model}' is not installed. Please download it first.")
         raise HTTPException(status_code=502, detail=f"LLM error {e.response.status_code}: {e.response.text[:200]}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)[:200])

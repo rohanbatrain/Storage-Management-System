@@ -677,6 +677,22 @@ async def chat(
                 )
                 response.raise_for_status()
                 data = response.json()
+            except httpx.HTTPStatusError as e:
+                logger.error(f"LLM API HTTP status error: {e}")
+                err_text = e.response.text.lower()
+                if e.response.status_code == 404 and ("model" in err_text and "not found" in err_text):
+                    msg = (
+                        f"⚠️ The currently selected AI model (`{llm_model}`) is not installed on the server.\n\n"
+                        "To fix this:\n"
+                        "1. Go to **Settings → AI Models (Ollama)**.\n"
+                        f"2. Tap the download icon next to the model name to install it."
+                    )
+                    return {"reply": msg, "actions": actions}
+                    
+                return {
+                    "reply": f"Sorry, the language model returned an error ({e.response.status_code}): {e.response.text[:100]}",
+                    "actions": actions,
+                }
             except Exception as e:
                 logger.error(f"LLM API error: {e}")
                 return {
