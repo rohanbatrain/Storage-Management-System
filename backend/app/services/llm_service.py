@@ -924,11 +924,14 @@ async def chat_stream(
 
                                 full_content += token
 
-                                # Process token character-by-character for tag detection
+                                # Process token char-by-char for tag detection,
+                                # but batch output per token chunk
+                                think_batch = ""
+                                reply_batch = ""
+
                                 for ch in token:
                                     if tag_buffer:
                                         tag_buffer += ch
-                                        # Check if we've completed a tag
                                         if tag_buffer == "<think>":
                                             in_think = True
                                             tag_buffer = ""
@@ -937,24 +940,28 @@ async def chat_stream(
                                             tag_buffer = ""
                                         elif not "<think>"[:len(tag_buffer)].startswith(tag_buffer) and \
                                              not "</think>"[:len(tag_buffer)].startswith(tag_buffer):
-                                            # Not a valid tag prefix — flush buffer
                                             buf = tag_buffer
                                             tag_buffer = ""
                                             if in_think:
-                                                thinking_content += buf
-                                                yield json.dumps({"type": "thinking", "content": buf}) + "\n"
+                                                think_batch += buf
                                             else:
-                                                reply_content += buf
-                                                yield json.dumps({"type": "token", "content": buf}) + "\n"
+                                                reply_batch += buf
                                     elif ch == '<':
                                         tag_buffer = ch
                                     else:
                                         if in_think:
-                                            thinking_content += ch
-                                            yield json.dumps({"type": "thinking", "content": ch}) + "\n"
+                                            think_batch += ch
                                         else:
-                                            reply_content += ch
-                                            yield json.dumps({"type": "token", "content": ch}) + "\n"
+                                            reply_batch += ch
+
+                                # Emit batched output (one event per Ollama token)
+                                if think_batch:
+                                    thinking_content += think_batch
+                                    yield json.dumps({"type": "thinking", "content": think_batch}) + "\n"
+                                if reply_batch:
+                                    reply_content += reply_batch
+                                    yield json.dumps({"type": "token", "content": reply_batch}) + "\n"
+
                             except (json.JSONDecodeError, KeyError, IndexError):
                                 continue
 
