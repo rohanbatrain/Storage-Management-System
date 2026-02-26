@@ -8,6 +8,7 @@ POST /chat/test      →  test LLM connection
 """
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid
@@ -16,7 +17,7 @@ import logging
 from pathlib import Path
 
 from app.config import get_settings
-from app.services.llm_service import chat as llm_chat, clear_conversation, list_conversations, get_conversation_messages
+from app.services.llm_service import chat as llm_chat, chat_stream as llm_chat_stream, clear_conversation, list_conversations, get_conversation_messages
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -283,6 +284,33 @@ async def test_llm_connection():
         raise HTTPException(status_code=502, detail=f"LLM error {e.response.status_code}: {e.response.text[:200]}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
+@router.post("/stream")
+async def stream_message(req: ChatRequest):
+    """Stream a chat response via SSE (newline-delimited JSON)."""
+    settings = get_settings()
+    conv_id = req.conversation_id or str(uuid.uuid4())
+    port = 8000
+    api_base = f"http://127.0.0.1:{port}{settings.api_v1_prefix}"
+
+    async def event_generator():
+        async for event in llm_chat_stream(
+            message=req.message,
+            image_base64=req.image_base64,
+            conversation_id=conv_id,
+            api_base=api_base,
+        ):
+            yield event
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("", response_model=ChatResponse)

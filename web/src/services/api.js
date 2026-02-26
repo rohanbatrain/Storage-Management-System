@@ -27,6 +27,14 @@ if (window.electron) {
     });
 }
 
+// Helper to get resolved API base URL for fetch-based streaming
+export async function getApiBaseUrl() {
+    if (window.electron && !electronBaseUrl) {
+        try { electronBaseUrl = await window.electron.getApiUrl(); } catch { }
+    }
+    return electronBaseUrl ? `${electronBaseUrl}/api` : `${API_BASE_URL}/api`;
+}
+
 // Location API
 export const locationApi = {
     list: () => api.get('/locations'),
@@ -157,6 +165,18 @@ export const chatApi = {
     switchModel: (model) => api.patch('/chat/model', { model }),
     getOllamaPresets: () => api.get('/chat/ollama/presets'),
     pullOllamaModel: (model) => api.post('/chat/ollama/pull', { model }),
+    // Streaming endpoint using native fetch (axios doesn't support ReadableStream)
+    sendStream: async (message, conversationId, signal) => {
+        const base = await getApiBaseUrl();
+        const resp = await fetch(`${base}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, conversation_id: conversationId }),
+            signal,
+        });
+        if (!resp.ok) throw new Error(`Stream error: ${resp.status}`);
+        return resp.body;
+    },
 };
 
 // Backend health check

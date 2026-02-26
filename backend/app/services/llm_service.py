@@ -9,7 +9,7 @@ import httpx
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, AsyncIterator, Optional
 
 from app.config import get_settings
 
@@ -762,6 +762,194 @@ async def chat(
         "actions": actions,
         "thinking": "",
     }
+
+
+async def chat_stream(
+    message: str,
+    image_base64: Optional[str] = None,
+    conversation_id: str = "default",
+    api_base: str = "http://127.0.0.1:8000/api",
+) -> AsyncIterator[str]:
+    """
+    Streaming version of chat(). Yields newline-delimited JSON events:
+      {"type": "tool_start", "tool": "...", "args": {...}}
+      {"type": "tool_done",  "tool": "...", "args": {...}, "summary": "..."}
+      {"type": "token",      "content": "..."}
+      {"type": "done",       "conversation_id": "...", "thinking": "..."}
+      {"type": "error",      "message": "..."}
+    """
+    llm_cfg = _get_llm_config()
+    llm_base_url = llm_cfg.get("base_url", "")
+    llm_api_key = llm_cfg.get("api_key", "")
+    llm_model = llm_cfg.get("model", "")
+
+    if not llm_base_url or not llm_model:
+        yield json.dumps({"type": "token", "content": (
+            "\ud83d\udca1 LLM is not configured yet.\n\n"
+            "Go to **Settings \u2192 AI Assistant** to choose a provider."
+        )}) + "\n"
+        yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": ""}) + "\n"
+        return
+
+    # Get or create conversation history
+    if conversation_id not in _conversations:
+        _conversations[conversation_id] = []
+    history = _conversations[conversation_id]
+
+    # Add user message
+    if image_base64:
+        if not image_base64.startswith("data:"):
+            clean_b64 = image_base64.replace(" ", "+")
+            image_base64 = f"data:image/jpeg;base64,{clean_b64}"
+        content = [
+            {"type": "text", "text": message},
+            {"type": "image_url", "image_url": {"url": image_base64}}
+        ]
+    else:
+        content = message
+
+    history.append({"role": "user", "content": content})
+
+    # Track metadata
+    import datetime
+    now = datetime.datetime.utcnow().isoformat() + "Z"
+    if conversation_id not in _conversation_meta:
+        _conversation_meta[conversation_id] = {
+            "title": (message[:60].strip() if message else "Image Search") or "New Chat",
+            "created_at": now,
+            "updated_at": now,
+        }
+    else:
+        _conversation_meta[conversation_id]["updated_at"] = now
+
+    if len(history) > MAX_HISTORY:
+        history = history[-MAX_HISTORY:]
+        _conversations[conversation_id] = history
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+    actions = []
+    max_tool_rounds = 5
+
+    headers = {"Content-Type": "application/json"}
+    if llm_api_key:
+        headers["Authorization"] = f"Bearer {llm_api_key}"
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        for _ in range(max_tool_rounds):
+            try:
+                # Non-streaming call for tool-calling rounds
+                response = await client.post(
+                    f"{llm_base_url}/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": llm_model,
+                        "messages": messages,
+                        "tools": TOOLS,
+                        "tool_choice": "auto",
+                        "temperature": 0.3,
+                        "max_tokens": 1024,
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+            except Exception as e:
+                yield json.dumps({"type": "error", "message": str(e)[:200]}) + "\n"
+                return
+
+            choice = data["choices"][0]
+            msg = choice["message"]
+
+            if msg.get("tool_calls"):
+                messages.append(msg)
+                for tool_call in msg["tool_calls"]:
+                    fn = tool_call["function"]
+                    tool_name = fn["name"]
+                    try:
+                        tool_args = json.loads(fn["arguments"])
+                    except json.JSONDecodeError:
+                        tool_args = {}
+
+                    # Emit tool_start
+                    yield json.dumps({"type": "tool_start", "tool": tool_name, "args": tool_args}) + "\n"
+
+                    result = await execute_tool(tool_name, tool_args, api_base)
+                    result_str = json.dumps(result, default=str)
+                    if len(result_str) > 3000:
+                        result_str = result_str[:3000] + "... (truncated)"
+
+                    summary = _summarize_tool_result(tool_name, result)
+                    actions.append({"tool": tool_name, "args": tool_args, "summary": summary})
+
+                    # Emit tool_done
+                    yield json.dumps({"type": "tool_done", "tool": tool_name, "args": tool_args, "summary": summary}) + "\n"
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": result_str,
+                    })
+            else:
+                # Final reply — stream it token by token
+                try:
+                    async with client.stream(
+                        "POST",
+                        f"{llm_base_url}/chat/completions",
+                        headers=headers,
+                        json={
+                            "model": llm_model,
+                            "messages": messages,
+                            "stream": True,
+                            "temperature": 0.3,
+                            "max_tokens": 1024,
+                        },
+                    ) as stream_resp:
+                        full_content = ""
+                        async for line in stream_resp.aiter_lines():
+                            if not line.startswith("data: "):
+                                continue
+                            payload = line[6:]
+                            if payload.strip() == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(payload)
+                                delta = chunk["choices"][0].get("delta", {})
+                                token = delta.get("content", "")
+                                if token:
+                                    full_content += token
+                                    yield json.dumps({"type": "token", "content": token}) + "\n"
+                            except (json.JSONDecodeError, KeyError, IndexError):
+                                continue
+                except Exception:
+                    # Fallback: use the already-fetched non-streaming response
+                    raw_content = msg.get("content", "")
+                    # Strip <think> blocks
+                    thinking = ""
+                    think_match = re.search(r'<think>(.*?)</think>', raw_content, flags=re.DOTALL)
+                    if think_match:
+                        thinking = think_match.group(1).strip()
+                    reply = re.sub(r'<think>.*?</think>', '', raw_content, flags=re.DOTALL).strip()
+                    if reply:
+                        yield json.dumps({"type": "token", "content": reply}) + "\n"
+                    full_content = reply
+
+                # Extract thinking from accumulated content
+                thinking = ""
+                think_match = re.search(r'<think>(.*?)</think>', full_content, flags=re.DOTALL)
+                if think_match:
+                    thinking = think_match.group(1).strip()
+
+                clean_reply = re.sub(r'<think>.*?</think>', '', full_content, flags=re.DOTALL).strip()
+                if not clean_reply and full_content:
+                    clean_reply = "I've thought about it, but have nothing else to say."
+
+                history.append({"role": "assistant", "content": clean_reply})
+                _conversations[conversation_id] = history
+
+                yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": thinking}) + "\n"
+                return
+
+    yield json.dumps({"type": "token", "content": "I ran into a complex query. Could you try rephrasing?"}) + "\n"
+    yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": ""}) + "\n"
 
 
 def _summarize_tool_result(tool_name: str, result: Any) -> str:

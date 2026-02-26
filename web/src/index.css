@@ -586,6 +586,41 @@ a:hover {
   }
 }
 
+/* Streaming Chat Animations */
+@keyframes toolPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.tool-pulse {
+  animation: toolPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streaming-cursor {
+  display: inline;
+  color: var(--color-accent-primary);
+  animation: cursorBlink 0.8s ease-in-out infinite;
+  font-weight: 300;
+  margin-left: 1px;
+}
+
+@keyframes typingBounce {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+
+.typing-dot {
+  display: inline-block;
+  animation: typingBounce 1s ease-in-out infinite;
+  font-size: 1.2rem;
+  color: var(--color-text-muted);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar {

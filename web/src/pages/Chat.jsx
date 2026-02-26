@@ -66,18 +66,20 @@ function ToolCallBlock({ action, index }) {
     const label = TOOL_LABELS[action.tool] || action.tool;
     const argStr = formatArgs(action.args);
     const isError = action.summary?.startsWith('❌');
+    const isRunning = action.status === 'running';
 
     return (
         <div style={{
             marginBottom: '6px',
             marginLeft: '4px',
             borderRadius: '10px',
-            border: `1px solid ${isError ? 'rgba(239,68,68,0.25)' : 'rgba(6,182,212,0.2)'}`,
-            background: isError ? 'rgba(239,68,68,0.05)' : 'rgba(6,182,212,0.04)',
+            border: `1px solid ${isError ? 'rgba(239,68,68,0.25)' : isRunning ? 'rgba(99,102,241,0.3)' : 'rgba(6,182,212,0.2)'}`,
+            background: isError ? 'rgba(239,68,68,0.05)' : isRunning ? 'rgba(99,102,241,0.06)' : 'rgba(6,182,212,0.04)',
             overflow: 'hidden',
+            transition: 'all 0.3s ease',
         }}>
             <button
-                onClick={() => setExpanded(!expanded)}
+                onClick={() => !isRunning && setExpanded(!expanded)}
                 style={{
                     width: '100%',
                     display: 'flex',
@@ -86,12 +88,16 @@ function ToolCallBlock({ action, index }) {
                     padding: '8px 12px',
                     background: 'none',
                     border: 'none',
-                    cursor: 'pointer',
+                    cursor: isRunning ? 'default' : 'pointer',
                     textAlign: 'left',
                 }}
             >
-                <Zap size={12} style={{ color: isError ? '#ef4444' : '#06b6d4', flexShrink: 0 }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isError ? '#ef4444' : '#06b6d4' }}>
+                {isRunning ? (
+                    <span className="tool-pulse" style={{ width: 12, height: 12, borderRadius: '50%', background: '#6366f1', display: 'inline-block', flexShrink: 0 }} />
+                ) : (
+                    <Zap size={12} style={{ color: isError ? '#ef4444' : '#06b6d4', flexShrink: 0 }} />
+                )}
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: isRunning ? '#6366f1' : isError ? '#ef4444' : '#06b6d4' }}>
                     {icon} {label}
                 </span>
                 {argStr && !expanded && (
@@ -107,12 +113,12 @@ function ToolCallBlock({ action, index }) {
                     </span>
                 )}
                 <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
-                    {action.summary}
+                    {isRunning ? 'Running...' : action.summary}
                 </span>
-                {expanded
+                {!isRunning && (expanded
                     ? <ChevronDown size={12} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
                     : <ChevronRight size={12} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
-                }
+                )}
             </button>
             {expanded && argStr && (
                 <div style={{
@@ -407,8 +413,8 @@ function Chat() {
                                             <ThinkingBlock thinking={m.thinking} />
                                         )}
 
-                                        {/* Tool Calls — only show successful ones */}
-                                        {m.actions && m.actions.filter(a => !a.summary?.startsWith('❌')).length > 0 && (
+                                        {/* Tool Calls — show all including running */}
+                                        {m.actions && m.actions.length > 0 && (
                                             <div style={{ marginBottom: '0.5rem', marginLeft: '4px', width: '100%', maxWidth: '85%' }}>
                                                 {m.actions
                                                     .filter(a => !a.summary?.startsWith('❌'))
@@ -419,25 +425,28 @@ function Chat() {
                                         )}
 
                                         {/* Message Bubble */}
-                                        <div style={{
-                                            background: m.role === 'user' ? 'var(--color-accent-primary)' : 'var(--color-bg-secondary)',
-                                            color: m.role === 'user' ? '#fff' : 'var(--color-text-primary)',
-                                            padding: '1rem 1.25rem',
-                                            borderRadius: '1.5rem',
-                                            borderBottomRightRadius: m.role === 'user' ? '0.5rem' : '1.5rem',
-                                            borderBottomLeftRadius: m.role === 'assistant' ? '0.5rem' : '1.5rem',
-                                            lineHeight: 1.6,
-                                            fontSize: '1rem',
-                                            maxWidth: '85%',
-                                            boxShadow: m.role === 'user' ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 2px 10px rgba(0,0,0,0.05)',
-                                            border: m.role === 'assistant' ? '1px solid var(--color-border)' : 'none'
-                                        }}>
-                                            {parseReply(m.content)}
-                                        </div>
+                                        {(m.content || !m.streaming) && (
+                                            <div style={{
+                                                background: m.role === 'user' ? 'var(--color-accent-primary)' : 'var(--color-bg-secondary)',
+                                                color: m.role === 'user' ? '#fff' : 'var(--color-text-primary)',
+                                                padding: '1rem 1.25rem',
+                                                borderRadius: '1.5rem',
+                                                borderBottomRightRadius: m.role === 'user' ? '0.5rem' : '1.5rem',
+                                                borderBottomLeftRadius: m.role === 'assistant' ? '0.5rem' : '1.5rem',
+                                                lineHeight: 1.6,
+                                                fontSize: '1rem',
+                                                maxWidth: '85%',
+                                                boxShadow: m.role === 'user' ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 2px 10px rgba(0,0,0,0.05)',
+                                                border: m.role === 'assistant' ? '1px solid var(--color-border)' : 'none'
+                                            }}>
+                                                {parseReply(m.content)}
+                                                {m.streaming && <span className="streaming-cursor">▊</span>}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
 
-                                {loading && (
+                                {loading && messages.length > 0 && messages[messages.length - 1]?.streaming && !messages[messages.length - 1]?.content && messages[messages.length - 1]?.actions?.length === 0 && (
                                     <div style={{ alignSelf: 'flex-start', color: 'var(--color-text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '1.5rem', borderBottomLeftRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
                                         <div className="typing-dot" style={{ animationDelay: '0ms' }}>•</div>
                                         <div className="typing-dot" style={{ animationDelay: '150ms' }}>•</div>
