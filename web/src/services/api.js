@@ -155,6 +155,8 @@ export const chatApi = {
     deleteConversation: (id) => api.delete(`/chat/conversations/${id}`),
     ollamaModels: () => api.get('/chat/ollama/models'),
     switchModel: (model) => api.patch('/chat/model', { model }),
+    getOllamaPresets: () => api.get('/chat/ollama/presets'),
+    pullOllamaModel: (model) => api.post('/chat/ollama/pull', { model }),
 };
 
 // Backend health check

@@ -37,6 +37,11 @@ function Settings() {
     const [ollamaInstalledModels, setOllamaInstalledModels] = useState([]);
     const [showAdvancedAi, setShowAdvancedAi] = useState(false);
 
+    // Ollama model download
+    const [ollamaPresets, setOllamaPresets] = useState(null);
+    const [pullingModel, setPullingModel] = useState(null);
+    const [pullResult, setPullResult] = useState({});
+
     const loadSummary = async () => {
         try {
             const res = await exportApi.exportSummary();
@@ -53,6 +58,7 @@ function Settings() {
         loadVisualLens();
         loadAiSettings();
         loadOllamaModels();
+        loadOllamaPresets();
     }, []);
 
     const loadOllamaModels = async () => {
@@ -61,6 +67,36 @@ function Settings() {
             setOllamaInstalledModels(res.data.models || []);
         } catch (err) {
             // Ollama might not be running, that's OK
+        }
+    };
+
+    const loadOllamaPresets = async () => {
+        try {
+            const res = await chatApi.getOllamaPresets();
+            setOllamaPresets(res.data);
+        } catch (err) {
+            console.log('Could not load Ollama presets');
+        }
+    };
+
+    const handlePullModel = async (modelId) => {
+        setPullingModel(modelId);
+        setPullResult(prev => ({ ...prev, [modelId]: 'Downloading...' }));
+        try {
+            const res = await chatApi.pullOllamaModel(modelId);
+            const status = res.data.status;
+            if (status === 'already_installed') {
+                setPullResult(prev => ({ ...prev, [modelId]: '✅ Already installed' }));
+            } else {
+                setPullResult(prev => ({ ...prev, [modelId]: '⬇️ Download started (runs in background)' }));
+            }
+            // Refresh installed models
+            setTimeout(loadOllamaModels, 2000);
+        } catch (err) {
+            const msg = err.response?.data?.detail || 'Failed to connect to Ollama';
+            setPullResult(prev => ({ ...prev, [modelId]: `❌ ${msg}` }));
+        } finally {
+            setPullingModel(null);
         }
     };
 
@@ -683,6 +719,70 @@ function Settings() {
                     </div>
                 </div>
             </section>
+
+            {/* Ollama Models Download */}
+            {ollamaPresets && aiProvider === 'ollama' && (
+                <section style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        🧠 Ollama Models
+                    </h2>
+                    <div className="card" style={{ overflow: 'hidden' }}>
+                        {Object.entries(ollamaPresets).map(([category, models], catIdx) => (
+                            <div key={category}>
+                                <div style={{
+                                    padding: '8px 16px',
+                                    background: 'var(--color-bg-tertiary)',
+                                    borderTop: catIdx > 0 ? '1px solid var(--color-border)' : 'none',
+                                    borderBottom: '1px solid var(--color-border)',
+                                }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        {category}
+                                    </span>
+                                </div>
+                                {models.map((model, idx) => (
+                                    <div key={model.id} style={{
+                                        display: 'flex', alignItems: 'center', gap: '12px',
+                                        padding: '12px 16px',
+                                        borderTop: idx > 0 ? '1px solid var(--color-border)' : 'none',
+                                    }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{model.name}</div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>{model.id}</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{model.desc}</div>
+                                            {pullResult[model.id] && (
+                                                <div style={{
+                                                    fontSize: '0.78rem', marginTop: 4,
+                                                    color: pullResult[model.id].includes('❌') ? '#ef4444' : '#22c55e',
+                                                }}>
+                                                    {pullResult[model.id]}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {ollamaInstalledModels.find(m => m.id === model.id || m.id === `${model.id}:latest`) ? (
+                                            <span style={{
+                                                fontSize: '0.7rem', fontWeight: 600, color: '#22c55e',
+                                                background: '#22c55e15', padding: '4px 10px', borderRadius: 12,
+                                            }}>Installed</span>
+                                        ) : (
+                                            <button
+                                                onClick={() => handlePullModel(model.id)}
+                                                disabled={pullingModel !== null}
+                                                className="btn btn-secondary"
+                                                style={{
+                                                    fontSize: '0.8rem', padding: '6px 14px',
+                                                    opacity: pullingModel === model.id ? 0.6 : 1,
+                                                }}
+                                            >
+                                                {pullingModel === model.id ? '⏳' : '⬇️ Download'}
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* Visual Lens */}
             <section style={{ marginBottom: '2rem' }}>

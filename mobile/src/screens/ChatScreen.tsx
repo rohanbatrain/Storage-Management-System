@@ -10,6 +10,7 @@ import {
     Platform,
     ActivityIndicator,
     Image,
+    Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -55,6 +56,29 @@ export default function ChatScreen() {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const flatListRef = useRef<FlatList>(null);
     const [selectedImage, setSelectedImage] = useState<{ uri: string, base64: string } | null>(null);
+
+    // Model selector
+    const [installedModels, setInstalledModels] = useState<any[]>([]);
+    const [activeModel, setActiveModel] = useState('');
+    const [showModelPicker, setShowModelPicker] = useState(false);
+
+    const loadModels = async () => {
+        try {
+            const res = await chatApi.ollamaModels();
+            setInstalledModels(res.data.models || []);
+            setActiveModel(res.data.active || '');
+        } catch (err) { }
+    };
+
+    const handleModelSwitch = async (modelId: string) => {
+        try {
+            await chatApi.switchModel(modelId);
+            setActiveModel(modelId);
+            setShowModelPicker(false);
+        } catch (err) {
+            console.error('Model switch failed:', err);
+        }
+    };
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -118,13 +142,31 @@ export default function ChatScreen() {
 
     useEffect(() => {
         navigation.setOptions({
+            headerTitle: () => (
+                <TouchableOpacity
+                    onPress={() => { if (installedModels.length > 0) setShowModelPicker(true); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                >
+                    <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>Ask SMS</Text>
+                    {activeModel ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgTertiary, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                            <Text style={{ fontSize: 11, color: colors.textMuted }}>{activeModel.split(':')[0]}</Text>
+                            <Text style={{ fontSize: 10, color: colors.textMuted, marginLeft: 2 }}>▾</Text>
+                        </View>
+                    ) : null}
+                </TouchableOpacity>
+            ),
             headerRight: () => (
                 <TouchableOpacity onPress={handleClear} style={{ marginRight: spacing.md }}>
                     <Text style={{ color: colors.textMuted, fontSize: 14 }}>Clear</Text>
                 </TouchableOpacity>
             ),
         });
-    }, [conversationId]);
+    }, [conversationId, activeModel, installedModels]);
+
+    useEffect(() => {
+        loadModels();
+    }, []);
 
     const renderMessage = ({ item, index }: { item: Message; index: number }) => (
         <View style={[
@@ -165,85 +207,124 @@ export default function ChatScreen() {
     );
 
     return (
-        <KeyboardAvoidingView
-            style={globalStyles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={90}
-        >
-            {messages.length === 0 ? (
-                <View style={styles.emptyState}>
-                    <Text style={{ fontSize: 48 }}>🧠</Text>
-                    <Text style={styles.emptyTitle}>Ask SMS</Text>
-                    <Text style={styles.emptySubtitle}>
-                        Ask about your items, laundry, wardrobe — anything!
-                    </Text>
-                    <View style={styles.suggestions}>
-                        {SUGGESTIONS.map((s, i) => (
+        <>
+            <KeyboardAvoidingView
+                style={globalStyles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={90}
+            >
+                {messages.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Text style={{ fontSize: 48 }}>🧠</Text>
+                        <Text style={styles.emptyTitle}>Ask SMS</Text>
+                        <Text style={styles.emptySubtitle}>
+                            Ask about your items, laundry, wardrobe — anything!
+                        </Text>
+                        <View style={styles.suggestions}>
+                            {SUGGESTIONS.map((s, i) => (
+                                <TouchableOpacity
+                                    key={i}
+                                    style={styles.suggestionChip}
+                                    onPress={() => handleSend(s)}
+                                >
+                                    <Text style={styles.suggestionText}>{s}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                ) : (
+                    <FlatList
+                        ref={flatListRef}
+                        data={messages}
+                        renderItem={renderMessage}
+                        keyExtractor={(_, i) => String(i)}
+                        contentContainerStyle={styles.messageList}
+                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    />
+                )}
+
+                {loading && (
+                    <View style={styles.typingRow}>
+                        <ActivityIndicator size="small" color={colors.accentPrimary} />
+                        <Text style={styles.typingText}>Thinking...</Text>
+                    </View>
+                )}
+
+                {/* Input */}
+                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+                    {selectedImage && (
+                        <View style={styles.imagePreviewContainer}>
+                            <Image source={{ uri: selectedImage.uri }} style={styles.imagePreview} />
                             <TouchableOpacity
-                                key={i}
-                                style={styles.suggestionChip}
-                                onPress={() => handleSend(s)}
+                                style={styles.removeImageBtn}
+                                onPress={() => setSelectedImage(null)}
                             >
-                                <Text style={styles.suggestionText}>{s}</Text>
+                                <Text style={styles.removeImageText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    <View style={styles.inputBar}>
+                        <TouchableOpacity style={styles.attachBtn} onPress={pickImage} disabled={loading}>
+                            <Text style={styles.attachIcon}>📷</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                            style={styles.input}
+                            value={input}
+                            onChangeText={setInput}
+                            placeholder="Ask about your stuff..."
+                            placeholderTextColor={colors.textMuted}
+                            returnKeyType="send"
+                            onSubmitEditing={() => handleSend()}
+                            editable={!loading}
+                        />
+                        <TouchableOpacity
+                            style={[styles.sendButton, (!input.trim() && !selectedImage || loading) && { opacity: 0.4 }]}
+                            onPress={() => handleSend()}
+                            disabled={(!input.trim() && !selectedImage) || loading}
+                        >
+                            <Text style={styles.sendIcon}>↑</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </KeyboardAvoidingView>
+
+            {/* Model Picker Modal */}
+            <Modal visible={showModelPicker} transparent animationType="slide" onRequestClose={() => setShowModelPicker(false)}>
+                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowModelPicker(false)}>
+                    <View style={{ flex: 1 }} />
+                    <View style={{ backgroundColor: colors.bgSecondary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: insets.bottom + 16 }}>
+                        <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
+                            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+                        </View>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, paddingHorizontal: 20, paddingVertical: 12 }}>Switch Model</Text>
+                        {installedModels.map((m: any) => (
+                            <TouchableOpacity
+                                key={m.id}
+                                onPress={() => handleModelSwitch(m.id)}
+                                style={{
+                                    flexDirection: 'row', alignItems: 'center', gap: 10,
+                                    paddingHorizontal: 20, paddingVertical: 14,
+                                    backgroundColor: m.id === activeModel ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                                    borderTopWidth: 1, borderTopColor: colors.border,
+                                }}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 15, fontWeight: m.id === activeModel ? '700' : '500', color: m.id === activeModel ? colors.accentPrimary : colors.textPrimary }}>
+                                        {m.id}
+                                    </Text>
+                                    <Text style={{ fontSize: 12, color: colors.textMuted }}>{m.size_gb} GB</Text>
+                                </View>
+                                {m.id === activeModel && (
+                                    <View style={{ backgroundColor: '#22c55e20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#22c55e' }}>Active</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
                         ))}
                     </View>
-                </View>
-            ) : (
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    renderItem={renderMessage}
-                    keyExtractor={(_, i) => String(i)}
-                    contentContainerStyle={styles.messageList}
-                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                />
-            )}
-
-            {loading && (
-                <View style={styles.typingRow}>
-                    <ActivityIndicator size="small" color={colors.accentPrimary} />
-                    <Text style={styles.typingText}>Thinking...</Text>
-                </View>
-            )}
-
-            {/* Input */}
-            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-                {selectedImage && (
-                    <View style={styles.imagePreviewContainer}>
-                        <Image source={{ uri: selectedImage.uri }} style={styles.imagePreview} />
-                        <TouchableOpacity
-                            style={styles.removeImageBtn}
-                            onPress={() => setSelectedImage(null)}
-                        >
-                            <Text style={styles.removeImageText}>×</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-                <View style={styles.inputBar}>
-                    <TouchableOpacity style={styles.attachBtn} onPress={pickImage} disabled={loading}>
-                        <Text style={styles.attachIcon}>📷</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                        style={styles.input}
-                        value={input}
-                        onChangeText={setInput}
-                        placeholder="Ask about your stuff..."
-                        placeholderTextColor={colors.textMuted}
-                        returnKeyType="send"
-                        onSubmitEditing={() => handleSend()}
-                        editable={!loading}
-                    />
-                    <TouchableOpacity
-                        style={[styles.sendButton, (!input.trim() && !selectedImage || loading) && { opacity: 0.4 }]}
-                        onPress={() => handleSend()}
-                        disabled={(!input.trim() && !selectedImage) || loading}
-                    >
-                        <Text style={styles.sendIcon}>↑</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </KeyboardAvoidingView>
+                </TouchableOpacity>
+            </Modal>
+        </>
     );
 }
 
