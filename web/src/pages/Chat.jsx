@@ -455,7 +455,7 @@ function Chat() {
                                     </div>
                                 ))}
 
-                                {loading && messages.length > 0 && messages[messages.length - 1]?.streaming && !messages[messages.length - 1]?.content && messages[messages.length - 1]?.actions?.length === 0 && (
+                                {loading && messages.length > 0 && messages[messages.length - 1]?.streaming && !messages[messages.length - 1]?.content && !messages[messages.length - 1]?.thinking && messages[messages.length - 1]?.actions?.length === 0 && (
                                     <div style={{ alignSelf: 'flex-start', color: 'var(--color-text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '1.5rem', borderBottomLeftRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
                                         <div className="typing-dot" style={{ animationDelay: '0ms' }}>•</div>
                                         <div className="typing-dot" style={{ animationDelay: '150ms' }}>•</div>
