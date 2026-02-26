@@ -784,11 +784,9 @@ async def chat_stream(
     llm_model = llm_cfg.get("model", "")
 
     if not llm_base_url or not llm_model:
-        yield json.dumps({"type": "token", "content": (
-            "\ud83d\udca1 LLM is not configured yet.\n\n"
-            "Go to **Settings \u2192 AI Assistant** to choose a provider."
-        )}) + "\n"
-        yield json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": ""}) + "\n"
+        msg = "💡 LLM is not configured yet.\n\nGo to **Settings → AI Assistant** to choose a provider."
+        yield f'data: {json.dumps({"type": "token", "content": msg})}\n\n'
+        yield f'data: {json.dumps({"type": "done", "conversation_id": conversation_id, "thinking": ""})}\n\n'
         return
 
     # Get or create conversation history
@@ -853,7 +851,7 @@ async def chat_stream(
                 response.raise_for_status()
                 data = response.json()
             except Exception as e:
-                yield json.dumps({"type": "error", "message": str(e)[:200]}) + "\n"
+                yield f'data: {json.dumps({"type": "error", "message": str(e)[:200]})}\n\n'
                 return
 
             choice = data["choices"][0]
@@ -870,7 +868,7 @@ async def chat_stream(
                         tool_args = {}
 
                     # Emit tool_start
-                    yield json.dumps({"type": "tool_start", "tool": tool_name, "args": tool_args}) + "\n"
+                    yield f'data: {json.dumps({"type": "tool_start", "tool": tool_name, "args": tool_args})}\n\n'
 
                     result = await execute_tool(tool_name, tool_args, api_base)
                     result_str = json.dumps(result, default=str)
@@ -881,7 +879,7 @@ async def chat_stream(
                     actions.append({"tool": tool_name, "args": tool_args, "summary": summary})
 
                     # Emit tool_done
-                    yield json.dumps({"type": "tool_done", "tool": tool_name, "args": tool_args, "summary": summary}) + "\n"
+                    yield f'data: {json.dumps({"type": "tool_done", "tool": tool_name, "args": tool_args, "summary": summary})}\n\n'
 
                     messages.append({
                         "role": "tool",
