@@ -338,68 +338,6 @@ function Chat() {
                             </h1>
                             <p className="page-subtitle" style={{ margin: 0, marginTop: '4px' }}>Natural language assistant for your storage</p>
                         </div>
-                        {/* Model Selector Pill */}
-                        {installedModels.length > 0 && (
-                            <div ref={modelPickerRef} style={{ position: 'relative' }}>
-                                <button
-                                    onClick={() => setShowModelPicker(!showModelPicker)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '6px',
-                                        padding: '6px 12px', borderRadius: '20px',
-                                        border: '1px solid var(--color-border)',
-                                        background: 'var(--color-bg-tertiary)',
-                                        color: 'var(--color-text-secondary)',
-                                        fontSize: '0.8rem', fontWeight: 500,
-                                        cursor: 'pointer', transition: 'all 0.15s',
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-accent-primary)'; e.currentTarget.style.color = 'var(--color-accent-primary)'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
-                                >
-                                    <Cpu size={13} />
-                                    {activeModel || 'No model'}
-                                    <ChevronDown size={12} />
-                                </button>
-                                {showModelPicker && (
-                                    <div style={{
-                                        position: 'absolute', top: '100%', left: 0, marginTop: '6px',
-                                        background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)',
-                                        borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-                                        zIndex: 100, minWidth: '220px', overflow: 'hidden',
-                                        animation: 'fadeIn 0.15s ease',
-                                    }}>
-                                        <div style={{ padding: '8px 12px', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--color-border)' }}>
-                                            Switch Model
-                                        </div>
-                                        {installedModels.map(m => (
-                                            <button
-                                                key={m.id}
-                                                onClick={() => handleModelSwitch(m.id)}
-                                                style={{
-                                                    width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
-                                                    padding: '10px 12px', border: 'none', cursor: 'pointer',
-                                                    background: m.id === activeModel ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                                                    borderBottom: '1px solid var(--color-border)',
-                                                    textAlign: 'left', transition: 'background 0.1s',
-                                                }}
-                                                onMouseEnter={e => { if (m.id !== activeModel) e.currentTarget.style.background = 'var(--color-bg-tertiary)'; }}
-                                                onMouseLeave={e => { if (m.id !== activeModel) e.currentTarget.style.background = 'transparent'; }}
-                                            >
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontSize: '0.85rem', fontWeight: m.id === activeModel ? 600 : 500, color: m.id === activeModel ? 'var(--color-accent-primary)' : 'var(--color-text-primary)' }}>
-                                                        {m.id}
-                                                    </div>
-                                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{m.size_gb} GB</div>
-                                                </div>
-                                                {m.id === activeModel && (
-                                                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#22c55e', background: '#22c55e20', padding: '2px 8px', borderRadius: 8 }}>Active</span>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                         {messages.length > 0 && (
@@ -513,45 +451,110 @@ function Chat() {
                     )}
 
                     {/* Input Area */}
-                    <div style={{ padding: '1.5rem 2rem', background: 'var(--color-bg-primary)', display: 'flex', justifyContent: 'center', borderTop: '1px solid var(--color-border)' }}>
+                    <div style={{ padding: '1rem 2rem', background: 'var(--color-bg-primary)', display: 'flex', justifyContent: 'center', borderTop: '1px solid var(--color-border)' }}>
                         <form
                             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                            style={{ display: 'flex', gap: '0.75rem', width: '100%', maxWidth: '800px', position: 'relative' }}
+                            style={{ display: 'flex', gap: '0.5rem', width: '100%', maxWidth: '800px', alignItems: 'center' }}
                         >
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={input}
-                                onChange={e => setInput(e.target.value)}
-                                placeholder="Ask SMS about your belongings..."
-                                disabled={loading}
-                                style={{
-                                    flex: 1, padding: '1rem 1.5rem', paddingRight: '4rem', borderRadius: '2rem',
-                                    border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)',
-                                    color: 'var(--color-text-primary)', outline: 'none', fontSize: '1rem',
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)', transition: 'border-color 0.2s',
-                                }}
-                                onFocus={e => e.target.style.borderColor = 'var(--color-accent-primary)'}
-                                onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
-                            />
-                            <button
-                                type={loading ? 'button' : 'submit'}
-                                onClick={loading ? handleStop : undefined}
-                                disabled={!loading && !input.trim()}
-                                title={loading ? 'Stop response' : 'Send message'}
-                                style={{
-                                    position: 'absolute', right: '0.5rem', top: '0.5rem',
-                                    background: loading ? '#ef4444' : 'var(--color-accent-primary)',
-                                    color: '#fff', border: 'none',
-                                    borderRadius: '1.5rem', width: '2.5rem', height: '2.5rem',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: (!loading && !input.trim()) ? 'not-allowed' : 'pointer',
-                                    opacity: (!loading && !input.trim()) ? 0.5 : 1,
-                                    transition: 'all 0.2s',
-                                }}
-                            >
-                                {loading ? <Square size={14} fill="#fff" /> : <Send size={16} />}
-                            </button>
+                            {/* Model Selector - left of input */}
+                            {installedModels.length > 0 && (
+                                <div ref={modelPickerRef} style={{ position: 'relative', flexShrink: 0 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowModelPicker(!showModelPicker)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '5px',
+                                            padding: '8px 10px', borderRadius: '1.5rem',
+                                            border: '1px solid var(--color-border)',
+                                            background: 'var(--color-bg-secondary)',
+                                            color: 'var(--color-text-muted)',
+                                            fontSize: '0.75rem', fontWeight: 500,
+                                            cursor: 'pointer', transition: 'all 0.15s',
+                                            whiteSpace: 'nowrap', height: '3.5rem',
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-accent-primary)'; e.currentTarget.style.color = 'var(--color-accent-primary)'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                                    >
+                                        <Cpu size={13} />
+                                        <span className="hide-mobile">{(activeModel || 'model').split(':')[0]}</span>
+                                        <ChevronDown size={11} />
+                                    </button>
+                                    {showModelPicker && (
+                                        <div style={{
+                                            position: 'absolute', bottom: '100%', left: 0, marginBottom: '6px',
+                                            background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)',
+                                            borderRadius: '12px', boxShadow: '0 -8px 32px rgba(0,0,0,0.18)',
+                                            zIndex: 100, minWidth: '240px', overflow: 'hidden',
+                                        }}>
+                                            <div style={{ padding: '8px 12px', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--color-border)' }}>
+                                                Switch Model
+                                            </div>
+                                            {installedModels.map(m => (
+                                                <button
+                                                    type="button"
+                                                    key={m.id}
+                                                    onClick={() => handleModelSwitch(m.id)}
+                                                    style={{
+                                                        width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+                                                        padding: '10px 12px', border: 'none', cursor: 'pointer',
+                                                        background: m.id === activeModel ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                                                        borderBottom: '1px solid var(--color-border)',
+                                                        textAlign: 'left', transition: 'background 0.1s',
+                                                    }}
+                                                    onMouseEnter={e => { if (m.id !== activeModel) e.currentTarget.style.background = 'var(--color-bg-tertiary)'; }}
+                                                    onMouseLeave={e => { if (m.id !== activeModel) e.currentTarget.style.background = 'transparent'; }}
+                                                >
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: '0.85rem', fontWeight: m.id === activeModel ? 600 : 500, color: m.id === activeModel ? 'var(--color-accent-primary)' : 'var(--color-text-primary)' }}>
+                                                            {m.id}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{m.size_gb} GB</div>
+                                                    </div>
+                                                    {m.id === activeModel && (
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#22c55e', background: '#22c55e20', padding: '2px 8px', borderRadius: 8 }}>Active</span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <div style={{ position: 'relative', flex: 1 }}>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    placeholder="Ask SMS about your belongings..."
+                                    disabled={loading}
+                                    style={{
+                                        width: '100%', padding: '1rem 1.5rem', paddingRight: '3.5rem', borderRadius: '2rem',
+                                        border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)',
+                                        color: 'var(--color-text-primary)', outline: 'none', fontSize: '1rem',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.05)', transition: 'border-color 0.2s',
+                                    }}
+                                    onFocus={e => e.target.style.borderColor = 'var(--color-accent-primary)'}
+                                    onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
+                                />
+                                <button
+                                    type={loading ? 'button' : 'submit'}
+                                    onClick={loading ? handleStop : undefined}
+                                    disabled={!loading && !input.trim()}
+                                    title={loading ? 'Stop response' : 'Send message'}
+                                    style={{
+                                        position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)',
+                                        background: loading ? '#ef4444' : 'var(--color-accent-primary)',
+                                        color: '#fff', border: 'none',
+                                        borderRadius: '1.5rem', width: '2.5rem', height: '2.5rem',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: (!loading && !input.trim()) ? 'not-allowed' : 'pointer',
+                                        opacity: (!loading && !input.trim()) ? 0.5 : 1,
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    {loading ? <Square size={14} fill="#fff" /> : <Send size={16} />}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
