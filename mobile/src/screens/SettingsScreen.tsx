@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../styles/theme';
-import { exportApi, saveApiBaseUrl, locationApi, testBackend } from '../services/api';
+import { exportApi, saveApiBaseUrl, locationApi, testBackend, chatApi } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ConfirmDialog } from '../components/FormModal';
 
@@ -44,6 +44,11 @@ export default function SettingsScreen() {
     const [connTesting, setConnTesting] = useState(false);
     const [connResult, setConnResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+    // AI Models
+    const [ollamaPresets, setOllamaPresets] = useState<any>(null);
+    const [pullingModel, setPullingModel] = useState<string | null>(null);
+    const [pullResult, setPullResult] = useState<{ [key: string]: string }>({});
+
     const loadSummary = async () => {
         try {
             const res = await exportApi.exportSummary();
@@ -60,9 +65,19 @@ export default function SettingsScreen() {
         }
     };
 
+    const loadOllamaPresets = async () => {
+        try {
+            const res = await chatApi.getOllamaPresets();
+            setOllamaPresets(res.data);
+        } catch (error) {
+            console.log('Failed to load Ollama presets:', error);
+        }
+    };
+
     React.useEffect(() => {
         loadSummary();
         loadApiUrl();
+        loadOllamaPresets();
 
         const interval = setInterval(loadApiUrl, 3000);
         return () => clearInterval(interval);
@@ -110,6 +125,32 @@ export default function SettingsScreen() {
             setApiUrl(tempUrl);
             Alert.alert('Saved', 'Server connection updated.');
             loadSummary();
+            loadOllamaPresets(); // Try to load presets from new server
+        }
+    };
+
+    const handlePullModel = async (modelId: string) => {
+        if (pullingModel) return;
+        setPullingModel(modelId);
+        try {
+            const res = await chatApi.pullOllamaModel(modelId);
+            if (res.data.status === 'already_installed') {
+                setPullResult(prev => ({ ...prev, [modelId]: 'Installed ✨' }));
+                Alert.alert('Installed', `${modelId} is already installed on the server.`);
+            } else {
+                setPullResult(prev => ({ ...prev, [modelId]: 'Downloading... ⏳' }));
+                Alert.alert('Download Started', `${modelId} is downloading in the background on the server. This may take several minutes depending on your internet connection.`);
+
+                // Reset visual status after a few seconds
+                setTimeout(() => {
+                    setPullResult(prev => ({ ...prev, [modelId]: 'Check Server' }));
+                }, 10000);
+            }
+        } catch (error: any) {
+            setPullResult(prev => ({ ...prev, [modelId]: 'Failed ❌' }));
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to trigger model download');
+        } finally {
+            setPullingModel(null);
         }
     };
 
@@ -381,6 +422,47 @@ export default function SettingsScreen() {
                     </Text>
                 </View>
 
+                {/* AI Models (Ollama) */}
+                {ollamaPresets && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>🤖 AI Models (Ollama)</Text>
+                        <View style={styles.card}>
+                            {Object.entries(ollamaPresets).map(([category, models]: [string, any], catIdx) => (
+                                <View key={category} style={catIdx > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : {}}>
+                                    <View style={{ backgroundColor: colors.bgTertiary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
+                                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>{category}</Text>
+                                    </View>
+                                    {models.map((model: any, idx: number) => (
+                                        <View key={model.id} style={[styles.modelItem, idx > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : {}]}>
+                                            <View style={styles.modelContent}>
+                                                <Text style={styles.modelTitle}>{model.name}</Text>
+                                                <Text style={styles.modelSubtitle}>{model.id}</Text>
+                                                <Text style={styles.modelDesc}>{model.desc}</Text>
+                                                {pullResult[model.id] && (
+                                                    <Text style={[styles.modelSubtitle, { color: pullResult[model.id].includes('Failed') ? colors.error : colors.success, marginTop: 4 }]}>
+                                                        Status: {pullResult[model.id]}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                            <TouchableOpacity
+                                                style={[styles.downloadBtn, pullingModel === model.id && { opacity: 0.6 }]}
+                                                onPress={() => handlePullModel(model.id)}
+                                                disabled={pullingModel !== null}
+                                            >
+                                                {pullingModel === model.id ? (
+                                                    <ActivityIndicator size="small" color={colors.accentPrimary} />
+                                                ) : (
+                                                    <Text style={styles.downloadBtnText}>⬇️</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
                 {/* App Info */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>ℹ️ About</Text>
@@ -627,4 +709,40 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: colors.textPrimary,
     },
+    // Models
+    modelItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: spacing.md,
+    },
+    modelContent: {
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    modelTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: 2,
+    },
+    modelSubtitle: {
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    },
+    modelDesc: {
+        fontSize: 13,
+        color: colors.textMuted,
+        marginTop: 4,
+    },
+    downloadBtn: {
+        padding: spacing.sm,
+        backgroundColor: colors.bgTertiary,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    downloadBtnText: {
+        fontSize: 16,
+    }
 });

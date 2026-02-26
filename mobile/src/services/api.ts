@@ -213,6 +213,10 @@ export const chatApi = {
         api.post('/chat', { message, conversation_id: conversationId, image_base64: imageBase64 }),
     clearHistory: (conversationId: string) =>
         api.delete(`/chat/history/${conversationId}`),
+
+    // Ollama management
+    getOllamaPresets: () => api.get('/chat/ollama/presets'),
+    pullOllamaModel: (model: string) => api.post('/chat/ollama/pull', { model }),
 };
 
 // Backend health check (used in settings connection test)
