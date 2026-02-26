@@ -902,10 +902,12 @@ async def chat_stream(
                         },
                     ) as stream_resp:
                         full_content = ""
-                        in_think = False
                         thinking_content = ""
                         reply_content = ""
-                        tag_buffer = ""  # Buffer for partial tag detection
+                        # For non-Ollama providers: tag parsing state
+                        in_think = False
+                        tag_buffer = ""
+                        uses_reasoning_field = False  # auto-detected
 
                         async for line in stream_resp.aiter_lines():
                             if not line.startswith("data: "):
@@ -916,18 +918,31 @@ async def chat_stream(
                             try:
                                 chunk = json.loads(payload)
                                 delta = chunk["choices"][0].get("delta", {})
-                                token = delta.get("content", "")
-                                if not token:
+
+                                # === Mode 1: Ollama-style delta.reasoning field ===
+                                reasoning = delta.get("reasoning", "")
+                                if reasoning:
+                                    uses_reasoning_field = True
+                                    thinking_content += reasoning
+                                    yield f'data: {json.dumps({"type": "thinking", "content": reasoning})}\n\n'
+
+                                content = delta.get("content", "")
+                                if not content:
                                     continue
 
-                                full_content += token
+                                full_content += content
 
-                                # Process token char-by-char for tag detection,
-                                # but batch output per token chunk
+                                # If this provider uses reasoning field, content is always reply
+                                if uses_reasoning_field:
+                                    reply_content += content
+                                    yield f'data: {json.dumps({"type": "token", "content": content})}\n\n'
+                                    continue
+
+                                # === Mode 2: <think> tag parsing for other providers ===
                                 think_batch = ""
                                 reply_batch = ""
 
-                                for ch in token:
+                                for ch in content:
                                     if tag_buffer:
                                         tag_buffer += ch
                                         if tag_buffer == "<think>":
@@ -952,7 +967,6 @@ async def chat_stream(
                                         else:
                                             reply_batch += ch
 
-                                # Emit batched output (one event per Ollama token)
                                 if think_batch:
                                     thinking_content += think_batch
                                     yield f'data: {json.dumps({"type": "thinking", "content": think_batch})}\n\n'
@@ -963,7 +977,7 @@ async def chat_stream(
                             except (json.JSONDecodeError, KeyError, IndexError):
                                 continue
 
-                        # Flush any leftover tag buffer
+                        # Flush any leftover tag buffer (non-Ollama providers only)
                         if tag_buffer:
                             if in_think:
                                 thinking_content += tag_buffer
