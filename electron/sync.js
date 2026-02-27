@@ -10,6 +10,17 @@ const http = require('http');
 const SERVICE_TYPE = 'sms-sync';
 const SYNC_INTERVAL_MS = 30_000; // 30 seconds
 
+// Heuristic to ignore WSL, Docker, and VirtualBox subnets
+function isPhysicalIp(ip) {
+    if (!ip) return false;
+    if (ip === '127.0.0.1' || ip === 'localhost') return false;
+    // Common Docker/WSL ranges (172.16.x.x - 172.31.x.x) and Link-Local
+    if (ip.startsWith('172.') || ip.startsWith('169.254.')) return false;
+
+    // Accept typical physical LANs (192.168.x.x, 10.x.x.x)
+    return true;
+}
+
 class SyncManager {
     constructor(port) {
         this.localPort = port;
@@ -36,13 +47,14 @@ class SyncManager {
         });
         console.log(`[Sync] Advertising _${SERVICE_TYPE}._tcp on port ${this.localPort}`);
 
-        // Browse for peers
         this.browser = this.bonjour.find({ type: SERVICE_TYPE }, (service) => {
-            // Ignore ourselves
+            // Ignore ourselves via port check
             if (service.port === this.localPort) return;
 
             const host = service.referer?.address || service.addresses?.[0];
-            if (!host) return;
+
+            // Ignore virtual machine adapters (WSL, Docker, etc) so we don't sync with ourselves
+            if (!isPhysicalIp(host)) return;
 
             const peerId = `${host}:${service.port}`;
             const newPeer = { host, port: service.port, name: service.name };
