@@ -16,15 +16,19 @@ import { useServer } from '../context/ServerContext';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 
 export default function ServerConnectionModal() {
-    const { isConnected, setServerUrl, isLoading, serverUrl } = useServer();
+    const { isConnected, setServerUrl, isLoading, serverUrl, connectionError } = useServer();
     const [urlInput, setUrlInput] = useState(serverUrl);
     const [showScanner, setShowScanner] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
     const [isChecking, setIsChecking] = useState(false);
+    const [localError, setLocalError] = useState<string | null>(null);
 
     useEffect(() => {
         setUrlInput(serverUrl);
     }, [serverUrl]);
+
+    // Show the context-level error or the local error
+    const displayError = localError || connectionError;
 
     const handleConnect = async () => {
         if (!urlInput.trim()) {
@@ -33,11 +37,14 @@ export default function ServerConnectionModal() {
         }
 
         setIsChecking(true);
+        setLocalError(null);
         try {
-            await setServerUrl(urlInput.trim());
-            // Context will update isConnected if successful
-        } catch (error) {
-            Alert.alert('Error', 'Failed to save URL');
+            const result = await setServerUrl(urlInput.trim());
+            if (!result.ok) {
+                setLocalError(result.diagnosis);
+            }
+        } catch (error: any) {
+            setLocalError(`Failed to save URL: ${error.message}`);
         } finally {
             setIsChecking(false);
         }
@@ -45,22 +52,56 @@ export default function ServerConnectionModal() {
 
     const handleBarCodeScanned = async (result: BarcodeScanningResult) => {
         setShowScanner(false);
-        // Expecting something like "http://192.168.1.100:8000"
-        // or a JSON object, but likely just the base URL string from the desktop app's QR code
         const scannedData = result.data;
 
         // Simple validation - check if it looks like a URL
         if (scannedData.startsWith('http')) {
             setUrlInput(scannedData);
-            // Auto-connect
             setIsChecking(true);
+            setLocalError(null);
             try {
-                await setServerUrl(scannedData);
+                const connResult = await setServerUrl(scannedData);
+                if (!connResult.ok) {
+                    setLocalError(connResult.diagnosis);
+                    Alert.alert(
+                        'Connection Failed',
+                        connResult.diagnosis,
+                        [
+                            { text: 'OK' },
+                            {
+                                text: 'Retry',
+                                onPress: () => handleRetry(scannedData),
+                            },
+                        ]
+                    );
+                }
+            } catch (error: any) {
+                const msg = `Failed to connect: ${error.message}`;
+                setLocalError(msg);
+                Alert.alert('Connection Failed', msg);
             } finally {
                 setIsChecking(false);
             }
         } else {
-            Alert.alert('Invalid QR', 'Scanned code does not look like a server URL.');
+            Alert.alert('Invalid QR', 'Scanned code does not look like a server URL. Expected something like http://192.168.1.x:8000');
+        }
+    };
+
+    const handleRetry = async (url?: string) => {
+        const targetUrl = url || urlInput;
+        if (!targetUrl?.trim()) return;
+
+        setIsChecking(true);
+        setLocalError(null);
+        try {
+            const result = await setServerUrl(targetUrl.trim());
+            if (!result.ok) {
+                setLocalError(result.diagnosis);
+            }
+        } catch (error: any) {
+            setLocalError(`Retry failed: ${error.message}`);
+        } finally {
+            setIsChecking(false);
         }
     };
 
@@ -135,11 +176,27 @@ export default function ServerConnectionModal() {
                         placeholder="http://192.168.1.x:8000"
                         placeholderTextColor={colors.textMuted}
                         value={urlInput}
-                        onChangeText={setUrlInput}
+                        onChangeText={(text) => {
+                            setUrlInput(text);
+                            setLocalError(null); // Clear error when user edits
+                        }}
                         autoCapitalize="none"
                         autoCorrect={false}
                         keyboardType="url"
                     />
+
+                    {/* Error Banner */}
+                    {displayError && !isChecking && (
+                        <View style={styles.errorBanner}>
+                            <Text style={styles.errorText}>{displayError}</Text>
+                            <TouchableOpacity
+                                style={styles.retryBtn}
+                                onPress={() => handleRetry()}
+                            >
+                                <Text style={styles.retryBtnText}>↻ Retry</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
@@ -252,5 +309,33 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-    }
+    },
+    // Error banner
+    errorBanner: {
+        width: '100%',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    errorText: {
+        fontSize: 13,
+        color: '#fca5a5',
+        lineHeight: 20,
+    },
+    retryBtn: {
+        marginTop: spacing.sm,
+        alignSelf: 'flex-end',
+        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.sm,
+    },
+    retryBtnText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#fca5a5',
+    },
 });

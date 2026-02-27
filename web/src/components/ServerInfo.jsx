@@ -7,12 +7,22 @@ export default function ServerInfo() {
     const [info, setInfo] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
         if (window.electron) {
             window.electron.getNetworkInfo().then(setInfo);
         }
     }, []);
+
+    const handleRefresh = async () => {
+        if (window.electron) {
+            setIsRefreshing(true);
+            const newInfo = await window.electron.getNetworkInfo();
+            setInfo(newInfo);
+            setTimeout(() => setIsRefreshing(false), 500); // Small delay to show animation
+        }
+    };
 
     if (!info) return null;
 
@@ -85,7 +95,8 @@ export default function ServerInfo() {
                                 background: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: 'var(--color-text-muted)'
+                                color: 'var(--color-text-muted)',
+                                padding: '4px'
                             }}
                         >
                             <X size={20} />
@@ -101,7 +112,30 @@ export default function ServerInfo() {
                             }}>
                                 <QRCode value={info.url} size={200} />
                             </div>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px' }}>Connect Mobile App</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Connect Mobile App</h3>
+                                <button
+                                    onClick={handleRefresh}
+                                    title="Refresh IP Address"
+                                    style={{
+                                        background: 'var(--color-bg-tertiary)',
+                                        border: '1px solid var(--color-border)',
+                                        cursor: 'pointer',
+                                        color: isRefreshing ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        padding: '6px',
+                                        borderRadius: '8px',
+                                        transition: 'all 0.2s',
+                                        transform: isRefreshing ? 'rotate(180deg)' : 'rotate(0deg)'
+                                    }}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <polyline points="1 20 1 14 7 14"></polyline>
+                                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                    </svg>
+                                </button>
+                            </div>
                             <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                                 Scan this QR code in the SMS mobile app to connect to this server.
                             </p>
@@ -125,7 +159,8 @@ export default function ServerInfo() {
                                     border: 'none',
                                     cursor: 'pointer',
                                     color: copied ? 'var(--color-success)' : 'var(--color-text-muted)',
-                                    display: 'flex', alignItems: 'center'
+                                    display: 'flex', alignItems: 'center',
+                                    padding: '4px'
                                 }}
                             >
                                 {copied ? <Check size={18} /> : <Copy size={18} />}

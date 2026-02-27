@@ -1,14 +1,14 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setApiBaseUrl } from '../services/api';
-import axios from 'axios';
+import { setApiBaseUrl, testConnectionDetailed, ConnectionDiagnosis } from '../services/api';
 
 interface ServerContextType {
     serverUrl: string;
-    setServerUrl: (url: string) => Promise<void>;
+    setServerUrl: (url: string) => Promise<ConnectionDiagnosis>;
     isConnected: boolean;
     setIsConnected: (connected: boolean) => void;
-    checkConnection: () => Promise<boolean>;
+    checkConnection: (urlOverride?: string) => Promise<ConnectionDiagnosis>;
+    connectionError: string | null;
     isLoading: boolean;
 }
 
@@ -18,7 +18,8 @@ export const SERVER_URL_KEY = 'sms_server_url';
 
 export function ServerProvider({ children }: { children: React.ReactNode }) {
     const [serverUrl, setServerUrlState] = useState<string>('');
-    const [isConnected, setIsConnected] = useState<boolean>(true); // Assume connected initially or until check fails
+    const [isConnected, setIsConnected] = useState<boolean>(true);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
@@ -42,36 +43,39 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const setServerUrl = async (url: string) => {
-        try {
-            // Normalize URL (remove trailing slash)
-            const cleanUrl = url.replace(/\/$/, '');
-            await AsyncStorage.setItem(SERVER_URL_KEY, cleanUrl);
-            setServerUrlState(cleanUrl);
-            setApiBaseUrl(cleanUrl);
-            await checkConnection(cleanUrl);
-        } catch (error) {
-            console.error('Failed to save server URL', error);
-        }
+    const setServerUrl = async (url: string): Promise<ConnectionDiagnosis> => {
+        // Normalize URL (remove trailing slash)
+        const cleanUrl = url.replace(/\/$/, '');
+        await AsyncStorage.setItem(SERVER_URL_KEY, cleanUrl);
+        setServerUrlState(cleanUrl);
+        setApiBaseUrl(cleanUrl);
+        return await checkConnection(cleanUrl);
     };
 
-    const checkConnection = async (urlOverride?: string): Promise<boolean> => {
+    const checkConnection = async (urlOverride?: string): Promise<ConnectionDiagnosis> => {
         const urlToCheck = urlOverride || serverUrl;
         if (!urlToCheck) {
             setIsConnected(false);
-            return false;
+            setConnectionError('No server URL configured.');
+            return {
+                ok: false,
+                diagnosis: 'No server URL configured.',
+                code: 'invalid_url',
+            };
         }
 
-        try {
-            // Simple health check
-            await axios.get(`${urlToCheck}/health`, { timeout: 3000 });
-            setIsConnected(true);
-            return true;
-        } catch (error) {
-            console.log('Connection check failed:', error);
-            setIsConnected(false);
-            return false;
+        const result = await testConnectionDetailed(urlToCheck);
+
+        setIsConnected(result.ok);
+        setConnectionError(result.ok ? null : result.diagnosis);
+
+        if (result.ok) {
+            console.log(`Connected to server: ${result.diagnosis}`);
+        } else {
+            console.log(`Connection failed: ${result.diagnosis}`);
         }
+
+        return result;
     };
 
     return (
@@ -81,6 +85,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
             isConnected,
             setIsConnected,
             checkConnection,
+            connectionError,
             isLoading
         }}>
             {children}

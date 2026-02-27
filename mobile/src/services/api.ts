@@ -195,6 +195,164 @@ export const chatApi = {
     switchModel: (model: string) => api.patch('/chat/model', { model }),
 };
 
+// --- Connection Diagnostics ---
+import { Platform } from 'react-native';
+
+// Try to import NetInfo for WiFi detection (optional dependency)
+let NetInfo: any = null;
+try {
+    NetInfo = require('@react-native-community/netinfo').default;
+} catch (e) {
+    // Not installed — WiFi check will be skipped
+}
+
+export interface ConnectionDiagnosis {
+    ok: boolean;
+    latencyMs?: number;
+    serverInfo?: { app: string; version: string; hostname: string };
+    error?: string;
+    diagnosis: string;
+    code: 'success' | 'no_wifi' | 'timeout' | 'refused' | 'dns' | 'network' | 'http_error' | 'invalid_url' | 'unknown';
+}
+
+/**
+ * Check if the device has WiFi / network connectivity.
+ * Returns null if NetInfo is not installed.
+ */
+async function checkNetworkState(): Promise<{ isConnected: boolean; type: string } | null> {
+    if (!NetInfo) return null;
+    try {
+        const state = await NetInfo.fetch();
+        return {
+            isConnected: state.isConnected ?? false,
+            type: state.type ?? 'unknown',
+        };
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Classify a connection error into a user-friendly diagnosis.
+ */
+export function diagnoseConnectionError(error: any, url: string): { diagnosis: string; code: ConnectionDiagnosis['code'] } {
+    const msg = (error?.message || '').toLowerCase();
+    const code = error?.code || '';
+
+    // Timeout
+    if (code === 'ECONNABORTED' || msg.includes('timeout')) {
+        return {
+            diagnosis: `⏱️ Connection timed out. The server at ${url} didn't respond within 5 seconds. Make sure the desktop app is running and both devices are on the same network.`,
+            code: 'timeout',
+        };
+    }
+
+    // Connection refused
+    if (code === 'ECONNREFUSED' || msg.includes('connection refused') || msg.includes('econnrefused')) {
+        return {
+            diagnosis: `🚫 Connection refused. The server at ${url} is not running or the port is blocked. Start the desktop app and try again.`,
+            code: 'refused',
+        };
+    }
+
+    // DNS / hostname resolution
+    if (msg.includes('getaddrinfo') || msg.includes('enotfound') || msg.includes('could not resolve')) {
+        return {
+            diagnosis: `🔍 Could not resolve the server address. Check that the URL "${url}" is correct and the hostname exists on your network.`,
+            code: 'dns',
+        };
+    }
+
+    // Generic network error (covers ERR_NETWORK, etc.)
+    if (code === 'ERR_NETWORK' || msg.includes('network error') || msg.includes('network request failed')) {
+        return {
+            diagnosis: `❌ Network error. Ensure your phone and desktop are on the same WiFi network and the URL "${url}" is correct.`,
+            code: 'network',
+        };
+    }
+
+    // HTTP response but non-2xx
+    if (error?.response) {
+        const status = error.response.status;
+        return {
+            diagnosis: `⚠️ Server responded with HTTP ${status}. It may be misconfigured or running a different application.`,
+            code: 'http_error',
+        };
+    }
+
+    // Fallback
+    return {
+        diagnosis: `❓ Connection failed: ${error?.message || 'Unknown error'}. Double-check the URL and make sure the server is running.`,
+        code: 'unknown',
+    };
+}
+
+/**
+ * Perform a detailed connection test to the given URL.
+ * Returns rich diagnostics including WiFi state, latency, server info, and
+ * a user-friendly diagnosis message on failure.
+ */
+export async function testConnectionDetailed(url?: string): Promise<ConnectionDiagnosis> {
+    const targetUrl = url || API_BASE_URL;
+
+    // Validate URL format
+    try {
+        new URL(targetUrl);
+    } catch {
+        return {
+            ok: false,
+            diagnosis: `🔗 Invalid URL format: "${targetUrl}". Expected something like http://192.168.1.x:8000`,
+            code: 'invalid_url',
+        };
+    }
+
+    // Check WiFi / network state first
+    const netState = await checkNetworkState();
+    if (netState && !netState.isConnected) {
+        return {
+            ok: false,
+            diagnosis: `📶 No network connection. Please connect to WiFi first — your phone must be on the same network as your desktop.`,
+            code: 'no_wifi',
+        };
+    }
+    if (netState && netState.type === 'cellular') {
+        // Cellular won't reach LAN
+        return {
+            ok: false,
+            diagnosis: `📶 You're on mobile data, not WiFi. The server is only reachable on your local network. Please switch to the same WiFi as your desktop.`,
+            code: 'no_wifi',
+        };
+    }
+
+    // Attempt the health check
+    const start = Date.now();
+    try {
+        const res = await axios.get(`${targetUrl}/health`, { timeout: 5000 });
+        const latencyMs = Date.now() - start;
+        const data = res.data;
+
+        return {
+            ok: true,
+            latencyMs,
+            serverInfo: {
+                app: data.app || 'Unknown',
+                version: data.version || '?',
+                hostname: data.hostname || '?',
+            },
+            diagnosis: `✅ Connected to ${data.app || 'server'} (${data.hostname || targetUrl}) in ${latencyMs}ms`,
+            code: 'success',
+        };
+    } catch (error: any) {
+        const { diagnosis, code } = diagnoseConnectionError(error, targetUrl);
+        return {
+            ok: false,
+            error: error?.message,
+            diagnosis,
+            code,
+        };
+    }
+}
+
 // Backend health check (used in settings connection test)
 export const testBackend = () => axios.get(`${API_BASE_URL}/health`, { timeout: 5000 });
 

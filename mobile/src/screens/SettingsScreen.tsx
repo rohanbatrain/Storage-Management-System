@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../styles/theme';
-import { exportApi, saveApiBaseUrl, locationApi, testBackend, chatApi, identifyApi } from '../services/api';
+import { exportApi, saveApiBaseUrl, locationApi, testBackend, chatApi, identifyApi, testConnectionDetailed } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ConfirmDialog } from '../components/FormModal';
 

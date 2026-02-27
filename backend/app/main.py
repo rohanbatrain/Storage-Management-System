@@ -69,8 +69,14 @@ def root():
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
+    """Health check endpoint with server identity info."""
+    import socket
+    return {
+        "status": "healthy",
+        "app": settings.app_name,
+        "version": "0.0.1",
+        "hostname": socket.gethostname(),
+    }
 
 
 if __name__ == "__main__":
