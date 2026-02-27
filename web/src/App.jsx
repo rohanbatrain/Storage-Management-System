@@ -13,12 +13,14 @@ import LentItems from './pages/LentItems';
 import LostItems from './pages/LostItems';
 import Chat from './pages/Chat';
 import ChatDrawer from './components/ChatDrawer';
+import GlobalErrorBanner from './components/GlobalErrorBanner';
 
 function App() {
     const location = useLocation();
 
     return (
         <div className="app-layout">
+            <GlobalErrorBanner />
             <Sidebar />
             <main className="main-content">
                 <Routes>

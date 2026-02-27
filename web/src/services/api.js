@@ -27,6 +27,21 @@ if (window.electron) {
     });
 }
 
+// Global Response Interceptor for handling network errors
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // If there's no response, it means the request failed to reach the server (network error, refused, etc.)
+        if (!error.response && error.code === 'ERR_NETWORK') {
+            const event = new CustomEvent('network-error', {
+                detail: 'Failed to load data. Is the backend running?'
+            });
+            window.dispatchEvent(event);
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Helper to get resolved API base URL for fetch-based streaming
 export async function getApiBaseUrl() {
     if (window.electron && !electronBaseUrl) {

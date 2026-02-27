@@ -214,6 +214,35 @@ app.whenReady().then(async () => {
         return syncManager ? syncManager.getStatus() : { status: 'standalone', peer: null, lastSync: null };
     });
 
+    ipcMain.handle('get-discovered-peers', () => {
+        return syncManager ? syncManager.getPeers() : [];
+    });
+
+    ipcMain.handle('get-connected-clients', async () => {
+        try {
+            const req = http.get(`http://127.0.0.1:${backendPort}/api/clients`);
+            return new Promise((resolve) => {
+                req.on('response', (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try { resolve(JSON.parse(data)); }
+                        catch (e) { resolve([]); }
+                    });
+                });
+                req.on('error', () => resolve([]));
+            });
+        } catch (error) {
+            return [];
+        }
+    });
+
+    syncManager.on('peers-updated', (peers) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('discovered-peers-updated', peers);
+        }
+    });
+
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

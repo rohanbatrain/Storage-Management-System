@@ -54,6 +54,31 @@ from app.routers import sync as sync_router
 app.include_router(sync_router.router, prefix=settings.api_v1_prefix)
 from app.routers import chat as chat_router
 app.include_router(chat_router.router, prefix=settings.api_v1_prefix)
+from app.routers import clients as clients_router
+app.include_router(clients_router.router, prefix=settings.api_v1_prefix)
+
+from fastapi import Request
+from app.routers.clients import track_client_request
+
+@app.middleware("http")
+async def client_tracking_middleware(request: Request, call_next):
+    """Track connected clients based on IP and headers."""
+    # Process the request
+    response = await call_next(request)
+    
+    # Try to extract client info
+    try:
+        ip = request.client.host if request.client else None
+        device_name = request.headers.get("x-device-name", "")
+        user_agent = request.headers.get("user-agent", "")
+        
+        # We only care about tracking API requests, not static files or docs
+        if request.url.path.startswith("/api/"):
+            track_client_request(ip, device_name, user_agent)
+    except Exception:
+        pass # Silently fail tracking if something goes wrong
+        
+    return response
 
 
 @app.get("/")

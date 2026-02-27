@@ -18,6 +18,7 @@ import { colors, spacing, borderRadius } from '../styles/theme';
 import { exportApi, saveApiBaseUrl, locationApi, testBackend, chatApi, identifyApi, testConnectionDetailed } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ConfirmDialog } from '../components/FormModal';
+import { useServer } from '../context/ServerContext';
 
 // Optional: import document picker if available
 let DocumentPicker: any = null;
@@ -51,6 +52,8 @@ export default function SettingsScreen() {
 
     // Visual Lens
     const [vlStatus, setVlStatus] = useState<any>(null);
+
+    const { disconnect } = useServer();
 
     const loadSummary = async () => {
         try {
@@ -419,6 +422,26 @@ export default function SettingsScreen() {
                             subtitle="Check that the server is reachable"
                             onPress={handleTestConnection}
                             loading={connTesting}
+                        />
+                        <SettingsItem
+                            icon="🚪"
+                            title="Disconnect Server"
+                            subtitle="Log out and return to the connection screen"
+                            onPress={() => {
+                                Alert.alert(
+                                    'Disconnect',
+                                    'Are you sure you want to disconnect from this server? You will need to scan its QR code or choose it from history to reconnect.',
+                                    [
+                                        { text: 'Cancel', style: 'cancel' },
+                                        {
+                                            text: 'Disconnect',
+                                            style: 'destructive',
+                                            onPress: disconnect
+                                        }
+                                    ]
+                                );
+                            }}
+                            danger={true}
                         />
                     </View>
                     {connResult && (

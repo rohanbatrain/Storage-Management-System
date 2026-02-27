@@ -10,17 +10,22 @@ interface ServerContextType {
     checkConnection: (urlOverride?: string) => Promise<ConnectionDiagnosis>;
     connectionError: string | null;
     isLoading: boolean;
+    serverHistory: string[];
+    removeServerFromHistory: (url: string) => Promise<void>;
+    disconnect: () => Promise<void>;
 }
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
 
 export const SERVER_URL_KEY = 'sms_server_url';
+export const SERVER_HISTORY_KEY = 'sms_server_history';
 
 export function ServerProvider({ children }: { children: React.ReactNode }) {
     const [serverUrl, setServerUrlState] = useState<string>('');
     const [isConnected, setIsConnected] = useState<boolean>(true);
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [serverHistory, setServerHistory] = useState<string[]>([]);
 
     useEffect(() => {
         loadServerUrl();
@@ -28,7 +33,19 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
     const loadServerUrl = async () => {
         try {
-            const storedUrl = await AsyncStorage.getItem(SERVER_URL_KEY);
+            const [storedUrl, storedHistory] = await Promise.all([
+                AsyncStorage.getItem(SERVER_URL_KEY),
+                AsyncStorage.getItem(SERVER_HISTORY_KEY)
+            ]);
+
+            if (storedHistory) {
+                try {
+                    setServerHistory(JSON.parse(storedHistory));
+                } catch (e) {
+                    console.error('Failed to parse server history', e);
+                }
+            }
+
             if (storedUrl) {
                 setServerUrlState(storedUrl);
                 setApiBaseUrl(storedUrl);
@@ -37,7 +54,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
                 setIsConnected(false);
             }
         } catch (error) {
-            console.error('Failed to load server URL', error);
+            console.error('Failed to load server context', error);
         } finally {
             setIsLoading(false);
         }
@@ -71,11 +88,43 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
         if (result.ok) {
             console.log(`Connected to server: ${result.diagnosis}`);
+            // Add to history if successful
+            saveToHistory(urlToCheck);
         } else {
             console.log(`Connection failed: ${result.diagnosis}`);
         }
 
         return result;
+    };
+
+    const saveToHistory = async (url: string) => {
+        setServerHistory(prev => {
+            // Remove existing entry to move it to the top
+            const filtered = prev.filter(u => u !== url);
+            const nextHistory = [url, ...filtered].slice(0, 5); // Keep max 5
+            AsyncStorage.setItem(SERVER_HISTORY_KEY, JSON.stringify(nextHistory)).catch(e =>
+                console.error('Failed to save server history', e)
+            );
+            return nextHistory;
+        });
+    };
+
+    const removeServerFromHistory = async (url: string) => {
+        setServerHistory(prev => {
+            const nextHistory = prev.filter(u => u !== url);
+            AsyncStorage.setItem(SERVER_HISTORY_KEY, JSON.stringify(nextHistory)).catch(e =>
+                console.error('Failed to update server history', e)
+            );
+            return nextHistory;
+        });
+    };
+
+    const disconnect = async () => {
+        await AsyncStorage.removeItem(SERVER_URL_KEY);
+        setServerUrlState('');
+        setApiBaseUrl('');
+        setIsConnected(false);
+        setConnectionError(null);
     };
 
     return (
@@ -86,7 +135,10 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
             setIsConnected,
             checkConnection,
             connectionError,
-            isLoading
+            isLoading,
+            serverHistory,
+            removeServerFromHistory,
+            disconnect
         }}>
             {children}
         </ServerContext.Provider>

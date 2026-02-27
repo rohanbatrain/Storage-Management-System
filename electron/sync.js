@@ -16,7 +16,8 @@ class SyncManager {
         this.bonjour = new Bonjour();
         this.published = null;
         this.browser = null;
-        this.peer = null; // { host, port, name }
+        this.peer = null; // Currently active primary peer
+        this.peers = new Map(); // All discovered peers on the network
         this.syncTimer = null;
         this.lastSyncTimestamp = null;
         this.status = 'standalone'; // standalone | syncing | synced | error
@@ -43,25 +44,50 @@ class SyncManager {
             const host = service.referer?.address || service.addresses?.[0];
             if (!host) return;
 
-            console.log(`[Sync] Discovered peer: ${service.name} at ${host}:${service.port}`);
-            this.peer = {
-                host,
-                port: service.port,
-                name: service.name,
-            };
-            this._emit('peer-found', this.peer);
-            this._startPeriodicSync();
+            const peerId = `${host}:${service.port}`;
+            const newPeer = { host, port: service.port, name: service.name };
+
+            this.peers.set(peerId, newPeer);
+            console.log(`[Sync] Discovered peer: ${service.name} at ${peerId}`);
+
+            // If this is the first peer, make it active
+            if (!this.peer) {
+                this.peer = newPeer;
+                this._emit('peer-found', this.peer);
+                this._startPeriodicSync();
+            }
+
+            this._emit('peers-updated', this.getPeers());
         });
 
         // Handle peer disappearing
         if (this.browser) {
             this.browser.on('down', (service) => {
-                if (this.peer && service.port === this.peer.port) {
-                    console.log(`[Sync] Peer disconnected: ${service.name}`);
+                const host = service.referer?.address || service.addresses?.[0];
+                if (!host) return;
+
+                const peerId = `${host}:${service.port}`;
+                if (this.peers.has(peerId)) {
+                    this.peers.delete(peerId);
+                    console.log(`[Sync] Peer disconnected: ${service.name} at ${peerId}`);
+                    this._emit('peers-updated', this.getPeers());
+                }
+
+                if (this.peer && service.port === this.peer.port && host === this.peer.host) {
+                    // Active peer was lost
                     this.peer = null;
-                    this.status = 'standalone';
-                    this._emit('peer-lost', null);
-                    this._stopPeriodicSync();
+
+                    // Try to fall back to another peer if available
+                    if (this.peers.size > 0) {
+                        const nextPeerId = this.peers.keys().next().value;
+                        this.peer = this.peers.get(nextPeerId);
+                        console.log(`[Sync] Fell back to next peer: ${this.peer.name}`);
+                        this._emit('peer-found', this.peer);
+                    } else {
+                        this.status = 'standalone';
+                        this._emit('peer-lost', null);
+                        this._stopPeriodicSync();
+                    }
                 }
             });
         }
@@ -116,6 +142,13 @@ class SyncManager {
             peer: this.peer,
             lastSync: this.lastSyncTimestamp,
         };
+    }
+
+    /**
+     * Get all currently discovered peers.
+     */
+    getPeers() {
+        return Array.from(this.peers.values());
     }
 
     // ── Periodic sync ─────────────────────────────────────────────────────

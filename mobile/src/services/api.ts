@@ -1,13 +1,17 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Device from 'expo-device';
 
 // Default base URL — overwritten by ServerContext on startup
 let API_BASE_URL = 'http://192.168.1.4:8000';
+
+const deviceName = Device.deviceName || `${Device.brand || 'Unknown'} ${Device.modelName || 'Device'}`;
 
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
     headers: {
         'Content-Type': 'application/json',
+        'X-Device-Name': deviceName,
     },
     timeout: 10000,
 });
@@ -235,14 +239,16 @@ async function checkNetworkState(): Promise<{ isConnected: boolean; type: string
 /**
  * Classify a connection error into a user-friendly diagnosis.
  */
-export function diagnoseConnectionError(error: any, url: string): { diagnosis: string; code: ConnectionDiagnosis['code'] } {
+export function diagnoseConnectionError(error: any, url: string, isCellular: boolean = false): { diagnosis: string; code: ConnectionDiagnosis['code'] } {
     const msg = (error?.message || '').toLowerCase();
     const code = error?.code || '';
 
     // Timeout
     if (code === 'ECONNABORTED' || msg.includes('timeout')) {
         return {
-            diagnosis: `⏱️ Connection timed out. The server at ${url} didn't respond within 5 seconds. Make sure the desktop app is running and both devices are on the same network.`,
+            diagnosis: isCellular
+                ? `⏱️ Connection timed out. Note: You are on cellular data. If "${url}" is a local server, you must be on the same WiFi network.`
+                : `⏱️ Connection timed out. The server at ${url} didn't respond within 5 seconds. Make sure the desktop app is running and both devices are on the same network.`,
             code: 'timeout',
         };
     }
@@ -266,7 +272,9 @@ export function diagnoseConnectionError(error: any, url: string): { diagnosis: s
     // Generic network error (covers ERR_NETWORK, etc.)
     if (code === 'ERR_NETWORK' || msg.includes('network error') || msg.includes('network request failed')) {
         return {
-            diagnosis: `❌ Network error. Ensure your phone and desktop are on the same WiFi network and the URL "${url}" is correct.`,
+            diagnosis: isCellular
+                ? `❌ Network error. Note: You are on cellular data. Local network addresses (like 192.168.x.x) are not reachable unless you are connected to the same WiFi.`
+                : `❌ Network error. Ensure your phone and desktop are on the same WiFi network and the URL "${url}" is correct.`,
             code: 'network',
         };
     }
@@ -306,28 +314,27 @@ export async function testConnectionDetailed(url?: string): Promise<ConnectionDi
         };
     }
 
-    // Check WiFi / network state first
+    // Check WiFi / network state
     const netState = await checkNetworkState();
     if (netState && !netState.isConnected) {
         return {
             ok: false,
-            diagnosis: `📶 No network connection. Please connect to WiFi first — your phone must be on the same network as your desktop.`,
-            code: 'no_wifi',
-        };
-    }
-    if (netState && netState.type === 'cellular') {
-        // Cellular won't reach LAN
-        return {
-            ok: false,
-            diagnosis: `📶 You're on mobile data, not WiFi. The server is only reachable on your local network. Please switch to the same WiFi as your desktop.`,
+            diagnosis: `📶 No network connection. Please connect to the internet.`,
             code: 'no_wifi',
         };
     }
 
+    // We no longer block cellular connections because the user might be 
+    // trying to reach a public server or using a VPN. 
+    const isCellular = netState?.type === 'cellular';
+
     // Attempt the health check
     const start = Date.now();
     try {
-        const res = await axios.get(`${targetUrl}/health`, { timeout: 5000 });
+        const res = await axios.get(`${targetUrl}/health`, {
+            timeout: 5000,
+            headers: { 'X-Device-Name': deviceName }
+        });
         const latencyMs = Date.now() - start;
         const data = res.data;
 
@@ -343,7 +350,7 @@ export async function testConnectionDetailed(url?: string): Promise<ConnectionDi
             code: 'success',
         };
     } catch (error: any) {
-        const { diagnosis, code } = diagnoseConnectionError(error, targetUrl);
+        const { diagnosis, code } = diagnoseConnectionError(error, targetUrl, isCellular);
         return {
             ok: false,
             error: error?.message,

@@ -16,7 +16,7 @@ import { useServer } from '../context/ServerContext';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 
 export default function ServerConnectionModal() {
-    const { isConnected, setServerUrl, isLoading, serverUrl, connectionError } = useServer();
+    const { isConnected, setServerUrl, isLoading, serverUrl, connectionError, serverHistory, removeServerFromHistory } = useServer();
     const [urlInput, setUrlInput] = useState(serverUrl);
     const [showScanner, setShowScanner] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
@@ -220,6 +220,35 @@ export default function ServerConnectionModal() {
                         </TouchableOpacity>
                     </View>
 
+                    {serverHistory && serverHistory.length > 0 && (
+                        <View style={styles.historyContainer}>
+                            <Text style={styles.historyTitle}>Previously Connected Server{serverHistory.length > 1 ? 's' : ''}</Text>
+                            {serverHistory.map((historyUrl, idx) => (
+                                <TouchableOpacity
+                                    key={`history-${historyUrl}-${idx}`}
+                                    style={styles.historyItem}
+                                    onPress={() => {
+                                        setUrlInput(historyUrl);
+                                        handleRetry(historyUrl);
+                                    }}
+                                    disabled={isChecking}
+                                >
+                                    <View style={styles.historyItemLeft}>
+                                        <Text style={styles.historyIcon}>🕒</Text>
+                                        <Text style={styles.historyUrl} numberOfLines={1}>{historyUrl}</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={styles.removeHistoryBtn}
+                                        onPress={() => removeServerFromHistory(historyUrl)}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <Text style={styles.removeHistoryText}>✕</Text>
+                                    </TouchableOpacity>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
                     {isLoading && (
                         <View style={styles.loadingOverlay}>
                             <ActivityIndicator size="large" color={colors.accentPrimary} />
@@ -338,4 +367,54 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#fca5a5',
     },
+    // Server History
+    historyContainer: {
+        width: '100%',
+        marginTop: spacing.xl,
+        backgroundColor: colors.bgSecondary,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    historyTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: spacing.md,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    historyItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    historyIcon: {
+        fontSize: 16,
+        marginRight: spacing.sm,
+        opacity: 0.7,
+    },
+    historyUrl: {
+        fontSize: 15,
+        color: colors.textPrimary,
+        flex: 1,
+    },
+    removeHistoryBtn: {
+        padding: 4,
+        opacity: 0.5,
+    },
+    removeHistoryText: {
+        color: colors.textMuted,
+        fontSize: 16,
+    }
 });

@@ -8,11 +8,29 @@ export default function ServerInfo() {
     const [isOpen, setIsOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [connectedCount, setConnectedCount] = useState(0);
 
     useEffect(() => {
-        if (window.electron) {
-            window.electron.getNetworkInfo().then(setInfo);
-        }
+        if (!window.electron) return;
+
+        window.electron.getNetworkInfo().then(setInfo);
+
+        const fetchClients = async () => {
+            try {
+                if (window.electron.getConnectedClients) {
+                    const clients = await window.electron.getConnectedClients();
+                    setConnectedCount(clients.length || 0);
+                }
+            } catch (error) {
+                console.error("Failed to fetch connected clients in sidebar", error);
+            }
+        };
+
+        // Fetch immediately and then poll every 5 seconds
+        fetchClients();
+        const intervalId = setInterval(fetchClients, 5000);
+
+        return () => clearInterval(intervalId);
     }, []);
 
     const handleRefresh = async () => {
@@ -32,6 +50,8 @@ export default function ServerInfo() {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const hasClients = connectedCount > 0;
+
     return (
         <>
             <button
@@ -43,27 +63,38 @@ export default function ServerInfo() {
                     padding: '8px 12px',
                     width: '100%',
                     border: 'none',
-                    background: 'transparent',
-                    color: 'var(--color-text-muted)',
+                    background: hasClients ? 'var(--color-success)15' : 'transparent',
+                    color: hasClients ? 'var(--color-success)' : 'var(--color-text-muted)',
                     fontSize: '0.85rem',
                     fontWeight: 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s',
                     textAlign: 'left',
-                    marginTop: '4px'
+                    marginTop: '4px',
+                    borderRadius: hasClients ? '6px' : '0px'
                 }}
                 onMouseEnter={e => {
-                    e.currentTarget.style.color = 'var(--color-text-primary)';
-                    e.currentTarget.style.background = 'var(--color-bg-tertiary)';
-                    e.currentTarget.style.borderRadius = '6px';
+                    if (!hasClients) {
+                        e.currentTarget.style.color = 'var(--color-text-primary)';
+                        e.currentTarget.style.background = 'var(--color-bg-tertiary)';
+                        e.currentTarget.style.borderRadius = '6px';
+                    } else {
+                        e.currentTarget.style.background = 'var(--color-success)25';
+                    }
                 }}
                 onMouseLeave={e => {
-                    e.currentTarget.style.color = 'var(--color-text-muted)';
-                    e.currentTarget.style.background = 'transparent';
+                    if (!hasClients) {
+                        e.currentTarget.style.color = 'var(--color-text-muted)';
+                        e.currentTarget.style.background = 'transparent';
+                    } else {
+                        e.currentTarget.style.background = 'var(--color-success)15';
+                    }
                 }}
             >
                 <Smartphone size={16} />
-                Connect Mobile
+                {hasClients
+                    ? `${connectedCount} Mobile${connectedCount > 1 ? 's' : ''}`
+                    : 'Connect Mobile'}
             </button>
 
             {isOpen && createPortal(

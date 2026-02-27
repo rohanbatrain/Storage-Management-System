@@ -4,11 +4,16 @@ contextBridge.exposeInMainWorld('electron', {
     getApiUrl: () => ipcRenderer.invoke('get-api-url'),
     getNetworkInfo: () => ipcRenderer.invoke('get-network-info'),
     getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
+    getDiscoveredPeers: () => ipcRenderer.invoke('get-discovered-peers'),
+    getConnectedClients: () => ipcRenderer.invoke('get-connected-clients'),
     // Export / Import archive via native file dialogs
     saveArchive: (arrayBuffer) => ipcRenderer.invoke('save-archive', arrayBuffer),
     openArchive: () => ipcRenderer.invoke('open-archive'),
     onSyncStatusChanged: (callback) => {
         ipcRenderer.on('sync-status-changed', (_event, status) => callback(status));
+    },
+    onDiscoveredPeersUpdated: (callback) => {
+        ipcRenderer.on('discovered-peers-updated', (_event, peers) => callback(peers));
     },
 });
 
