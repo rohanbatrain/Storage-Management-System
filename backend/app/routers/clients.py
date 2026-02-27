@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from typing import List, Dict
 import time
@@ -42,6 +42,16 @@ def get_active_clients():
         )
         for ip, data in active_clients.items()
     ]
+
+@router.delete("")
+def remove_active_client(request: Request):
+    """Remove the calling client from the active clients list."""
+    ip = request.client.host if request.client else None
+    if ip and ip in active_clients:
+        del active_clients[ip]
+        return {"success": True, "message": "Client removed"}
+    
+    return {"success": False, "message": "Client not found or already removed"}
 
 def track_client_request(ip: str, device_name: str, user_agent: str):
     """Update the last_seen timestamp and info for a client."""

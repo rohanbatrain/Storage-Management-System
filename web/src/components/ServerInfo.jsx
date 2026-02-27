@@ -33,6 +33,13 @@ export default function ServerInfo() {
         return () => clearInterval(intervalId);
     }, []);
 
+    // Auto-close QR code modal when a client successfully connects
+    useEffect(() => {
+        if (connectedCount > 0 && isOpen) {
+            setIsOpen(false);
+        }
+    }, [connectedCount, isOpen]);
+
     const handleRefresh = async () => {
         if (window.electron) {
             setIsRefreshing(true);

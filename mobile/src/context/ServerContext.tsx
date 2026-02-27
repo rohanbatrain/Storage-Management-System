@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setApiBaseUrl, testConnectionDetailed, ConnectionDiagnosis } from '../services/api';
+import { setApiBaseUrl, testConnectionDetailed, pingServer, ConnectionDiagnosis } from '../services/api';
+import axios from 'axios';
 
 interface ServerContextType {
     serverUrl: string;
@@ -30,6 +31,24 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         loadServerUrl();
     }, []);
+
+    // Background keep-alive ping
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (serverUrl && isConnected) {
+            // Ping every 30 seconds to prevent the backend from dropping this client
+            interval = setInterval(async () => {
+                try {
+                    await pingServer(serverUrl);
+                } catch (error) {
+                    // Fail silently, let the main checkConnection hand major drops
+                }
+            }, 30000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [serverUrl, isConnected]);
 
     const loadServerUrl = async () => {
         try {
@@ -120,6 +139,16 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     };
 
     const disconnect = async () => {
+        // Try to alert the server that we are leaving so the 
+        // desktop widget "1 Mobile Connected" drops instantly
+        if (serverUrl && isConnected) {
+            try {
+                await axios.delete(`${serverUrl}/api/clients`, { timeout: 2000 });
+            } catch (err) {
+                // Ignore any network errors, we are disconnecting anyway
+            }
+        }
+
         await AsyncStorage.removeItem(SERVER_URL_KEY);
         setServerUrlState('');
         setApiBaseUrl('');

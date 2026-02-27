@@ -134,6 +134,7 @@ a:hover {
   position: fixed;
   height: 100vh;
   overflow: hidden;
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-header {
@@ -151,6 +152,7 @@ a:hover {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-app-region: drag;
 }
 
 .sidebar-content {

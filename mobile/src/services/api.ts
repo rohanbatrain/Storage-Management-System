@@ -363,6 +363,15 @@ export async function testConnectionDetailed(url?: string): Promise<ConnectionDi
 // Backend health check (used in settings connection test)
 export const testBackend = () => axios.get(`${API_BASE_URL}/health`, { timeout: 5000 });
 
+// Silent background ping to keep active_clients list fresh on the server
+export const pingServer = (url?: string) => {
+    const targetUrl = url || API_BASE_URL;
+    return axios.get(`${targetUrl}/health`, {
+        timeout: 5000,
+        headers: { 'X-Device-Name': deviceName }
+    });
+};
+
 // Visual Lens / Identify API
 export const identifyApi = {
     // Identify an item from a photo

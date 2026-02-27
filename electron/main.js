@@ -8,6 +8,7 @@ const http = require('http');
 
 let mainWindow;
 let backendProcess;
+let frontendProcess;
 let backendPort = 8000; // Default port
 let syncManager = null;
 
@@ -121,6 +122,23 @@ async function startBackend() {
     }
 }
 
+async function startFrontend() {
+    if (app.isPackaged) return; // In production, we just load the static files
+
+    console.log('Starting frontend dev server (Vite)...');
+
+    // Spawn the dev server
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    frontendProcess = spawn(npmCmd, ['run', 'dev'], {
+        cwd: path.join(__dirname, '..', 'web'),
+        env: process.env,
+    });
+
+    frontendProcess.stdout.on('data', (data) => console.log(`Frontend: ${data}`));
+    frontendProcess.stderr.on('data', (data) => console.error(`Frontend Error: ${data}`));
+    frontendProcess.on('close', (code) => console.log(`Frontend process exited with code ${code}`));
+}
+
 async function waitForBackend(port) {
     console.log(`Waiting for backend on port ${port} to be ready...`);
     return new Promise((resolve) => {
@@ -148,9 +166,45 @@ async function waitForBackend(port) {
     });
 }
 
+async function waitForFrontend() {
+    if (app.isPackaged) return;
+    console.log('Waiting for frontend on port 3000 to be ready...');
+    return new Promise((resolve) => {
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            const req = http.get('http://127.0.0.1:3000', (res) => {
+                if (res.statusCode === 200) {
+                    clearInterval(interval);
+                    console.log('Frontend is ready!');
+                    resolve();
+                }
+            }).on('error', () => {
+                // Ignore connection error, frontend is not ready yet
+            });
+            req.end();
+
+            if (attempts > 30) {
+                clearInterval(interval);
+                console.log('Timeout waiting for frontend, proceeding anyway...');
+                resolve();
+            }
+        }, 500);
+    });
+}
+
 app.whenReady().then(async () => {
     await startBackend();
-    await waitForBackend(backendPort);
+
+    if (!app.isPackaged) {
+        await startFrontend();
+        await Promise.all([
+            waitForBackend(backendPort),
+            waitForFrontend()
+        ]);
+    } else {
+        await waitForBackend(backendPort);
+    }
 
     // Store port in a global or pass it via IPC
     ipcMain.handle('get-api-url', () => `http://127.0.0.1:${backendPort}`);
@@ -258,5 +312,8 @@ app.on('will-quit', () => {
     }
     if (backendProcess) {
         backendProcess.kill();
+    }
+    if (frontendProcess) {
+        frontendProcess.kill();
     }
 });

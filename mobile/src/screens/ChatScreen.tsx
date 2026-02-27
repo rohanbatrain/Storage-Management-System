@@ -11,18 +11,22 @@ import {
     ActivityIndicator,
     Image,
     Modal,
+    Animated,
+    Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import { chatApi } from '../services/api';
+import api, { chatApi } from '../services/api';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
     image_url?: string;
     actions?: { tool: string; args: any; summary: string }[];
+    thinking?: string;
+    streaming?: boolean;
 }
 
 const TOOL_ICONS: Record<string, string> = {
@@ -46,6 +50,63 @@ const SUGGESTIONS = [
     "Show wardrobe stats",
     "What have I lent out?",
 ];
+
+// Custom Thinking Block Animation
+function ThinkingBlock({ thinking, streaming }: { thinking?: string; streaming?: boolean }) {
+    const [expanded, setExpanded] = useState(false);
+    const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+    useEffect(() => {
+        if (streaming) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true })
+                ])
+            ).start();
+        } else {
+            pulseAnim.setValue(1);
+        }
+    }, [streaming]);
+
+    if (!thinking && !streaming) return null;
+    const isOpen = streaming || expanded;
+
+    return (
+        <View style={[styles.thinkingContainer, streaming && styles.thinkingContainerActive]}>
+            <TouchableOpacity
+                style={styles.thinkingHeader}
+                onPress={() => setExpanded(!expanded)}
+                activeOpacity={0.7}
+            >
+                <View style={[styles.thinkingIconBg, streaming && styles.thinkingIconBgActive]}>
+                    {streaming ? (
+                        <Animated.View style={{ opacity: pulseAnim }}>
+                            <Text style={{ fontSize: 12 }}>🧠</Text>
+                        </Animated.View>
+                    ) : (
+                        <Text style={{ fontSize: 12 }}>🧠</Text>
+                    )}
+                </View>
+                <Text style={[styles.thinkingTitle, streaming && styles.thinkingTitleActive]}>
+                    {streaming ? 'Reasoning...' : 'Thought process'}
+                </Text>
+                <Text style={styles.thinkingChevron}>
+                    {isOpen ? '▼' : '▶'}
+                </Text>
+            </TouchableOpacity>
+
+            {isOpen && thinking ? (
+                <View style={styles.thinkingContentWrapper}>
+                    <Text style={styles.thinkingContent}>
+                        {thinking}
+                        {streaming && <Text style={{ color: colors.accentPrimary }}> ▊</Text>}
+                    </Text>
+                </View>
+            ) : null}
+        </View>
+    );
+}
 
 export default function ChatScreen() {
     const navigation = useNavigation<any>();
@@ -111,25 +172,136 @@ export default function ChatScreen() {
         }]);
         setLoading(true);
 
-        try {
-            const res = await chatApi.send(msg, conversationId || undefined, currentImage?.base64);
-            const data = res.data;
-            if (!conversationId) setConversationId(data.conversation_id);
+        const baseUrl = api.defaults.baseURL || 'http://192.168.1.4:8000/api';
 
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: data.reply,
-                actions: data.actions || [],
-            }]);
-        } catch {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: '❌ Failed to get response. Is the server running?',
-                actions: [],
-            }]);
-        } finally {
-            setLoading(false);
+        // Setup empty assistant message we will fill via stream
+        setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '',
+            thinking: '',
+            actions: [],
+            streaming: true,
+        }]);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${baseUrl}/chat`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
+        let customHeaders = api.defaults.headers;
+        if (customHeaders && typeof customHeaders === 'object') {
+            for (const [key, value] of Object.entries(customHeaders)) {
+                if (typeof value === 'string') xhr.setRequestHeader(key, value);
+            }
         }
+
+        let seenBytes = 0;
+
+        xhr.onprogress = () => {
+            const chunk = xhr.responseText.substring(seenBytes);
+            seenBytes = xhr.responseText.length;
+
+            const lines = chunk.split('\n');
+            let newlyStreamedChatContent = '';
+            let newlyStreamedThinkingContent = '';
+            let parsedActions: any[] = [];
+            let isDone = false;
+            let finalConversationId: string | null = null;
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const dataStr = line.replace('data: ', '').trim();
+                    if (dataStr === '[DONE]') {
+                        isDone = true;
+                        continue;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(dataStr);
+                        if (parsed.type === 'token') {
+                            newlyStreamedChatContent += parsed.content;
+                        } else if (parsed.type === 'thinking_token') {
+                            newlyStreamedThinkingContent += parsed.content;
+                        } else if (parsed.type === 'action') {
+                            parsedActions.push({
+                                tool: parsed.tool,
+                                args: parsed.args || {},
+                                summary: parsed.summary,
+                                status: parsed.status,
+                            });
+                        } else if (parsed.type === 'final') {
+                            finalConversationId = parsed.conversation_id;
+                        }
+                    } catch (e) {
+                        // malformed JSON block occasionally happens on split boundaries
+                    }
+                }
+            }
+
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                const lastMsg = newMsgs[newMsgs.length - 1];
+                if (lastMsg && lastMsg.role === 'assistant') {
+                    if (newlyStreamedChatContent) lastMsg.content += newlyStreamedChatContent;
+                    if (newlyStreamedThinkingContent) lastMsg.thinking += newlyStreamedThinkingContent;
+                    if (parsedActions.length > 0) {
+                        lastMsg.actions = [...(lastMsg.actions || []), ...parsedActions];
+                    }
+                    if (isDone) {
+                        lastMsg.streaming = false;
+                    }
+                }
+                return newMsgs;
+            });
+
+            if (finalConversationId && !conversationId) {
+                setConversationId(finalConversationId);
+            }
+        };
+
+        xhr.onload = () => {
+            setLoading(false);
+            if (xhr.status >= 400) {
+                Alert.alert('Error', 'Failed to get response from server.');
+                setMessages(prev => {
+                    const newMsgs = [...prev];
+                    const lastMsg = newMsgs[newMsgs.length - 1];
+                    if (lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.thinking) {
+                        lastMsg.content = '❌ Failed to get response. Is the server running?';
+                        lastMsg.streaming = false;
+                    }
+                    return newMsgs;
+                });
+            } else {
+                setMessages(prev => {
+                    const newMsgs = [...prev];
+                    const lastMsg = newMsgs[newMsgs.length - 1];
+                    if (lastMsg && lastMsg.role === 'assistant') {
+                        lastMsg.streaming = false;
+                    }
+                    return newMsgs;
+                });
+            }
+        };
+
+        xhr.onerror = () => {
+            setLoading(false);
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                const lastMsg = newMsgs[newMsgs.length - 1];
+                if (lastMsg.role === 'assistant') {
+                    lastMsg.content = lastMsg.content || '❌ Failed to connect to server.';
+                    lastMsg.streaming = false;
+                }
+                return newMsgs;
+            });
+        };
+
+        xhr.send(JSON.stringify({
+            message: msg,
+            conversation_id: conversationId || undefined,
+            image_base64: currentImage?.base64,
+            stream: true, // Tell API to stream back
+        }));
     };
 
     const handleClear = async () => {
@@ -190,6 +362,10 @@ export default function ChatScreen() {
                 styles.bubble,
                 item.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
             ]}>
+                {item.role === 'assistant' && (item.thinking || item.streaming) && (
+                    <ThinkingBlock thinking={item.thinking} streaming={item.streaming && !item.content} />
+                )}
+
                 {item.image_url && (
                     <Image
                         source={{ uri: item.image_url }}
@@ -241,13 +417,6 @@ export default function ChatScreen() {
                         contentContainerStyle={styles.messageList}
                         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                     />
-                )}
-
-                {loading && (
-                    <View style={styles.typingRow}>
-                        <ActivityIndicator size="small" color={colors.accentPrimary} />
-                        <Text style={styles.typingText}>Thinking...</Text>
-                    </View>
                 )}
 
                 {/* Input */}
@@ -378,16 +547,64 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         color: colors.textPrimary,
     },
-    typingRow: {
+    // Thinking Block styles
+    thinkingContainer: {
+        marginBottom: spacing.sm,
+        width: '100%',
+        borderRadius: 14,
+        backgroundColor: colors.bgSecondary,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden',
+    },
+    thinkingContainerActive: {
+        borderColor: 'rgba(139, 92, 246, 0.4)',
+    },
+    thinkingHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm,
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
     },
-    typingText: {
+    thinkingIconBg: {
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        backgroundColor: 'rgba(139, 92, 246, 0.08)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    thinkingIconBgActive: {
+        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    },
+    thinkingTitle: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textMuted,
+        flex: 1,
+        letterSpacing: 0.2,
+    },
+    thinkingTitleActive: {
+        color: '#a78bfa',
+    },
+    thinkingChevron: {
+        fontSize: 10,
+        color: colors.textMuted,
+        opacity: 0.5,
+    },
+    thinkingContentWrapper: {
+        paddingHorizontal: 14,
+        paddingBottom: 12,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingTop: 10,
+    },
+    thinkingContent: {
         fontSize: 13,
         color: colors.textMuted,
+        lineHeight: 20,
+        fontStyle: 'italic',
     },
     inputContainer: {
         borderTopWidth: 1,
