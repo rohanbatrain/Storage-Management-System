@@ -62,7 +62,7 @@ export default function SettingsScreen() {
     };
 
     const loadApiUrl = async () => {
-        const url = await AsyncStorage.getItem('@sms_api_url');
+        const url = await AsyncStorage.getItem('sms_server_url');
         if (url) {
             setApiUrl(url);
         }
@@ -194,7 +194,7 @@ export default function SettingsScreen() {
 
             // For mobile, we share the archive download URL directly
             // since blob handling on React Native is limited
-            const url = await AsyncStorage.getItem('@sms_api_url');
+            const url = await AsyncStorage.getItem('sms_server_url');
             const baseUrl = url || 'http://localhost:8000';
             const archiveUrl = `${baseUrl}/api/export/archive`;
 

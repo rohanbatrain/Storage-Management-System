@@ -1,4 +1,5 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Default base URL — overwritten by ServerContext on startup
 let API_BASE_URL = 'http://192.168.1.4:8000';
@@ -15,6 +16,20 @@ export const setApiBaseUrl = (url: string) => {
     API_BASE_URL = url;
     api.defaults.baseURL = `${url}/api`;
     console.log('API Base URL set to:', api.defaults.baseURL);
+};
+
+export const saveApiBaseUrl = async (url: string) => {
+    let cleanUrl = url.trim();
+    if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+    }
+    if (!cleanUrl.startsWith('http')) {
+        cleanUrl = `http://${cleanUrl}`;
+    }
+
+    setApiBaseUrl(cleanUrl);
+    // Use the same key as ServerContext (sms_server_url)
+    await AsyncStorage.setItem('sms_server_url', cleanUrl);
 };
 
 
