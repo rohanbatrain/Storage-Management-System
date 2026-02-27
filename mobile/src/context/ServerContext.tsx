@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setApiBaseUrl, setConnectionErrorCallback } from '../services/api';
+import { setApiBaseUrl } from '../services/api';
 import axios from 'axios';
 
 interface ServerContextType {
@@ -23,10 +23,6 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         loadServerUrl();
-        setConnectionErrorCallback(() => {
-            console.log('Connection lost callback triggered');
-            setIsConnected(false);
-        });
     }, []);
 
     const loadServerUrl = async () => {

@@ -1,8 +1,6 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure this based on how you're running:
-// Default to localhost for dev, but will be overwritten by context
+// Default base URL — overwritten by ServerContext on startup
 let API_BASE_URL = 'http://192.168.1.4:8000';
 
 const api = axios.create({
@@ -13,50 +11,11 @@ const api = axios.create({
     timeout: 10000,
 });
 
-let connectionErrorCallback: (() => void) | null = null;
-
-// Load persisted URL on startup
-AsyncStorage.getItem('@sms_api_url').then(url => {
-    if (url) {
-        setApiBaseUrl(url);
-    }
-});
-
-export const setConnectionErrorCallback = (callback: () => void) => {
-    connectionErrorCallback = callback;
-};
-
 export const setApiBaseUrl = (url: string) => {
     API_BASE_URL = url;
     api.defaults.baseURL = `${url}/api`;
     console.log('API Base URL set to:', api.defaults.baseURL);
 };
-
-export const saveApiBaseUrl = async (url: string) => {
-    // Basic formatting: remove trailing slash, or add http if missing
-    let cleanUrl = url.trim();
-    if (cleanUrl.endsWith('/')) {
-        cleanUrl = cleanUrl.slice(0, -1);
-    }
-    if (!cleanUrl.startsWith('http')) {
-        cleanUrl = `http://${cleanUrl}`;
-    }
-
-    setApiBaseUrl(cleanUrl);
-    await AsyncStorage.setItem('@sms_api_url', cleanUrl);
-};
-
-api.interceptors.response.use(
-    response => response,
-    error => {
-        if (!error.response) {
-            // Network error
-            console.log('Network Error detected in API');
-            if (connectionErrorCallback) connectionErrorCallback();
-        }
-        return Promise.reject(error);
-    }
-);
 
 
 // Location API - Full CRUD + Aliases
