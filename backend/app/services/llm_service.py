@@ -10,6 +10,7 @@ import json
 import logging
 import re
 from typing import Any, AsyncIterator, Optional
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 

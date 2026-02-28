@@ -123,6 +123,7 @@ export default function LocationDetailScreen() {
                 name: data.name,
                 description: data.description,
                 quantity: parseInt(data.quantity) || 1,
+                purchase_price: data.purchase_price ? parseFloat(data.purchase_price) : null,
                 current_location_id: id,
                 is_temporary_placement: !!data.isTemporary,
             });
@@ -444,9 +445,10 @@ export default function LocationDetailScreen() {
                 fields={[
                     { key: 'name', label: 'Item Name', placeholder: 'e.g., "Winter Jacket, Passport"', required: true },
                     { key: 'quantity', label: 'Quantity', keyboardType: 'numeric' },
+                    { key: 'purchase_price', label: 'Purchase Price', keyboardType: 'numeric', placeholder: '0.00' },
                     { key: 'isTemporary', label: 'This is a temporary placement', type: 'checkbox' },
                 ]}
-                initialValues={{ name: '', quantity: '1', isTemporary: false }}
+                initialValues={{ name: '', quantity: '1', purchase_price: '', isTemporary: false }}
             />
 
             {/* Add Sub-Location Modal */}

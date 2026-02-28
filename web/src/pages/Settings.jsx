@@ -33,14 +33,22 @@ function Settings() {
     const [backendTesting, setBackendTesting] = useState(false);
     const [backendTestResult, setBackendTestResult] = useState(null);
 
+    // Network Interface Selection
+    const [networkInterfaces, setNetworkInterfaces] = useState([]);
+    const [selectedInterface, setSelectedInterface] = useState('');
+
     // Ollama installed models (for dropdown)
     const [ollamaInstalledModels, setOllamaInstalledModels] = useState([]);
     const [showAdvancedAi, setShowAdvancedAi] = useState(false);
 
     // Ollama model download
-    const [ollamaPresets, setOllamaPresets] = useState(null);
     const [pullingModel, setPullingModel] = useState(null);
     const [pullResult, setPullResult] = useState({});
+
+    // Formatting Context
+    const [currencyPreference, setCurrencyPreference] = useState(
+        localStorage.getItem('sms_currency_preference') || '₹'
+    );
 
     const loadSummary = async () => {
         try {
@@ -59,6 +67,15 @@ function Settings() {
         loadAiSettings();
         loadOllamaModels();
         loadOllamaPresets();
+
+        if (window.electron?.getAllNetworkInterfaces) {
+            window.electron.getAllNetworkInterfaces().then(ifaces => {
+                setNetworkInterfaces(ifaces);
+            });
+            window.electron.getNetworkInfo().then(info => {
+                setSelectedInterface(info.ip);
+            });
+        }
     }, []);
 
     const loadOllamaModels = async () => {
@@ -77,6 +94,11 @@ function Settings() {
         } catch (err) {
             console.log('Could not load Ollama presets');
         }
+    };
+
+    const handleSetCurrency = (symbol) => {
+        setCurrencyPreference(symbol);
+        localStorage.setItem('sms_currency_preference', symbol);
     };
 
     const handlePullModel = async (modelId) => {
@@ -551,6 +573,87 @@ function Settings() {
                             </span>
                         )}
                     </div>
+                </div>
+            </section>
+
+            {/* Network Settings */}
+            {window.electron && networkInterfaces.length > 0 && (
+                <section style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        📡 Network Settings
+                    </h2>
+                    <div className="card" style={{ padding: '1.5rem' }}>
+                        <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Preferred Network Interface</label>
+                        <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                            <select
+                                value={selectedInterface}
+                                onChange={async (e) => {
+                                    const newIp = e.target.value;
+                                    setSelectedInterface(newIp);
+                                    await window.electron.setPreferredIp(newIp);
+                                    alert('Network interface updated!\n\nPlease restart the desktop app to apply the newly assigned IP globally.');
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: 'var(--space-sm) var(--space-md)',
+                                    background: 'var(--color-bg-tertiary)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: 'var(--color-text-primary)',
+                                    fontSize: 'var(--font-size-sm)',
+                                    appearance: 'none',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {networkInterfaces.map(iface => (
+                                    <option key={iface.address} value={iface.address}>
+                                        {iface.name} ({iface.address})
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                        </div>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                            If your QR code connects to an incorrect Virtual Machine IP (like Docker or WSL) and your mobile app fails to sync, force select your actual Wi-Fi or local LAN network IP here.
+                        </p>
+                    </div>
+                </section>
+            )}
+
+            {/* Formatting Settings */}
+            <section style={{ marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    💱 Formatting & Display
+                </h2>
+                <div className="card" style={{ padding: '1.5rem' }}>
+                    <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Currency Symbol</label>
+                    <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                        <select
+                            value={currencyPreference}
+                            onChange={e => handleSetCurrency(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: 'var(--space-sm) var(--space-md)',
+                                background: 'var(--color-bg-tertiary)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-md)',
+                                color: 'var(--color-text-primary)',
+                                fontSize: 'var(--font-size-sm)',
+                                appearance: 'none',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <option value="₹">₹ - Indian Rupee (INR)</option>
+                            <option value="$">$ - US Dollar (USD)</option>
+                            <option value="£">£ - British Pound (GBP)</option>
+                            <option value="€">€ - Euro (EUR)</option>
+                            <option value="¥">¥ - Japanese Yen (JPY)</option>
+                        </select>
+                        <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                    </div>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                        Select the primary currency symbol used across the Analytics and Item Detail pages.
+                    </p>
                 </div>
             </section>
 

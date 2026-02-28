@@ -40,6 +40,12 @@ export default function SettingsScreen() {
     const [tempUrl, setTempUrl] = useState('');
     const [importResult, setImportResult] = useState<any>(null);
 
+    const [voiceMode, setVoiceMode] = useState<'native' | 'whisper' | 'livekit'>('whisper');
+    const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+
+    const [currencyPreference, setCurrencyPreference] = useState('₹');
+    const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+
     const [deletingAll, setDeletingAll] = useState(false);
     const [confirmDeleteAllVisible, setConfirmDeleteAllVisible] = useState(false);
     const [connTesting, setConnTesting] = useState(false);
@@ -69,6 +75,23 @@ export default function SettingsScreen() {
         if (url) {
             setApiUrl(url);
         }
+        const vm = await AsyncStorage.getItem('sms_voice_mode');
+        if (vm) setVoiceMode(vm as 'native' | 'whisper' | 'livekit');
+
+        const pref = await AsyncStorage.getItem('sms_currency_preference');
+        if (pref) setCurrencyPreference(pref);
+    };
+
+    const handleSetVoiceMode = async (mode: 'native' | 'whisper' | 'livekit') => {
+        setVoiceMode(mode);
+        await AsyncStorage.setItem('sms_voice_mode', mode);
+        setVoiceModalVisible(false);
+    };
+
+    const handleSetCurrency = async (symbol: string) => {
+        setCurrencyPreference(symbol);
+        await AsyncStorage.setItem('sms_currency_preference', symbol);
+        setCurrencyModalVisible(false);
     };
 
     const loadOllamaPresets = async () => {
@@ -416,6 +439,14 @@ export default function SettingsScreen() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                        <View style={styles.aboutItem}>
+                            <Text style={styles.aboutLabel}>Voice Mode</Text>
+                            <TouchableOpacity onPress={() => setVoiceModalVisible(true)}>
+                                <Text style={[styles.aboutValue, { color: colors.accentPrimary, textTransform: 'capitalize' }]}>
+                                    {voiceMode}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                         <SettingsItem
                             icon={connTesting ? '⏳' : connResult?.ok ? '✅' : connResult ? '❌' : '🔌'}
                             title={connTesting ? 'Testing...' : 'Test Connection'}
@@ -456,6 +487,26 @@ export default function SettingsScreen() {
                     <Text style={{ padding: spacing.md, paddingTop: spacing.sm, fontSize: 13, color: colors.textMuted }}>
                         Tap the URL to edit manually, or scan the QR code on your desktop app to auto-connect.
                     </Text>
+                </View>
+
+                {/* Voice Agent Settings */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🎙️ Voice Assistant</Text>
+                    <View style={styles.card}>
+                        <View style={styles.aboutItem}>
+                            <Text style={styles.aboutLabel}>Voice Mode</Text>
+                            <TouchableOpacity onPress={() => setVoiceModalVisible(true)}>
+                                <Text style={[styles.aboutValue, { color: colors.accentPrimary, textDecorationLine: 'underline', textTransform: 'capitalize' }]}>
+                                    {voiceMode}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ padding: spacing.md, fontSize: 13, color: colors.textMuted }}>
+                            Native: Apple/Google Dictation (Fast)
+                            {'\n'}Whisper: Groq API Endpoint (Accurate)
+                            {'\n'}LiveKit: Real-time Audio (Beta)
+                        </Text>
+                    </View>
                 </View>
 
                 {/* AI Models (Ollama) */}
@@ -565,6 +616,24 @@ export default function SettingsScreen() {
                     </View>
                 </View>
 
+                {/* Formatting */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>💱 Formatting</Text>
+                    <View style={styles.card}>
+                        <View style={styles.aboutItem}>
+                            <Text style={styles.aboutLabel}>Currency Symbol</Text>
+                            <TouchableOpacity onPress={() => setCurrencyModalVisible(true)}>
+                                <Text style={[styles.aboutValue, { color: colors.accentPrimary, textDecorationLine: 'underline', textTransform: 'uppercase' }]}>
+                                    {currencyPreference}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ padding: spacing.md, fontSize: 13, color: colors.textMuted }}>
+                            Select the default symbol (₹, $) to display on Analytics and Wardrobe tabs.
+                        </Text>
+                    </View>
+                </View>
+
                 {/* App Info */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>ℹ️ About</Text>
@@ -612,6 +681,108 @@ export default function SettingsScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.accentPrimary }]} onPress={saveUrl}>
                                 <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Voice Mode Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={voiceModalVisible}
+                onRequestClose={() => setVoiceModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Voice Mode</Text>
+                        <Text style={styles.modalText}>
+                            Choose your preferred transcription and interaction engine for voice commands.
+                        </Text>
+
+                        <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
+                            <TouchableOpacity
+                                style={[styles.textInput, voiceMode === 'native' && { borderColor: colors.accentPrimary, backgroundColor: colors.accentPrimary + '15' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetVoiceMode('native')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>Native Dictation</Text>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Uses iOS/Android built-in speech recognition. Fast and free.</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.textInput, voiceMode === 'whisper' && { borderColor: '#8b5cf6', backgroundColor: '#8b5cf615' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetVoiceMode('whisper')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>Whisper (Groq API)</Text>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Sends audio to server for high-accuracy processing.</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.textInput, voiceMode === 'livekit' && { borderColor: '#ef4444', backgroundColor: '#ef444415' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetVoiceMode('livekit')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>LiveKit (Beta)</Text>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Experimental real-time voice interaction with interruption support.</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity style={[styles.modalBtn, { width: '100%' }]} onPress={() => setVoiceModalVisible(false)}>
+                                <Text style={styles.modalBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Currency Mode Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={currencyModalVisible}
+                onRequestClose={() => setCurrencyModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Currency Format</Text>
+                        <Text style={styles.modalText}>
+                            Choose the currency symbol used on the Analytics report.
+                        </Text>
+
+                        <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
+                            <TouchableOpacity
+                                style={[styles.textInput, currencyPreference === '₹' && { borderColor: colors.accentPrimary, backgroundColor: colors.accentPrimary + '15' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetCurrency('₹')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>₹ - Indian Rupee (INR)</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.textInput, currencyPreference === '$' && { borderColor: colors.accentPrimary, backgroundColor: colors.accentPrimary + '15' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetCurrency('$')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>$ - US Dollar (USD)</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.textInput, currencyPreference === '£' && { borderColor: colors.accentPrimary, backgroundColor: colors.accentPrimary + '15' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetCurrency('£')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>£ - British Pound (GBP)</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.textInput, currencyPreference === '€' && { borderColor: colors.accentPrimary, backgroundColor: colors.accentPrimary + '15' }, { marginBottom: 0, padding: spacing.md }]}
+                                onPress={() => handleSetCurrency('€')}
+                            >
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>€ - Euro (EUR)</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity style={[styles.modalBtn, { width: '100%' }]} onPress={() => setCurrencyModalVisible(false)}>
+                                <Text style={styles.modalBtnText}>Cancel</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

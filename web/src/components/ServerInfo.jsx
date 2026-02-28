@@ -9,6 +9,8 @@ export default function ServerInfo() {
     const [copied, setCopied] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [connectedCount, setConnectedCount] = useState(0);
+    const [interfaces, setInterfaces] = useState([]);
+    const [selectedInterface, setSelectedInterface] = useState('');
 
     useEffect(() => {
         if (!window.electron) return;
@@ -40,6 +42,17 @@ export default function ServerInfo() {
         }
     }, [connectedCount, isOpen]);
 
+    useEffect(() => {
+        if (isOpen && window.electron && window.electron.getAllNetworkInterfaces) {
+            window.electron.getAllNetworkInterfaces().then(ifaces => {
+                setInterfaces(ifaces);
+                if (info?.ip) {
+                    setSelectedInterface(info.ip);
+                }
+            });
+        }
+    }, [isOpen, info]);
+
     const handleRefresh = async () => {
         if (window.electron) {
             setIsRefreshing(true);
@@ -55,6 +68,15 @@ export default function ServerInfo() {
         navigator.clipboard.writeText(info.url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleSelectInterface = async (e) => {
+        const ip = e.target.value;
+        setSelectedInterface(ip);
+        if (window.electron && window.electron.setPreferredIp) {
+            await window.electron.setPreferredIp(ip);
+            await handleRefresh();
+        }
     };
 
     const hasClients = connectedCount > 0;
@@ -205,9 +227,37 @@ export default function ServerInfo() {
                             </button>
                         </div>
 
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-                            Ensure your mobile device is connected to the same Wi-Fi network: <strong>{info.ip}</strong>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: '16px' }}>
+                            Ensure your mobile device is connected to the same Wi-Fi network.
                         </div>
+
+                        {interfaces.length > 0 && (
+                            <div style={{ marginTop: '16px', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '8px', fontWeight: 500 }}>
+                                    Network Interface:
+                                </label>
+                                <select
+                                    value={selectedInterface}
+                                    onChange={handleSelectInterface}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg-tertiary)',
+                                        color: 'var(--color-text-primary)',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {interfaces.map((iface, idx) => (
+                                        <option key={idx} value={iface.address}>
+                                            {iface.name} ({iface.address})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 </div>,
                 document.body

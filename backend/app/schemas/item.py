@@ -11,6 +11,7 @@ class ItemBase(BaseModel):
     quantity: int = Field(default=1, ge=1)
     tags: List[str] = []
     image_url: Optional[str] = Field(None, max_length=1000)
+    purchase_price: Optional[float] = Field(None, ge=0)
 
 
 class ItemCreate(ItemBase):
@@ -27,6 +28,7 @@ class ItemUpdate(BaseModel):
     quantity: Optional[int] = Field(None, ge=1)
     tags: Optional[List[str]] = None
     image_url: Optional[str] = Field(None, max_length=1000)
+    purchase_price: Optional[float] = Field(None, ge=0)
 
 
 class ItemMoveRequest(BaseModel):

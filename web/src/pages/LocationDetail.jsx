@@ -35,7 +35,11 @@ const kindLabels = {
 
 function AddItemModal({ locationId, onClose, onSuccess }) {
     const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [imageUrl, setImageUrl] = useState('');
+    const [purchasePrice, setPurchasePrice] = useState('');
+    const [tags, setTags] = useState('');
     const [isTemporary, setIsTemporary] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -45,8 +49,13 @@ function AddItemModal({ locationId, onClose, onSuccess }) {
         try {
             await itemApi.create({
                 name,
+                description: description || null,
                 quantity,
+                image_url: imageUrl || null,
+                purchase_price: purchasePrice ? parseFloat(purchasePrice) : null,
+                tags: tags.split(',').map(t => t.trim()).filter(Boolean),
                 current_location_id: locationId,
+                permanent_location_id: isTemporary ? locationId : locationId, // Assuming permanent_location_id is locationId if temporary, or just locationId
                 is_temporary_placement: isTemporary,
             });
             onSuccess();
@@ -82,6 +91,16 @@ function AddItemModal({ locationId, onClose, onSuccess }) {
                             />
                         </div>
                         <div className="form-group">
+                            <label className="form-label">Description</label>
+                            <textarea
+                                className="input"
+                                placeholder="e.g., Blue, size M, with hood"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                rows={2}
+                            />
+                        </div>
+                        <div className="form-group">
                             <label className="form-label">Quantity</label>
                             <input
                                 type="number"
@@ -89,6 +108,35 @@ function AddItemModal({ locationId, onClose, onSuccess }) {
                                 min="1"
                                 value={quantity}
                                 onChange={e => setQuantity(parseInt(e.target.value))}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Purchase Price</label>
+                            <input
+                                type="number"
+                                className="input"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={purchasePrice}
+                                onChange={e => setPurchasePrice(e.target.value)}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Tags (comma-separated)</label>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g., clothes, winter, jacket"
+                                value={tags}
+                                onChange={e => setTags(e.target.value)}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Image</label>
+                            <ImageUpload
+                                value={imageUrl}
+                                onChange={setImageUrl}
                             />
                         </div>
                         <div className="form-group">
@@ -642,6 +690,18 @@ function EditLocationModal({ location, onClose, onSuccess }) {
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 rows={3}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Purchase Price</label>
+                            <input
+                                type="number"
+                                className="input"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={purchasePrice}
+                                onChange={e => setPurchasePrice(e.target.value)}
                             />
                         </div>
                         <div className="form-group">

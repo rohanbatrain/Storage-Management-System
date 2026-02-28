@@ -13,10 +13,12 @@ import {
     X,
     QrCode,
     Handshake,
-    AlertTriangle
+    AlertTriangle,
+    Plane
 } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
-import { itemApi, locationApi, qrApi, imageApi, identifyApi } from '../services/api';
+import { itemApi, locationApi, qrApi, imageApi, identifyApi, tripsApi } from '../services/api';
+import { formatCurrency } from '../utils/formatCurrency';
 
 function MoveItemModal({ item, onClose, onSuccess }) {
     const [locations, setLocations] = useState([]);
@@ -134,12 +136,29 @@ function ItemDetail() {
     const [showLostModal, setShowLostModal] = useState(false);
     const [lostNotes, setLostNotes] = useState('');
     const [lostLoading, setLostLoading] = useState(false);
+
+    // Trips
+    const [activeTrips, setActiveTrips] = useState([]);
+    const [showTripModal, setShowTripModal] = useState(false);
+    const [selectedTrip, setSelectedTrip] = useState('');
+    const [tripLoading, setTripLoading] = useState(false);
+
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
 
     useEffect(() => {
         loadItem();
+        loadTrips();
     }, [id]);
+
+    const loadTrips = async () => {
+        try {
+            const res = await tripsApi.list();
+            setActiveTrips(res.data.filter(t => t.is_active));
+        } catch (e) {
+            console.error(e);
+        }
+    }
 
     const loadItem = async () => {
         setLoading(true);
@@ -270,6 +289,22 @@ function ItemDetail() {
         }
     };
 
+    const handlePackForTrip = async (e) => {
+        e.preventDefault();
+        try {
+            setTripLoading(true);
+            await tripsApi.pack(selectedTrip, id);
+            setShowTripModal(false);
+            alert("Packed!");
+            loadItem();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to pack item.");
+        } finally {
+            setTripLoading(false);
+        }
+    };
+
     if (loading) {
         return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>;
     }
@@ -358,6 +393,9 @@ function ItemDetail() {
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', color: 'var(--color-text-secondary)' }}>
                         <span>Quantity: {item.quantity}</span>
+                        {item.purchase_price != null && (
+                            <span>Price: {formatCurrency(item.purchase_price, localStorage.getItem('sms_currency_preference') || '₹')}</span>
+                        )}
                         {item.tags?.length > 0 && (
                             <span>Tags: {item.tags.join(', ')}</span>
                         )}
@@ -537,6 +575,11 @@ function ItemDetail() {
                     >
                         <AlertTriangle size={16} />
                         Mark as Lost
+                    </button>
+                )}
+                {!item.is_lost && activeTrips.length > 0 && (
+                    <button className="btn" style={{ background: '#3b82f620', color: '#3b82f6', border: '1px solid #3b82f640' }} onClick={() => setShowTripModal(true)}>
+                        <Plane size={16} /> Pack for Trip
                     </button>
                 )}
             </div>
@@ -860,6 +903,57 @@ function ItemDetail() {
                 )
             }
 
+            {/* Trip Modal */}
+            {showTripModal && (
+                <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div className="card" style={{ width: 440, maxWidth: '90vw', padding: 0 }}>
+                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
+                            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', color: '#3b82f6' }}>
+                                <Plane size={18} />
+                                Pack for Trip
+                            </h3>
+                            <button className="btn btn-secondary btn-icon" onClick={() => setShowTripModal(false)}><X size={16} /></button>
+                        </div>
+                        <form onSubmit={handlePackForTrip} style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                            <p style={{ color: 'var(--color-text-muted)' }}>
+                                Add this item to an active packing list.
+                            </p>
+                            <div>
+                                <label style={{ display: 'block', fontWeight: 500, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Select Trip *</label>
+                                <select
+                                    required
+                                    value={selectedTrip}
+                                    onChange={e => setSelectedTrip(e.target.value)}
+                                    className="form-select w-full"
+                                    style={{
+                                        width: '100%', padding: 'var(--space-md)',
+                                        background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)',
+                                        fontSize: 'var(--font-size-md)',
+                                    }}
+                                >
+                                    <option value="">Choose a trip...</option>
+                                    {activeTrips.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} ({t.destination})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 'var(--space-sm)' }}>
+                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowTripModal(false)}>Cancel</button>
+                                <button
+                                    type="submit"
+                                    className="btn"
+                                    disabled={tripLoading || !selectedTrip}
+                                    style={{ flex: 2, background: '#3b82f6', color: '#fff', border: 'none', fontWeight: 600, opacity: selectedTrip ? 1 : 0.5 }}
+                                >
+                                    {tripLoading ? 'Packing...' : '🧳 Pack Item'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {showEditModal && (
                 <EditItemModal
                     item={item}
@@ -879,6 +973,7 @@ function EditItemModal({ item, onClose, onSuccess }) {
     const [description, setDescription] = useState(item.description || '');
     const [quantity, setQuantity] = useState(item.quantity);
     const [imageUrl, setImageUrl] = useState(item.image_url || '');
+    const [purchasePrice, setPurchasePrice] = useState(item.purchase_price || '');
     const [tags, setTags] = useState(item.tags ? item.tags.join(', ') : '');
     const [loading, setLoading] = useState(false);
 
@@ -891,6 +986,7 @@ function EditItemModal({ item, onClose, onSuccess }) {
                 description: description || null,
                 quantity: parseInt(quantity),
                 image_url: imageUrl || null,
+                purchase_price: purchasePrice ? parseFloat(purchasePrice) : null,
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean)
             });
             onSuccess();
@@ -948,6 +1044,18 @@ function EditItemModal({ item, onClose, onSuccess }) {
                             <ImageUpload
                                 value={imageUrl}
                                 onChange={setImageUrl}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Purchase Price</label>
+                            <input
+                                type="number"
+                                className="input"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={purchasePrice}
+                                onChange={e => setPurchasePrice(e.target.value)}
                             />
                         </div>
                         <div className="form-group">

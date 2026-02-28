@@ -32,7 +32,38 @@ function findFreePort(startPort) {
 
 // Function to get local IP address
 function getLocalIP() {
+    let configPath;
+    try {
+        configPath = path.join(app.getPath('userData'), 'network-config.json');
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.preferredIp) {
+                // Verify the preferred IP is still valid
+                const interfaces = os.networkInterfaces();
+                for (const name of Object.keys(interfaces)) {
+                    for (const iface of interfaces[name]) {
+                        if (iface.address === config.preferredIp) {
+                            return config.preferredIp;
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) { }
+
+    // Fallback: pick the first one that looks like a real physical IP
     const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                if (!iface.address.startsWith('172.') && !iface.address.startsWith('169.254.')) {
+                    return iface.address;
+                }
+            }
+        }
+    }
+
+    // Deep fallback: just return the first non-internal one
     for (const name of Object.keys(interfaces)) {
         for (const iface of interfaces[name]) {
             if (iface.family === 'IPv4' && !iface.internal) {
@@ -40,6 +71,7 @@ function getLocalIP() {
             }
         }
     }
+
     return '127.0.0.1';
 }
 
@@ -214,6 +246,30 @@ app.whenReady().then(async () => {
             port: backendPort,
             url: `http://${getLocalIP()}:${backendPort}`
         };
+    });
+
+    ipcMain.handle('get-all-network-interfaces', () => {
+        const interfaces = os.networkInterfaces();
+        const result = [];
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    result.push({ name, address: iface.address });
+                }
+            }
+        }
+        return result;
+    });
+
+    ipcMain.handle('set-preferred-ip', (event, ip) => {
+        try {
+            const configPath = path.join(app.getPath('userData'), 'network-config.json');
+            fs.writeFileSync(configPath, JSON.stringify({ preferredIp: ip }));
+            return true;
+        } catch (e) {
+            console.error('Failed to save preferred IP:', e);
+            return false;
+        }
     });
 
     // --- Export / Import archive via native file dialogs ---

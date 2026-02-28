@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum, Float
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.models.compatibility import GUID, JSONCompatible
@@ -59,6 +59,7 @@ class Item(Base):
     item_type = Column(SQLEnum(ItemType), default=ItemType.GENERIC, nullable=False, index=True)
     item_data = Column(JSONCompatible(), default={})  # Domain-specific data (clothing: category, wear_count, etc.)
     image_url = Column(String(1000), nullable=True)  # External image URL
+    purchase_price = Column(Float, nullable=True)  # Core price for Wardrobe Value & Cost-Per-Wear Analytics
     
     # Loan Tracking
     is_lent = Column(Boolean, default=False, nullable=False, index=True)
@@ -71,6 +72,21 @@ class Item(Base):
     is_lost = Column(Boolean, default=False, nullable=False, index=True)
     lost_at = Column(DateTime, nullable=True)
     lost_notes = Column(String(500), nullable=True)
+    
+    # Trip / Packing List
+    current_trip_id = Column(
+        GUID(),
+        ForeignKey("trips.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    
+    current_trip = relationship(
+        "Trip",
+        back_populates="items",
+        foreign_keys=[current_trip_id],
+        lazy="selectin"
+    )
     
     # Relationships
     current_location = relationship(
@@ -97,6 +113,13 @@ class Item(Base):
     
     embeddings = relationship(
         "ItemEmbedding",
+        back_populates="item",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    
+    wear_history = relationship(
+        "WearHistory",
         back_populates="item",
         cascade="all, delete-orphan",
         lazy="selectin"

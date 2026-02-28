@@ -12,6 +12,8 @@ import QRPrint from './pages/QRPrint';
 import LentItems from './pages/LentItems';
 import LostItems from './pages/LostItems';
 import Chat from './pages/Chat';
+import Analytics from './pages/Analytics';
+import Trips from './pages/Trips';
 import ChatDrawer from './components/ChatDrawer';
 import GlobalErrorBanner from './components/GlobalErrorBanner';
 
@@ -36,6 +38,8 @@ function App() {
                     <Route path="/lent" element={<LentItems />} />
                     <Route path="/lost" element={<LostItems />} />
                     <Route path="/chat" element={<Chat />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/trips" element={<Trips />} />
                 </Routes>
             </main>
             {location.pathname !== '/chat' && <ChatDrawer />}

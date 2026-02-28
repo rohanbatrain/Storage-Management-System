@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     View,
     Text,
@@ -15,7 +16,7 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import { itemApi, locationApi, qrApi, imageApi, identifyApi } from '../services/api';
+import { itemApi, locationApi, qrApi, imageApi, identifyApi, analyticsApi, tripsApi } from '../services/api';
 import { ActivityIndicator } from 'react-native';
 import FormModal, { ConfirmDialog, LocationPicker } from '../components/FormModal';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,6 +32,7 @@ export default function ItemDetailScreen() {
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [currencyOptions, setCurrencyOptions] = useState<string>('₹');
 
     // Modal states
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -54,6 +56,12 @@ export default function ItemDetailScreen() {
     const [enrolling, setEnrolling] = useState(false);
     const [checkingEnrollment, setCheckingEnrollment] = useState(true);
     const [autoTag, setAutoTag] = useState(false);
+
+    // Trips
+    const [activeTrips, setActiveTrips] = useState<any[]>([]);
+    const [showTripModal, setShowTripModal] = useState(false);
+    const [selectedTrip, setSelectedTrip] = useState('');
+    const [tripLoading, setTripLoading] = useState(false);
 
     const checkEnrollment = async () => {
         try {
@@ -161,14 +169,16 @@ export default function ItemDetailScreen() {
 
     const loadData = async () => {
         try {
-            const [itemRes, locRes, histRes] = await Promise.all([
+            const [itemRes, locRes, histRes, tripsRes] = await Promise.all([
                 itemApi.get(id),
                 locationApi.getTree(),
                 itemApi.getHistory(id).catch(() => ({ data: [] })),
+                tripsApi.list().catch(() => ({ data: [] })),
             ]);
             setItem(itemRes.data);
             setLocations(locRes.data);
             setHistory(histRes.data || []);
+            setActiveTrips((tripsRes.data || []).filter((t: any) => t.is_active));
         } catch (error) {
             console.error('Failed to load item:', error);
             Alert.alert('Error', 'Failed to load item details');
@@ -198,6 +208,7 @@ export default function ItemDetailScreen() {
                 name: data.name,
                 description: data.description,
                 quantity: parseInt(data.quantity) || 1,
+                purchase_price: data.purchase_price ? parseFloat(data.purchase_price) : null,
             });
             setEditModalVisible(false);
             Alert.alert('Success', 'Item updated successfully');
@@ -318,8 +329,41 @@ export default function ItemDetailScreen() {
         }
     };
 
+    const handleWearToday = async () => {
+        try {
+            setActionLoading(true);
+            await analyticsApi.logWear(id);
+            Alert.alert('Logged', 'Item wear has been recorded for today!');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to log wear');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handlePackForTrip = async () => {
+        if (!selectedTrip) return;
+        try {
+            setTripLoading(true);
+            await tripsApi.pack(selectedTrip, id);
+            setShowTripModal(false);
+            Alert.alert('Packed', 'Item packed for the trip!');
+            loadData();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to pack item');
+        } finally {
+            setTripLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
+        const fetchCurrency = async () => {
+            const pref = await AsyncStorage.getItem('sms_currency_preference');
+            if (pref) setCurrencyOptions(pref);
+        };
+        fetchCurrency();
     }, [id]);
 
     useEffect(() => {
@@ -363,6 +407,9 @@ export default function ItemDetailScreen() {
                         <View style={styles.headerInfo}>
                             <Text style={styles.itemName}>{item.name}</Text>
                             <Text style={styles.itemMeta}>Quantity: {item.quantity}</Text>
+                            {item.purchase_price != null && (
+                                <Text style={styles.itemMeta}>Price: {currencyOptions}{item.purchase_price.toLocaleString()}</Text>
+                            )}
                         </View>
                         {item.is_temporary_placement && (
                             <View style={styles.tempBadge}>
@@ -494,6 +541,26 @@ export default function ItemDetailScreen() {
                             <Text style={styles.actionIcon}>📦</Text>
                             <Text style={[styles.actionLabel, { color: colors.warning }]}>Move</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.accentPrimary + '15' }]}
+                            onPress={handleWearToday}
+                            disabled={actionLoading}
+                        >
+                            <Text style={styles.actionIcon}>👕</Text>
+                            <Text style={[styles.actionLabel, { color: colors.accentPrimary }]}>Wear</Text>
+                        </TouchableOpacity>
+
+                        {!item.is_lost && activeTrips.length > 0 && (
+                            <TouchableOpacity
+                                style={[styles.actionButton, { backgroundColor: '#3b82f615' }]}
+                                onPress={() => setShowTripModal(true)}
+                                disabled={actionLoading}
+                            >
+                                <Text style={styles.actionIcon}>✈️</Text>
+                                <Text style={[styles.actionLabel, { color: '#3b82f6' }]}>Pack</Text>
+                            </TouchableOpacity>
+                        )}
 
                         {!item.is_lent && !item.is_lost && (
                             <TouchableOpacity
@@ -705,11 +772,13 @@ export default function ItemDetailScreen() {
                     { key: 'name', label: 'Name', required: true },
                     { key: 'description', label: 'Description', multiline: true },
                     { key: 'quantity', label: 'Quantity', keyboardType: 'numeric' },
+                    { key: 'purchase_price', label: 'Purchase Price', keyboardType: 'numeric', placeholder: '0.00' },
                 ]}
                 initialValues={{
                     name: item.name,
                     description: item.description || '',
                     quantity: String(item.quantity || 1),
+                    purchase_price: item.purchase_price != null ? String(item.purchase_price) : '',
                 }}
             />
 
@@ -803,6 +872,58 @@ export default function ItemDetailScreen() {
                 locations={locations}
                 title="Select Destination"
             />
+
+            {/* Trip Modal */}
+            <Modal
+                visible={showTripModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowTripModal(false)}
+            >
+                <View style={moveStyles.overlay}>
+                    <View style={[moveStyles.modal, { paddingBottom: insets.bottom + spacing.lg }]}>
+                        <View style={moveStyles.header}>
+                            <Text style={[moveStyles.title, { color: '#3b82f6' }]}>✈️ Pack for Trip</Text>
+                            <TouchableOpacity style={moveStyles.closeButton} onPress={() => setShowTripModal(false)}>
+                                <Text style={moveStyles.closeIcon}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={moveStyles.content}>
+                            <Text style={moveStyles.label}>Select an active trip:</Text>
+                            <View style={{ gap: spacing.md, marginBottom: spacing.lg }}>
+                                {activeTrips.map(t => (
+                                    <TouchableOpacity
+                                        key={t.id}
+                                        onPress={() => setSelectedTrip(t.id)}
+                                        style={{
+                                            padding: spacing.md,
+                                            borderRadius: borderRadius.md,
+                                            borderWidth: 2,
+                                            borderColor: selectedTrip === t.id ? '#3b82f6' : colors.border,
+                                            backgroundColor: selectedTrip === t.id ? '#3b82f615' : colors.bgTertiary,
+                                        }}
+                                    >
+                                        <Text style={{ fontWeight: '600', color: colors.textPrimary }}>{t.name}</Text>
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>{t.destination}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                        <View style={moveStyles.actions}>
+                            <TouchableOpacity style={moveStyles.cancelButton} onPress={() => setShowTripModal(false)}>
+                                <Text style={moveStyles.cancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[moveStyles.submitButton, { backgroundColor: '#3b82f6' }, !selectedTrip && moveStyles.submitButtonDisabled]}
+                                onPress={handlePackForTrip}
+                                disabled={!selectedTrip || tripLoading}
+                            >
+                                <Text style={[moveStyles.submitText, { color: '#fff' }]}>{tripLoading ? 'Packing...' : 'Pack Item'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Lend Modal */}
             <Modal

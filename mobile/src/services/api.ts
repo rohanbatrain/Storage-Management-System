@@ -61,6 +61,7 @@ export const itemApi = {
     delete: (id: string) => api.delete(`/items/${id}`),
     move: (id: string, data: any) => api.post(`/items/${id}/move`, data),
     return: (id: string) => api.post(`/items/${id}/return`),
+    wear: (id: string) => api.post(`/items/${id}/wear`),
     // History
     getHistory: (id: string) => api.get(`/items/${id}/history`),
     // Loan tracking
@@ -197,6 +198,23 @@ export const chatApi = {
     pullOllamaModel: (model: string) => api.post('/chat/ollama/pull', { model }),
     ollamaModels: () => api.get('/chat/ollama/models'),
     switchModel: (model: string) => api.patch('/chat/model', { model }),
+};
+
+// Voice Agent API
+export const voiceApi = {
+    transcribe: async (audioUri: string, mimeType: string = 'audio/m4a', fileName: string = 'audio.m4a') => {
+        const formData = new FormData();
+        formData.append('file', {
+            uri: audioUri,
+            type: mimeType,
+            name: fileName,
+        } as any);
+
+        return api.post('/voice/transcribe', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000, // Transcription might take a few seconds
+        });
+    }
 };
 
 // --- Connection Diagnostics ---
@@ -410,6 +428,24 @@ export const identifyApi = {
 
     // Check model status and enrollment count
     status: () => api.get('/identify/status'),
+};
+
+// Analytics API
+export const analyticsApi = {
+    logWear: (itemId: string) => api.post(`/analytics/wear/${itemId}`),
+    getCostPerWear: () => api.get('/analytics/cost-per-wear'),
+    getDeclutter: (days: number = 365) => api.get(`/analytics/declutter?days=${days}`),
+};
+
+// Trips API
+export const tripsApi = {
+    list: () => api.get('/trips'),
+    create: (data: any) => api.post('/trips', data),
+    get: (id: string) => api.get(`/trips/${id}`),
+    pack: (tripId: string, itemId: string) => api.post(`/trips/${tripId}/pack/${itemId}`),
+    unpack: (tripId: string, itemId: string) => api.post(`/trips/${tripId}/unpack/${itemId}`),
+    unpackAll: (tripId: string) => api.post(`/trips/${tripId}/unpack-all`),
+    markInactive: (tripId: string) => api.post(`/trips/${tripId}/inactive`),
 };
 
 export default api;

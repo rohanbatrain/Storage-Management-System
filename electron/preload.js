@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electron', {
     getSyncStatus: () => ipcRenderer.invoke('get-sync-status'),
     getDiscoveredPeers: () => ipcRenderer.invoke('get-discovered-peers'),
     getConnectedClients: () => ipcRenderer.invoke('get-connected-clients'),
+    getAllNetworkInterfaces: () => ipcRenderer.invoke('get-all-network-interfaces'),
+    setPreferredIp: (ip) => ipcRenderer.invoke('set-preferred-ip', ip),
     // Export / Import archive via native file dialogs
     saveArchive: (arrayBuffer) => ipcRenderer.invoke('save-archive', arrayBuffer),
     openArchive: () => ipcRenderer.invoke('open-archive'),

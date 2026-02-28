@@ -17,7 +17,9 @@ import {
     Handshake,
     AlertTriangle,
     MessageSquare,
-    RefreshCw
+    RefreshCw,
+    BarChart3,
+    Plane
 } from 'lucide-react';
 import { locationApi } from '../services/api';
 import ServerInfo from './ServerInfo';
@@ -437,6 +439,20 @@ function Sidebar() {
                         label="Lost Items"
                         color="#ef4444"
                         isActive={location.pathname === '/lost'}
+                    />
+                    <NavItem
+                        to="/analytics"
+                        icon={BarChart3}
+                        label="Analytics"
+                        color="#f59e0b"
+                        isActive={location.pathname === '/analytics'}
+                    />
+                    <NavItem
+                        to="/trips"
+                        icon={Plane}
+                        label="Trips & Packing"
+                        color="#3b82f6"
+                        isActive={location.pathname === '/trips'}
                     />
                 </div>
 

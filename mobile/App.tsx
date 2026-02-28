@@ -20,6 +20,8 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import QRPrintScreen from './src/screens/QRPrintScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import ChatScreen from './src/screens/ChatScreen';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import TripsScreen from './src/screens/TripsScreen';
 import { colors } from './src/styles/theme';
 
 // Keep the splash screen visible while we fetch resources
@@ -293,6 +295,16 @@ function AppContent() {
                         name="Chat"
                         component={ChatScreen}
                         options={{ title: 'Ask SMS' }}
+                    />
+                    <Stack.Screen
+                        name="Analytics"
+                        component={AnalyticsScreen}
+                        options={{ title: 'Wardrobe Analytics' }}
+                    />
+                    <Stack.Screen
+                        name="Trips"
+                        component={TripsScreen}
+                        options={{ title: 'Trips & Packing' }}
                     />
                 </Stack.Navigator>
             </NavigationContainer>

@@ -35,6 +35,13 @@
                 {
                     "cameraPermission": "Allow SMS to access your camera to scan QR codes"
                 }
+            ],
+            [
+                "@react-native-voice/voice",
+                {
+                    "microphonePermission": "Allow SMS to securely transcribe your voice into inventory commands.",
+                    "speechRecognitionPermission": "Allow SMS to transcribe your voice on-device."
+                }
             ]
         ]
     }

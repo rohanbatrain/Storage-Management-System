@@ -227,5 +227,16 @@ export const identifyApi = {
     status: () => api.get('/identify/status'),
 };
 
+// Trips API
+export const tripsApi = {
+    list: () => api.get('/trips'),
+    create: (data) => api.post('/trips', data),
+    get: (id) => api.get(`/trips/${id}`),
+    pack: (tripId, itemId) => api.post(`/trips/${tripId}/pack/${itemId}`),
+    unpack: (tripId, itemId) => api.post(`/trips/${tripId}/unpack/${itemId}`),
+    unpackAll: (tripId) => api.post(`/trips/${tripId}/unpack-all`),
+    markInactive: (tripId) => api.post(`/trips/${tripId}/inactive`),
+};
+
 export default api;
 

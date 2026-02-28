@@ -17,8 +17,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
+import Voice from '@react-native-voice/voice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
-import api, { chatApi } from '../services/api';
+import api, { chatApi, voiceApi } from '../services/api';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -118,6 +121,13 @@ export default function ChatScreen() {
     const flatListRef = useRef<FlatList>(null);
     const [selectedImage, setSelectedImage] = useState<{ uri: string, base64: string } | null>(null);
 
+    // Audio recording state
+    const [recording, setRecording] = useState<Audio.Recording | null>(null);
+    const [isRecording, setIsRecording] = useState(false);
+    const [audioLevel, setAudioLevel] = useState(0);
+
+    const [voiceMode, setVoiceMode] = useState<'native' | 'whisper' | 'livekit'>('whisper');
+
     // Model selector
     const [installedModels, setInstalledModels] = useState<any[]>([]);
     const [activeModel, setActiveModel] = useState('');
@@ -140,6 +150,33 @@ export default function ChatScreen() {
             console.error('Model switch failed:', err);
         }
     };
+
+    // Voice Provider Setup
+    useEffect(() => {
+        const loadVoiceMode = async () => {
+            const mode = await AsyncStorage.getItem('sms_voice_mode');
+            if (mode) setVoiceMode(mode as any);
+        };
+        loadVoiceMode();
+
+        Voice.onSpeechStart = () => setIsRecording(true);
+        Voice.onSpeechEnd = () => setIsRecording(false);
+        Voice.onSpeechResults = (e) => {
+            if (e.value && e.value.length > 0) {
+                const text = e.value[0];
+                setInput(text);
+                // Optional: Auto-send after a brief pause, but manual confirmation is safer for now
+            }
+        };
+        Voice.onSpeechError = (e) => {
+            setIsRecording(false);
+            console.error('Dictation error:', e.error);
+        };
+
+        return () => {
+            Voice.destroy().then(Voice.removeAllListeners);
+        };
+    }, []);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -338,7 +375,111 @@ export default function ChatScreen() {
 
     useEffect(() => {
         loadModels();
+        // Request microphone permissions
+        (async () => {
+            const { status } = await Audio.requestPermissionsAsync();
+            if (status !== 'granted') {
+                // Not a fatal error, just can't use voice
+                console.log('Microphone permission denied');
+            }
+        })();
     }, []);
+
+    // ----------------------------------------------------------------------
+    // Voice Handling (Press & Hold to Record)
+    // ----------------------------------------------------------------------
+
+    const startRecording = async () => {
+        try {
+            if (voiceMode === 'native') {
+                console.log('Starting native dictation...');
+                await Voice.start('en-US');
+            } else if (voiceMode === 'livekit') {
+                console.log('Starting LiveKit stream...');
+                Alert.alert('LiveKit', 'LiveKit WebRTC is scaffolding. Agent connection will start here.');
+            } else {
+                // Default: Whisper (expo-av)
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: true,
+                    playsInSilentModeIOS: true,
+                });
+
+                console.log('Starting expo-av recording (Whisper)...');
+                const { recording } = await Audio.Recording.createAsync(
+                    Audio.RecordingOptionsPresets.HIGH_QUALITY
+                );
+                setRecording(recording);
+                setIsRecording(true);
+            }
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            Alert.alert('Microphone Error', 'Failed to start recording. Please check permissions.');
+        }
+    };
+
+    const stopRecording = async () => {
+        console.log('Stopping recording..');
+
+        if (voiceMode === 'native') {
+            await Voice.stop();
+            // setIsRecording(false) handled by Voice.onSpeechEnd
+            return;
+        } else if (voiceMode === 'livekit') {
+            // LiveKit handles its own stream lifecycle for now
+            return;
+        }
+
+        // Default: Whisper (expo-av)
+        setRecording(null);
+        setIsRecording(false);
+        if (!recording) return;
+
+        try {
+            await recording.stopAndUnloadAsync();
+            await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+            const uri = recording.getURI();
+            console.log('Recording stopped and stored at', uri);
+
+            if (uri) {
+                uploadVoiceCommand(uri);
+            }
+        } catch (err) {
+            console.error('Failed to stop recording', err);
+        }
+    };
+
+    const uploadVoiceCommand = async (uri: string) => {
+        setLoading(true);
+        try {
+            // Append a temporary "Transcribing..." bubble
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: '🎙️ Transcribing audio...',
+            }]);
+
+            // Hit the fast Whisper Groq endpoint using our utility
+            const res = await voiceApi.transcribe(uri, 'audio/m4a', 'voice_command.m4a');
+
+            // Replace the dummy user message with the REAL transcribed text
+            // and append the assistant's processed reply
+            const { text } = res.data;
+
+            // Immediately send the transcribed text to the chat pipeline!
+            setMessages(prev => prev.slice(0, -1)); // Remove the dummy "Transcribing..." bubble
+            handleSend(text);
+
+        } catch (err) {
+            console.error('Voice upload failed', err);
+            Alert.alert('Voice Error', 'Failed to process voice command.');
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                newMsgs[newMsgs.length - 1].content = '❌ Failed to process audio.';
+                return newMsgs;
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const renderMessage = ({ item, index }: { item: Message; index: number }) => (
         <View style={[
@@ -433,26 +574,40 @@ export default function ChatScreen() {
                         </View>
                     )}
                     <View style={styles.inputBar}>
-                        <TouchableOpacity style={styles.attachBtn} onPress={pickImage} disabled={loading}>
+                        <TouchableOpacity style={styles.attachBtn} onPress={pickImage} disabled={loading || isRecording}>
                             <Text style={styles.attachIcon}>📷</Text>
                         </TouchableOpacity>
+
                         <TextInput
-                            style={styles.input}
-                            value={input}
+                            style={[styles.input, isRecording && { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.5)' }]}
+                            value={isRecording ? 'Listening...' : input}
                             onChangeText={setInput}
                             placeholder="Ask about your stuff..."
                             placeholderTextColor={colors.textMuted}
                             returnKeyType="send"
                             onSubmitEditing={() => handleSend()}
-                            editable={!loading}
+                            editable={!loading && !isRecording}
                         />
-                        <TouchableOpacity
-                            style={[styles.sendButton, (!input.trim() && !selectedImage || loading) && { opacity: 0.4 }]}
-                            onPress={() => handleSend()}
-                            disabled={(!input.trim() && !selectedImage) || loading}
-                        >
-                            <Text style={styles.sendIcon}>↑</Text>
-                        </TouchableOpacity>
+
+                        {/* Mic / Send Button Toggle */}
+                        {(!input.trim() && !selectedImage) ? (
+                            <TouchableOpacity
+                                style={[styles.micButton, isRecording && styles.micButtonRecording]}
+                                onPressIn={startRecording}
+                                onPressOut={stopRecording}
+                                disabled={loading}
+                            >
+                                <Text style={styles.micIcon}>🎙️</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                style={[styles.sendButton, (loading) && { opacity: 0.4 }]}
+                                onPress={() => handleSend()}
+                                disabled={loading}
+                            >
+                                <Text style={styles.sendIcon}>↑</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </KeyboardAvoidingView>
@@ -671,6 +826,24 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         marginTop: -2,
+    },
+    micButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.bgTertiary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    micButtonRecording: {
+        backgroundColor: colors.error,
+        borderColor: colors.error,
+        transform: [{ scale: 1.1 }],
+    },
+    micIcon: {
+        fontSize: 16,
     },
     sendButton: {
         width: 36,

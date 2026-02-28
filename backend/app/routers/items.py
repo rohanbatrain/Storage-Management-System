@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.item import Item, ItemType
 from app.models.location import Location
 from app.models.history import MovementHistory, ActionType
+from app.models.wear_history import WearHistory
 from app.schemas.item import (
     ItemCreate,
     ItemUpdate,
@@ -521,6 +522,48 @@ def mark_found(
     
     return {
         "message": "Item marked as found",
+        "item": item_to_response(item)
+    }
+
+# ============ WEAR HISTORY & UTILIZATION ============
+
+@router.post("/{item_id}/wear")
+def wear_item(
+    item_id: UUID, 
+    outfit_id: Optional[UUID] = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Log that this item was worn today.
+    Inserts a record into the WearHistory ledger for analytics.
+    """
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    # Increment counters if it's explicitly a clothing type
+    if item.item_data is None:
+        item.item_data = {}
+        
+    current_wears = item.item_data.get("wear_count_since_wash", 0)
+    item.item_data["wear_count_since_wash"] = current_wears + 1
+    item.item_data["last_worn_at"] = datetime.utcnow().isoformat()
+    # Required for SQLAlchemy JSON updates to trigger
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(item, "item_data")
+    
+    # Insert long-term immutable record
+    history = WearHistory(
+        item_id=item.id,
+        outfit_id=outfit_id,
+        date_worn=datetime.utcnow()
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(item)
+    
+    return {
+        "message": f"Successfully logged wear for {item.name}",
         "item": item_to_response(item)
     }
 

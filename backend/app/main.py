@@ -56,6 +56,12 @@ from app.routers import chat as chat_router
 app.include_router(chat_router.router, prefix=settings.api_v1_prefix)
 from app.routers import clients as clients_router
 app.include_router(clients_router.router, prefix=settings.api_v1_prefix)
+from app.routers import trips as trips_router
+app.include_router(trips_router.router, prefix=settings.api_v1_prefix)
+from app.routers import voice_agent as voice_agent_router
+app.include_router(voice_agent_router.router, prefix=settings.api_v1_prefix)
+from app.routers import analytics as analytics_router
+app.include_router(analytics_router.router, prefix=settings.api_v1_prefix)
 
 from fastapi import Request
 from app.routers.clients import track_client_request
