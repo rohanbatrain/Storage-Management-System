@@ -46,6 +46,8 @@ export default function SettingsScreen() {
     const [currencyPreference, setCurrencyPreference] = useState('₹');
     const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
 
+    const [devFeaturesEnabled, setDevFeaturesEnabled] = useState(false);
+
     const [deletingAll, setDeletingAll] = useState(false);
     const [confirmDeleteAllVisible, setConfirmDeleteAllVisible] = useState(false);
     const [connTesting, setConnTesting] = useState(false);
@@ -80,6 +82,9 @@ export default function SettingsScreen() {
 
         const pref = await AsyncStorage.getItem('sms_currency_preference');
         if (pref) setCurrencyPreference(pref);
+
+        const devFeatures = await AsyncStorage.getItem('sms_dev_features');
+        if (devFeatures) setDevFeaturesEnabled(devFeatures === 'true');
     };
 
     const handleSetVoiceMode = async (mode: 'native' | 'whisper' | 'livekit') => {
@@ -92,6 +97,15 @@ export default function SettingsScreen() {
         setCurrencyPreference(symbol);
         await AsyncStorage.setItem('sms_currency_preference', symbol);
         setCurrencyModalVisible(false);
+    };
+
+    const handleToggleDevFeatures = async () => {
+        const newValue = !devFeaturesEnabled;
+        setDevFeaturesEnabled(newValue);
+        await AsyncStorage.setItem('sms_dev_features', newValue.toString());
+        if (!newValue && voiceMode === 'livekit') {
+            handleSetVoiceMode('whisper');
+        }
     };
 
     const loadOllamaPresets = async () => {
@@ -649,6 +663,41 @@ export default function SettingsScreen() {
                     </View>
                 </View>
 
+                {/* Developer Settings */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🛠️ Developer Settings</Text>
+                    <View style={styles.card}>
+                        <View style={[styles.aboutItem, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                            <View style={{ flex: 1, marginRight: spacing.md }}>
+                                <Text style={styles.aboutLabel}>Enable Dev Features</Text>
+                                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+                                    Show in-development, unstable, or experimental features.
+                                </Text>
+                            </View>
+                            {/* Simple inline switch using styling to substitute react-native Switch */}
+                            <TouchableOpacity
+                                onPress={handleToggleDevFeatures}
+                                style={{
+                                    width: 50,
+                                    height: 30,
+                                    borderRadius: 15,
+                                    backgroundColor: devFeaturesEnabled ? colors.accentPrimary : colors.bgTertiary,
+                                    justifyContent: 'center',
+                                    padding: 2,
+                                }}
+                            >
+                                <View style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: 13,
+                                    backgroundColor: 'white',
+                                    transform: [{ translateX: devFeaturesEnabled ? 20 : 0 }],
+                                }} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+
                 <View style={{ height: 100 }} />
             </ScrollView>
 
@@ -718,13 +767,15 @@ export default function SettingsScreen() {
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Sends audio to server for high-accuracy processing.</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={[styles.textInput, voiceMode === 'livekit' && { borderColor: '#ef4444', backgroundColor: '#ef444415' }, { marginBottom: 0, padding: spacing.md }]}
-                                onPress={() => handleSetVoiceMode('livekit')}
-                            >
-                                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>LiveKit (Beta)</Text>
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Experimental real-time voice interaction with interruption support.</Text>
-                            </TouchableOpacity>
+                            {devFeaturesEnabled && (
+                                <TouchableOpacity
+                                    style={[styles.textInput, voiceMode === 'livekit' && { borderColor: '#ef4444', backgroundColor: '#ef444415' }, { marginBottom: 0, padding: spacing.md }]}
+                                    onPress={() => handleSetVoiceMode('livekit')}
+                                >
+                                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>LiveKit (Beta) - Dev Feature</Text>
+                                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Experimental real-time voice interaction with interruption support.</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         <View style={styles.modalButtons}>

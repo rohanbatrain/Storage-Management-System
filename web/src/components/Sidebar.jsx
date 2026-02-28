@@ -256,9 +256,17 @@ function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const [devFeaturesEnabled, setDevFeaturesEnabled] = useState(
+        localStorage.getItem('sms_dev_features') === 'true'
+    );
 
     useEffect(() => {
         loadTree();
+        const handleDevFeaturesChange = () => {
+            setDevFeaturesEnabled(localStorage.getItem('sms_dev_features') === 'true');
+        };
+        window.addEventListener('dev_features_changed', handleDevFeaturesChange);
+        return () => window.removeEventListener('dev_features_changed', handleDevFeaturesChange);
     }, []);
 
     // Auto-refresh tree when route changes (e.g. after creating a location)
@@ -399,13 +407,15 @@ function Sidebar() {
                         color="#8b5cf6"
                         isActive={location.pathname === '/chat'}
                     />
-                    <NavItem
-                        to="/voice"
-                        icon={Mic}
-                        label="Voice Assistant"
-                        color="#ec4899"
-                        isActive={location.pathname === '/voice'}
-                    />
+                    {devFeaturesEnabled && (
+                        <NavItem
+                            to="/voice"
+                            icon={Mic}
+                            label="Voice Assistant"
+                            color="#ec4899"
+                            isActive={location.pathname === '/voice'}
+                        />
+                    )}
                     <NavItem
                         to="/wardrobe"
                         icon={Shirt}

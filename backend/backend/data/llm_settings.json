@@ -2,5 +2,10 @@
   "provider": "ollama",
   "base_url": "http://localhost:11434/v1",
   "api_key": "",
-  "model": "qwen3:1.7b"
+  "model": "qwen3:1.7b",
+  "stt_provider": "whisper",
+  "tts_provider": "pyttsx3",
+  "livekit_url": "wss://secondbraindatabase-02x8wylj.livekit.cloud",
+  "livekit_api_key": "APITJfEcQkEQLgg",
+  "livekit_api_secret": "l8tZ0sPRHrX4RyrwAtFDKrDYKOuOWL4cdJ92l6PeeJ1"
 }

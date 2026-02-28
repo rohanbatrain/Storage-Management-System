@@ -8,6 +8,7 @@ const http = require('http');
 
 let mainWindow;
 let backendProcess;
+let agentProcess;
 let frontendProcess;
 let backendPort = 8000; // Default port
 let syncManager = null;
@@ -135,6 +136,20 @@ async function startBackend() {
                 env: { ...process.env, PORT: backendPort.toString() },
                 cwd: path.join(__dirname, '..', 'backend')
             });
+
+            // Start LiveKit Voice Agent Worker in parallel
+            const agentScript = path.join(__dirname, '..', 'backend', 'agent.py');
+            if (fs.existsSync(agentScript)) {
+                console.log('Starting LiveKit voice agent...');
+                agentProcess = spawn(venvPython, ['agent.py', 'start'], {
+                    env: { ...process.env },
+                    cwd: path.join(__dirname, '..', 'backend')
+                });
+
+                agentProcess.stdout.on('data', (data) => console.log(`Voice Agent: ${data}`));
+                agentProcess.stderr.on('data', (data) => console.error(`Voice Agent Error: ${data}`));
+                agentProcess.on('close', (code) => console.log(`Voice Agent exited with code ${code}`));
+            }
         } else {
             console.log('Backend venv or script not found, assuming manual start on 8000');
             return;
@@ -226,6 +241,22 @@ async function waitForFrontend() {
 }
 
 app.whenReady().then(async () => {
+    // Grant automatic microphone and media permissions for LiveKit Voice Agent
+    const { session } = require('electron');
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'media') {
+            callback(true);
+        } else {
+            callback(true);
+        }
+    });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+        if (permission === 'media') {
+            return true;
+        }
+        return true;
+    });
+
     await startBackend();
 
     if (!app.isPackaged) {
@@ -368,6 +399,9 @@ app.on('will-quit', () => {
     }
     if (backendProcess) {
         backendProcess.kill();
+    }
+    if (agentProcess) {
+        agentProcess.kill();
     }
     if (frontendProcess) {
         frontendProcess.kill();

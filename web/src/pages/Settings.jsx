@@ -32,6 +32,13 @@ function Settings() {
     const [aiApiKey, setAiApiKey] = useState('');
     const [aiModel, setAiModel] = useState('qwen3:8b');
     const [aiProviders, setAiProviders] = useState({});
+
+    // LiveKit Voice state
+    const [livekitUrl, setLivekitUrl] = useState('');
+    const [livekitApiKey, setLivekitApiKey] = useState('');
+    const [livekitApiSecret, setLivekitApiSecret] = useState('');
+    const [sttProvider, setSttProvider] = useState('browser');
+    const [ttsProvider, setTtsProvider] = useState('pyttsx3');
     const [aiTestResult, setAiTestResult] = useState(null);
     const [aiTesting, setAiTesting] = useState(false);
     const [aiSaving, setAiSaving] = useState(false);
@@ -52,6 +59,12 @@ function Settings() {
     const [ollamaInstalledModels, setOllamaInstalledModels] = useState([]);
     const [ollamaPresets, setOllamaPresets] = useState([]);
     const [showAdvancedAi, setShowAdvancedAi] = useState(false);
+
+    // Dev Features
+    const [devFeaturesEnabled, setDevFeaturesEnabled] = useState(
+        localStorage.getItem('sms_dev_features') === 'true'
+    );
+
 
     // Ollama model download
     const [pullingModel, setPullingModel] = useState(null);
@@ -134,6 +147,13 @@ function Settings() {
         }
     };
 
+    const handleToggleDevFeatures = () => {
+        const newValue = !devFeaturesEnabled;
+        setDevFeaturesEnabled(newValue);
+        localStorage.setItem('sms_dev_features', newValue.toString());
+        window.dispatchEvent(new Event('dev_features_changed'));
+    };
+
     const loadVisualLens = async () => {
         try {
             const statusRes = await identifyApi.status().catch(() => ({ data: null }));
@@ -152,6 +172,17 @@ function Settings() {
             setAiBaseUrl(d.base_url || '');
             setAiModel(d.model || '');
             setAiProviders(d.providers || {});
+
+            setSttProvider(d.stt_provider || 'browser');
+            setTtsProvider(d.tts_provider || 'pyttsx3');
+
+            setLivekitUrl(d.livekit_url || '');
+            if (d.livekit_api_key && d.livekit_api_key !== '***' && !d.livekit_api_key.includes('...')) {
+                setLivekitApiKey(d.livekit_api_key);
+            }
+            if (d.livekit_api_secret && d.livekit_api_secret !== '***' && !d.livekit_api_secret.includes('...')) {
+                setLivekitApiSecret(d.livekit_api_secret);
+            }
             // Don't overwrite key with masked value
         } catch (err) {
             console.error('AI settings load failed:', err);
@@ -177,6 +208,11 @@ function Settings() {
                 base_url: aiBaseUrl,
                 api_key: aiApiKey,
                 model: aiModel,
+                stt_provider: sttProvider,
+                tts_provider: ttsProvider,
+                livekit_url: livekitUrl,
+                livekit_api_key: livekitApiKey,
+                livekit_api_secret: livekitApiSecret,
             });
             setAiTestResult({ status: 'saved', message: 'Settings saved!' });
         } catch (err) {
@@ -196,6 +232,11 @@ function Settings() {
                 base_url: aiBaseUrl,
                 api_key: aiApiKey,
                 model: aiModel,
+                stt_provider: sttProvider,
+                tts_provider: ttsProvider,
+                livekit_url: livekitUrl,
+                livekit_api_key: livekitApiKey,
+                livekit_api_secret: livekitApiSecret,
             });
             const res = await chatApi.testConnection();
             setAiTestResult({ status: 'ok', message: `✅ Connected! Model: ${res.data.model}${res.data.reply ? ` — "${res.data.reply}"` : ''}` });
@@ -877,69 +918,160 @@ function Settings() {
                 </div>
             </section>
 
-            {/* Ollama Models Download */}
-            {ollamaPresets && aiProvider === 'ollama' && (
+            {/* LiveKit Voice Settings (Dev Only) */}
+            {devFeaturesEnabled && (
                 <section style={{ marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        🧠 Ollama Models
+                        🎙️ Voice Agent (LiveKit - Dev Feature)
                     </h2>
-                    <div className="card" style={{ overflow: 'hidden' }}>
-                        {Object.entries(ollamaPresets).map(([category, models], catIdx) => (
-                            <div key={category}>
-                                <div style={{
-                                    padding: '8px 16px',
-                                    background: 'var(--color-bg-tertiary)',
-                                    borderTop: catIdx > 0 ? '1px solid var(--color-border)' : 'none',
-                                    borderBottom: '1px solid var(--color-border)',
-                                }}>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        {category}
-                                    </span>
-                                </div>
-                                {models.map((model, idx) => (
-                                    <div key={model.id} style={{
-                                        display: 'flex', alignItems: 'center', gap: '12px',
-                                        padding: '12px 16px',
-                                        borderTop: idx > 0 ? '1px solid var(--color-border)' : 'none',
-                                    }}>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{model.name}</div>
-                                            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>{model.id}</div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{model.desc}</div>
-                                            {pullResult[model.id] && (
-                                                <div style={{
-                                                    fontSize: '0.78rem', marginTop: 4,
-                                                    color: pullResult[model.id].includes('❌') ? '#ef4444' : '#22c55e',
-                                                }}>
-                                                    {pullResult[model.id]}
-                                                </div>
-                                            )}
-                                        </div>
-                                        {ollamaInstalledModels.find(m => m.id === model.id || m.id === `${model.id}:latest`) ? (
-                                            <span style={{
-                                                fontSize: '0.7rem', fontWeight: 600, color: '#22c55e',
-                                                background: '#22c55e15', padding: '4px 10px', borderRadius: 12,
-                                            }}>Installed</span>
-                                        ) : (
-                                            <button
-                                                onClick={() => handlePullModel(model.id)}
-                                                disabled={pullingModel !== null}
-                                                className="btn btn-secondary"
-                                                style={{
-                                                    fontSize: '0.8rem', padding: '6px 14px',
-                                                    opacity: pullingModel === model.id ? 0.6 : 1,
-                                                }}
-                                            >
-                                                {pullingModel === model.id ? '⏳' : '⬇️ Download'}
-                                            </button>
-                                        )}
+                    <div className="card">
+                        <div style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                                <div>
+                                    <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Speech-to-Text (STT Ear)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <select
+                                            value={sttProvider}
+                                            onChange={e => setSttProvider(e.target.value)}
+                                            style={{ ...inputStyle, appearance: 'none', paddingRight: '2.5rem', cursor: 'pointer' }}
+                                        >
+                                            <option value="browser">Browser Native (Free, Fast)</option>
+                                            <option value="whisper">Faster-Whisper (Fully Local, Heavy)</option>
+                                            <option value="openai">OpenAI (Requires API Key)</option>
+                                        </select>
+                                        <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
                                     </div>
-                                ))}
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Text-to-Speech (TTS Mouth)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <select
+                                            value={ttsProvider}
+                                            onChange={e => setTtsProvider(e.target.value)}
+                                            style={{ ...inputStyle, appearance: 'none', paddingRight: '2.5rem', cursor: 'pointer' }}
+                                        >
+                                            <option value="pyttsx3">PyTTSx3 (Local System Voice)</option>
+                                            <option value="openai">OpenAI (Requires API Key)</option>
+                                        </select>
+                                        <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                                    </div>
+                                </div>
                             </div>
-                        ))}
+                            <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: 'var(--space-sm) 0' }} />
+                            <div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>LiveKit Server URL</label>
+                                <input
+                                    type="text"
+                                    value={livekitUrl}
+                                    onChange={e => setLivekitUrl(e.target.value)}
+                                    placeholder="wss://your-project.livekit.cloud"
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API Key</label>
+                                <input
+                                    type="password"
+                                    value={livekitApiKey}
+                                    onChange={e => setLivekitApiKey(e.target.value)}
+                                    placeholder="API..."
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>API Secret</label>
+                                <input
+                                    type="password"
+                                    value={livekitApiSecret}
+                                    onChange={e => setLivekitApiSecret(e.target.value)}
+                                    placeholder="Secret..."
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+                                <button
+                                    onClick={handleAiSave}
+                                    disabled={aiSaving}
+                                    className="btn btn-primary"
+                                    style={{ fontSize: 'var(--font-size-sm)' }}
+                                >
+                                    {aiSaving ? 'Saving...' : 'Save Voice Config'}
+                                </button>
+                            </div>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginTop: 8 }}>
+                                The Voice Agent routes calls through LiveKit Cloud. Grab your free API keys from <a href="https://cloud.livekit.io" target="_blank" rel="noreferrer" style={{ color: 'var(--color-accent-primary)' }}>cloud.livekit.io</a>.
+                            </p>
+                        </div>
                     </div>
                 </section>
-            )}
+            )
+            }
+
+            {/* Ollama Models Download */}
+            {
+                ollamaPresets && aiProvider === 'ollama' && (
+                    <section style={{ marginBottom: '2rem' }}>
+                        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            🧠 Ollama Models
+                        </h2>
+                        <div className="card" style={{ overflow: 'hidden' }}>
+                            {Object.entries(ollamaPresets).map(([category, models], catIdx) => (
+                                <div key={category}>
+                                    <div style={{
+                                        padding: '8px 16px',
+                                        background: 'var(--color-bg-tertiary)',
+                                        borderTop: catIdx > 0 ? '1px solid var(--color-border)' : 'none',
+                                        borderBottom: '1px solid var(--color-border)',
+                                    }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            {category}
+                                        </span>
+                                    </div>
+                                    {models.map((model, idx) => (
+                                        <div key={model.id} style={{
+                                            display: 'flex', alignItems: 'center', gap: '12px',
+                                            padding: '12px 16px',
+                                            borderTop: idx > 0 ? '1px solid var(--color-border)' : 'none',
+                                        }}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{model.name}</div>
+                                                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>{model.id}</div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{model.desc}</div>
+                                                {pullResult[model.id] && (
+                                                    <div style={{
+                                                        fontSize: '0.78rem', marginTop: 4,
+                                                        color: pullResult[model.id].includes('❌') ? '#ef4444' : '#22c55e',
+                                                    }}>
+                                                        {pullResult[model.id]}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {ollamaInstalledModels.find(m => m.id === model.id || m.id === `${model.id}:latest`) ? (
+                                                <span style={{
+                                                    fontSize: '0.7rem', fontWeight: 600, color: '#22c55e',
+                                                    background: '#22c55e15', padding: '4px 10px', borderRadius: 12,
+                                                }}>Installed</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handlePullModel(model.id)}
+                                                    disabled={pullingModel !== null}
+                                                    className="btn btn-secondary"
+                                                    style={{
+                                                        fontSize: '0.8rem', padding: '6px 14px',
+                                                        opacity: pullingModel === model.id ? 0.6 : 1,
+                                                    }}
+                                                >
+                                                    {pullingModel === model.id ? '⏳' : '⬇️ Download'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )
+            }
 
             {/* Visual Lens */}
             <section style={{ marginBottom: '2rem' }}>
@@ -1049,46 +1181,73 @@ function Settings() {
                 </div>
             </section>
 
-            {/* Delete All Confirm Modal */}
-            {showConfirmDeleteAll && (
-                <div className="modal-overlay" onClick={() => setShowConfirmDeleteAll(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title" style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <AlertTriangle size={24} /> Extreme Warning
-                            </h2>
-                            <button className="btn btn-ghost btn-icon" onClick={() => setShowConfirmDeleteAll(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <p style={{ marginBottom: '1rem', color: 'var(--color-text-primary)' }}>
-                                You are about to permanently delete <strong>ALL</strong> locations, items, outfits, and movement history.
-                            </p>
-                            <p style={{ color: '#ef4444', fontWeight: 600 }}>
-                                This action CANNOT be undone, and there is no recycle bin. If you do not have a backup, your data is gone forever.
-                            </p>
-                            <p style={{ marginTop: '1rem', color: 'var(--color-text-primary)' }}>
-                                Are you absolutely sure you want to completely wipe all locations?
-                            </p>
-                        </div>
-                        <div className="modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                            <button className="btn btn-secondary" onClick={() => setShowConfirmDeleteAll(false)}>
-                                Cancel
-                            </button>
-                            <button
-                                className="btn"
-                                style={{ background: '#ef4444', color: 'white', border: 'none' }}
-                                onClick={executeDeleteAll}
-                                disabled={deletingAll}
-                            >
-                                {deletingAll ? 'Deleting...' : 'Yes, Delete Everything'}
-                            </button>
+            {/* Developer Settings */}
+            <section style={{ marginBottom: '2rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🛠️ Developer Settings
+                </h2>
+                <div className="card" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Enable Dev Features</div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                            Show in-development, unstable, or experimental features like the LiveKit Voice Agent.
                         </div>
                     </div>
+                    {/* Simple native toggle/checkbox substitution since no exact custom Toggle exists here */}
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <input
+                            type="checkbox"
+                            id="devFeaturesToggle"
+                            checked={devFeaturesEnabled}
+                            onChange={handleToggleDevFeatures}
+                            style={{ width: 20, height: 20, cursor: 'pointer' }}
+                        />
+                    </div>
                 </div>
-            )}
-        </div>
+            </section>
+
+            {/* Delete All Confirm Modal */}
+            {
+                showConfirmDeleteAll && (
+                    <div className="modal-overlay" onClick={() => setShowConfirmDeleteAll(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2 className="modal-title" style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <AlertTriangle size={24} /> Extreme Warning
+                                </h2>
+                                <button className="btn btn-ghost btn-icon" onClick={() => setShowConfirmDeleteAll(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <p style={{ marginBottom: '1rem', color: 'var(--color-text-primary)' }}>
+                                    You are about to permanently delete <strong>ALL</strong> locations, items, outfits, and movement history.
+                                </p>
+                                <p style={{ color: '#ef4444', fontWeight: 600 }}>
+                                    This action CANNOT be undone, and there is no recycle bin. If you do not have a backup, your data is gone forever.
+                                </p>
+                                <p style={{ marginTop: '1rem', color: 'var(--color-text-primary)' }}>
+                                    Are you absolutely sure you want to completely wipe all locations?
+                                </p>
+                            </div>
+                            <div className="modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                <button className="btn btn-secondary" onClick={() => setShowConfirmDeleteAll(false)}>
+                                    Cancel
+                                </button>
+                                <button
+                                    className="btn"
+                                    style={{ background: '#ef4444', color: 'white', border: 'none' }}
+                                    onClick={executeDeleteAll}
+                                    disabled={deletingAll}
+                                >
+                                    {deletingAll ? 'Deleting...' : 'Yes, Delete Everything'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 }
 

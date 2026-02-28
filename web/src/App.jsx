@@ -17,9 +17,21 @@ import Trips from './pages/Trips';
 import VoiceAgent from './pages/VoiceAgent';
 import ChatDrawer from './components/ChatDrawer';
 import GlobalErrorBanner from './components/GlobalErrorBanner';
+import { useState, useEffect } from 'react';
 
 function App() {
     const location = useLocation();
+    const [devFeaturesEnabled, setDevFeaturesEnabled] = useState(
+        localStorage.getItem('sms_dev_features') === 'true'
+    );
+
+    useEffect(() => {
+        const handleDevFeaturesChange = () => {
+            setDevFeaturesEnabled(localStorage.getItem('sms_dev_features') === 'true');
+        };
+        window.addEventListener('dev_features_changed', handleDevFeaturesChange);
+        return () => window.removeEventListener('dev_features_changed', handleDevFeaturesChange);
+    }, []);
 
     return (
         <div className="app-layout">
@@ -41,7 +53,9 @@ function App() {
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/trips" element={<Trips />} />
-                    <Route path="/voice" element={<VoiceAgent />} />
+                    {devFeaturesEnabled && (
+                        <Route path="/voice" element={<VoiceAgent />} />
+                    )}
                 </Routes>
             </main>
             {location.pathname !== '/chat' && location.pathname !== '/voice' && <ChatDrawer />}

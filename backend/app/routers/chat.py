@@ -74,6 +74,11 @@ def _load_llm_settings() -> dict:
         "base_url": s.llm_base_url,
         "api_key": s.llm_api_key,
         "model": s.llm_model,
+        "stt_provider": "browser",
+        "tts_provider": "pyttsx3",
+        "livekit_url": getattr(s, "livekit_url", ""),
+        "livekit_api_key": getattr(s, "livekit_api_key", ""),
+        "livekit_api_secret": getattr(s, "livekit_api_secret", ""),
     }
 
 
@@ -111,6 +116,11 @@ class LLMSettingsRequest(BaseModel):
     base_url: str = "http://localhost:11434/v1"
     api_key: str = ""
     model: str = "qwen3:8b"
+    stt_provider: str = "browser"
+    tts_provider: str = "pyttsx3"
+    livekit_url: str = ""
+    livekit_api_key: str = ""
+    livekit_api_secret: str = ""
 
 
 class LLMSettingsResponse(BaseModel):
@@ -119,6 +129,11 @@ class LLMSettingsResponse(BaseModel):
     api_key: str  # masked in response
     model: str
     providers: dict
+    stt_provider: str
+    tts_provider: str
+    livekit_url: str
+    livekit_api_key: str # masked
+    livekit_api_secret: str # masked
 
 
 # ---------------------------------------------------------------------------
@@ -132,12 +147,24 @@ def get_llm_settings():
     # Mask API key for display
     key = data.get("api_key", "")
     masked = (key[:4] + "..." + key[-4:]) if len(key) > 8 else ("***" if key else "")
+    
+    lk_key = data.get("livekit_api_key", "")
+    lk_key_masked = (lk_key[:4] + "..." + lk_key[-4:]) if len(lk_key) > 8 else ("***" if lk_key else "")
+    
+    lk_secret = data.get("livekit_api_secret", "")
+    lk_secret_masked = (lk_secret[:4] + "..." + lk_secret[-4:]) if len(lk_secret) > 8 else ("***" if lk_secret else "")
+    
     return LLMSettingsResponse(
         provider=data.get("provider", "ollama"),
         base_url=data.get("base_url", ""),
         api_key=masked,
         model=data.get("model", ""),
         providers=PROVIDER_PRESETS,
+        stt_provider=data.get("stt_provider", "browser"),
+        tts_provider=data.get("tts_provider", "pyttsx3"),
+        livekit_url=data.get("livekit_url", ""),
+        livekit_api_key=lk_key_masked,
+        livekit_api_secret=lk_secret_masked,
     )
 
 @router.get("/ollama/presets")
@@ -240,9 +267,31 @@ def update_llm_settings(req: LLMSettingsRequest):
         "base_url": req.base_url,
         "api_key": req.api_key,
         "model": req.model,
+        "stt_provider": req.stt_provider,
+        "tts_provider": req.tts_provider,
+        "livekit_url": req.livekit_url,
+        "livekit_api_key": req.livekit_api_key,
+        "livekit_api_secret": req.livekit_api_secret,
     }
+    
+    # Do not overwrite with masked values if the user submitted masked values
+    existing = _load_llm_settings()
+    if "***" in req.api_key or "..." in req.api_key:
+        data["api_key"] = existing.get("api_key", "")
+    if "***" in req.livekit_api_key or "..." in req.livekit_api_key:
+        data["livekit_api_key"] = existing.get("livekit_api_key", "")
+    if "***" in req.livekit_api_secret or "..." in req.livekit_api_secret:
+        data["livekit_api_secret"] = existing.get("livekit_api_secret", "")
+    
     _save_llm_settings(data)
-    return {"status": "updated", **{k: v for k, v in data.items() if k != "api_key"}}
+    
+    # Return masked values
+    safe_data = {**data}
+    if safe_data.get("api_key"): safe_data["api_key"] = "***"
+    if safe_data.get("livekit_api_key"): safe_data["livekit_api_key"] = "***"
+    if safe_data.get("livekit_api_secret"): safe_data["livekit_api_secret"] = "***"
+    
+    return {"status": "updated", **safe_data}
 
 
 @router.post("/test")
