@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import Voice from '@react-native-voice/voice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LiveKitRoom } from '@livekit/react-native';
 import { colors, spacing, borderRadius, globalStyles } from '../styles/theme';
 import api, { chatApi, voiceApi } from '../services/api';
 
@@ -127,6 +128,11 @@ export default function ChatScreen() {
     const [audioLevel, setAudioLevel] = useState(0);
 
     const [voiceMode, setVoiceMode] = useState<'native' | 'whisper' | 'livekit'>('whisper');
+
+    // LiveKit State
+    const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
+    const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
+    const [isLiveKitConnected, setIsLiveKitConnected] = useState(false);
 
     // Model selector
     const [installedModels, setInstalledModels] = useState<any[]>([]);
@@ -417,6 +423,29 @@ export default function ChatScreen() {
         }
     };
 
+    const toggleLiveKit = async () => {
+        if (isLiveKitConnected) {
+            setIsLiveKitConnected(false);
+            setLiveKitToken(null);
+            setIsRecording(false);
+        } else {
+            try {
+                setLoading(true);
+                const res = await voiceApi.getLiveKitToken();
+                setLiveKitUrl(res.data.url);
+                setLiveKitToken(res.data.token);
+                setIsLiveKitConnected(true);
+                setIsRecording(true);
+            } catch (err: any) {
+                console.error(err);
+                Alert.alert('LiveKit Error', err.response?.data?.detail || err.message);
+                setIsRecording(false);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     const stopRecording = async () => {
         console.log('Stopping recording..');
 
@@ -593,8 +622,9 @@ export default function ChatScreen() {
                         {(!input.trim() && !selectedImage) ? (
                             <TouchableOpacity
                                 style={[styles.micButton, isRecording && styles.micButtonRecording]}
-                                onPressIn={startRecording}
-                                onPressOut={stopRecording}
+                                onPressIn={voiceMode === 'livekit' ? undefined : startRecording}
+                                onPressOut={voiceMode === 'livekit' ? undefined : stopRecording}
+                                onPress={voiceMode === 'livekit' ? toggleLiveKit : undefined}
                                 disabled={loading}
                             >
                                 <Text style={styles.micIcon}>🎙️</Text>
@@ -611,6 +641,22 @@ export default function ChatScreen() {
                     </View>
                 </View>
             </KeyboardAvoidingView>
+
+            {isLiveKitConnected && liveKitToken && liveKitUrl && (
+                <View style={{ width: 0, height: 0 }}>
+                    <LiveKitRoom
+                        serverUrl={liveKitUrl}
+                        token={liveKitToken}
+                        connect={true}
+                        audio={true}
+                        video={false}
+                        onDisconnected={() => {
+                            setIsLiveKitConnected(false);
+                            setIsRecording(false);
+                        }}
+                    />
+                </View>
+            )}
 
             {/* Model Picker Modal */}
             <Modal visible={showModelPicker} transparent animationType="slide" onRequestClose={() => setShowModelPicker(false)}>

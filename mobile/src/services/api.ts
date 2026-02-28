@@ -214,7 +214,8 @@ export const voiceApi = {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 60000, // Transcription might take a few seconds
         });
-    }
+    },
+    getLiveKitToken: () => api.get('/voice/livekit/token'),
 };
 
 // --- Connection Diagnostics ---

@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-4o-mini"
     
+    # LiveKit Voice Agent
+    livekit_url: str = ""
+    livekit_api_key: str = ""
+    livekit_api_secret: str = ""
+    
     # API
     api_v1_prefix: str = "/api"
     cors_origins: List[str] = [

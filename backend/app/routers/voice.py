@@ -9,6 +9,11 @@ from app.database import get_db
 from app.config import get_settings
 from app.services.llm_service import process_voice_command
 
+try:
+    from livekit.api import AccessToken, VideoGrants
+except ImportError:
+    AccessToken, VideoGrants = None, None
+
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 settings = get_settings()
 
@@ -73,3 +78,28 @@ async def transcribe_audio(audio: UploadFile = File(...), db: Session = Depends(
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
+
+@router.get("/livekit/token")
+async def get_livekit_token(room: str = "sms-room", identity: str = "mobile-user"):
+    """
+    Generate a LiveKit Participant Token for the mobile client.
+    """
+    livekit_url = os.environ.get("LIVEKIT_URL")
+    api_key = os.environ.get("LIVEKIT_API_KEY")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET")
+    
+    if not livekit_url or not api_key or not api_secret:
+        raise HTTPException(status_code=500, detail="LiveKit credentials not configured. Please set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET in .env.")
+        
+    if not AccessToken:
+         raise HTTPException(status_code=500, detail="livekit-api not installed on backend.")
+
+    token = AccessToken(api_key, api_secret) \
+        .with_identity(identity) \
+        .with_name("Mobile User") \
+        .with_grants(VideoGrants(
+            room_join=True,
+            room=room,
+        ))
+    
+    return {"token": token.to_jwt(), "url": livekit_url}

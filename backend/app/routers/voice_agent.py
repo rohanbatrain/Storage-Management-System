@@ -5,6 +5,11 @@ from app.database import get_db
 import tempfile
 import uuid
 
+try:
+    from livekit.api import AccessToken, VideoGrants
+except ImportError:
+    AccessToken, VideoGrants = None, None
+
 # In a real-world scenario, you would use an external service like Groq, OpenAI Whisper API, or a local Whisper model.
 # For demonstration purposes, and without an API key, we will simulate the transcription if you don't have Groq installed.
 try:
@@ -65,3 +70,31 @@ async def transcribe_audio(file: UploadFile = File(...), db: Session = Depends(g
         # Clean up the temp file
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
+
+@router.get("/livekit-token")
+async def get_livekit_token(room: str = "sms-room", identity: str = "web-user"):
+    """
+    Generate a LiveKit Participant Token for the web/mobile client.
+    """
+    from app.config import get_settings
+    settings = get_settings()
+
+    livekit_url = settings.livekit_url or os.environ.get("LIVEKIT_URL")
+    api_key = settings.livekit_api_key or os.environ.get("LIVEKIT_API_KEY")
+    api_secret = settings.livekit_api_secret or os.environ.get("LIVEKIT_API_SECRET")
+    
+    if not livekit_url or not api_key or not api_secret:
+        raise HTTPException(status_code=500, detail="LiveKit credentials not configured. Please set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET in .env.")
+        
+    if not AccessToken:
+         raise HTTPException(status_code=500, detail="livekit-api not installed on backend.")
+
+    token = AccessToken(api_key, api_secret) \
+        .with_identity(identity) \
+        .with_name("Web User") \
+        .with_grants(VideoGrants(
+            room_join=True,
+            room=room,
+        ))
+    
+    return {"token": token.to_jwt(), "url": livekit_url}

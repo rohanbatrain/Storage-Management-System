@@ -62,86 +62,105 @@ export default function Trips() {
     };
 
     if (loading) {
-        return <div className="p-8"><div className="animate-spin text-3xl">✈️</div></div>;
+        return (
+            <div className="empty-state" style={{ height: '50vh' }}>
+                <div className="thinking-spinner" style={{ width: 40, height: 40, marginBottom: 'var(--space-md)' }} />
+                <p className="empty-state-text">Loading trips...</p>
+            </div>
+        );
     }
 
     const activeTrips = trips.filter(t => t.is_active);
     const pastTrips = trips.filter(t => !t.is_active);
 
     return (
-        <div className="p-8 max-w-6xl mx-auto w-full space-y-8 animate-fade-in pb-24">
-
-            <header className="flex justify-between items-center mb-8">
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-xl)' }}>
                 <div>
-                    <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">Trips & Packing</h1>
-                    <p className="text-[var(--color-text-muted)] mt-2">
+                    <h1 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, marginBottom: 'var(--space-xs)' }}>
+                        Trips & Packing
+                    </h1>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>
                         Organize physical items into temporary packing lists for travel.
                     </p>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="btn-primary flex items-center gap-2 px-6 py-3"
+                    className="btn btn-primary"
+                    style={{ padding: 'var(--space-md) var(--space-xl)' }}
                 >
                     <Plus size={18} /> Plan a Trip
                 </button>
-            </header>
+            </div>
 
             {/* Active Trips list */}
-            <h2 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2 border-b border-[var(--color-border)] pb-2 mb-4">
-                <Plane className="text-indigo-400" /> Currently Planning ({activeTrips.length})
+            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)', display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-sm)' }}>
+                <Plane size={24} style={{ color: 'var(--color-accent-primary)' }} /> Currently Planning ({activeTrips.length})
             </h2>
 
             {activeTrips.length === 0 ? (
-                <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl p-12 text-center text-[var(--color-text-muted)] flex flex-col items-center gap-4">
-                    <Briefcase size={48} className="opacity-20" />
-                    <p>No active trips planned right now.</p>
+                <div className="empty-state card" style={{ padding: 'var(--space-2xl)' }}>
+                    <Briefcase size={48} className="empty-state-icon" style={{ opacity: 0.5, marginBottom: 'var(--space-md)' }} />
+                    <p className="empty-state-text">No active trips planned right now.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-2" style={{ marginBottom: 'var(--space-2xl)' }}>
                     {activeTrips.map(trip => (
-                        <div key={trip.id} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                            <div className="p-5 border-b border-[var(--color-border)] bg-[var(--color-bg-tertiary)] flex justify-between items-start">
+                        <div key={trip.id} className="card" style={{ padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            <div style={{ padding: 'var(--space-lg)', borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-tertiary)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <div>
-                                    <h3 className="text-xl font-bold text-[var(--color-text-primary)]">{trip.name}</h3>
-                                    <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mt-1">
+                                    <h3 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 4 }}>{trip.name}</h3>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 2 }}>
                                         <MapPin size={14} /> {trip.destination}
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mt-1">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
                                         <Calendar size={14} />
                                         {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
                                     </div>
                                 </div>
-                                <div className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                <span className="badge badge-primary" style={{ textTransform: 'uppercase', fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em' }}>
                                     Active
-                                </div>
+                                </span>
                             </div>
 
-                            <div className="p-5 flex-1 bg-[var(--color-bg-primary)]">
-                                <h4 className="text-sm font-semibold uppercase text-[var(--color-text-muted)] mb-3 flex items-center gap-2">
+                            <div style={{ padding: 'var(--space-lg)', flex: 1, backgroundColor: 'var(--color-bg-section)' }}>
+                                <h4 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 'var(--space-md)', display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
                                     <Package size={14} /> Packed Items ({trip.items?.length || 0})
                                 </h4>
                                 {trip.items && trip.items.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2 mb-4">
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-sm)' }}>
                                         {trip.items.map(item => (
-                                            <div key={item.id} className="flex items-center gap-2 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-sm">
+                                            <div key={item.id} style={{
+                                                display: 'flex', alignItems: 'center', gap: 'var(--space-sm)',
+                                                backgroundColor: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 'var(--font-size-sm)'
+                                            }}>
                                                 {item.image_url ? (
-                                                    <img src={item.image_url} alt="" className="w-5 h-5 rounded object-cover" />
+                                                    <img src={item.image_url} alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'cover' }} />
                                                 ) : (
-                                                    <span className="opacity-50">📦</span>
+                                                    <span style={{ opacity: 0.5 }}>📦</span>
                                                 )}
-                                                <span className="truncate max-w-[120px]">{item.name}</span>
+                                                <span style={{ maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-[var(--color-text-muted)] italic mb-4">No items packed yet. Go to an item and select "Pack for Trip".</p>
+                                    <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                                        No items packed yet. Go to an item and select "Pack for Trip".
+                                    </p>
                                 )}
                             </div>
 
-                            <div className="p-3 bg-[var(--color-bg-tertiary)] border-t border-[var(--color-border)] flex justify-end">
+                            <div style={{ padding: 'var(--space-md) var(--space-lg)', backgroundColor: 'var(--color-bg-tertiary)', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end' }}>
                                 <button
                                     onClick={() => handleUnpackAll(trip.id)}
-                                    className="text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2"
+                                    style={{
+                                        fontSize: 'var(--font-size-sm)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)',
+                                        padding: '8px 16px', borderRadius: 'var(--radius-md)', transition: 'all 0.2s ease',
+                                        fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', border: 'none', cursor: 'pointer'
+                                    }}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
                                 >
                                     <Package size={14} /> Unpack All & Finish Trip
                                 </button>
@@ -153,16 +172,19 @@ export default function Trips() {
 
             {/* Past Trips */}
             {pastTrips.length > 0 && (
-                <div className="mt-12">
-                    <h2 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2 border-b border-[var(--color-border)] pb-2 mb-4 opacity-70">
-                        <Calendar className="text-gray-400" /> Past Trips ({pastTrips.length})
+                <div style={{ marginTop: 'var(--space-2xl)' }}>
+                    <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)', display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-sm)', opacity: 0.7 }}>
+                        <Calendar size={24} style={{ color: 'var(--color-text-muted)' }} /> Past Trips ({pastTrips.length})
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-3">
                         {pastTrips.map(trip => (
-                            <div key={trip.id} className="bg-[var(--color-bg-tertiary)] opacity-60 rounded-xl p-4 border border-[var(--color-border)]">
-                                <h3 className="font-bold text-[var(--color-text-primary)]">{trip.name}</h3>
-                                <p className="text-xs text-[var(--color-text-muted)] mt-1">{trip.destination}</p>
-                                <p className="text-xs text-[var(--color-text-muted)] mt-1">{new Date(trip.end_date).toLocaleDateString()}</p>
+                            <div key={trip.id} style={{
+                                backgroundColor: 'var(--color-bg-tertiary)', opacity: 0.6, borderRadius: 'var(--radius-lg)',
+                                padding: 'var(--space-md)', border: '1px solid var(--color-border)'
+                            }}>
+                                <h3 style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{trip.name}</h3>
+                                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 4 }}>{trip.destination}</p>
+                                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 4 }}>{new Date(trip.end_date).toLocaleDateString()}</p>
                             </div>
                         ))}
                     </div>
@@ -171,40 +193,42 @@ export default function Trips() {
 
             {/* Modal Overlay */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-spring-up">
-                        <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-tertiary)]">
-                            <h2 className="text-xl font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-                                <Plane className="text-indigo-400" /> New Trip
+                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                                <Plane style={{ color: 'var(--color-accent-primary)' }} /> New Trip
                             </h2>
-                            <button onClick={() => setShowCreateModal(false)} className="text-[var(--color-text-muted)] hover:text-white transition-colors">
-                                <X size={24} />
+                            <button className="btn btn-ghost btn-icon" onClick={() => setShowCreateModal(false)}>
+                                <X size={20} />
                             </button>
                         </div>
-                        <form onSubmit={handleCreateTrip} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">Trip Name/Event</label>
-                                <input required autoFocus placeholder="e.g. Summer Vacation, Ski Trip" value={newTrip.name} onChange={e => setNewTrip({ ...newTrip, name: e.target.value })} className="form-input w-full bg-[var(--color-bg-primary)] border-[var(--color-border)] text-[var(--color-text-primary)] px-4 py-2.5 rounded-xl outline-none focus:border-indigo-500 transition-colors" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">Destination</label>
-                                <input required placeholder="e.g. Hawaii, Denver CO" value={newTrip.destination} onChange={e => setNewTrip({ ...newTrip, destination: e.target.value })} className="form-input w-full bg-[var(--color-bg-primary)] border-[var(--color-border)] text-[var(--color-text-primary)] px-4 py-2.5 rounded-xl outline-none focus:border-indigo-500 transition-colors" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">Start Date</label>
-                                    <input required type="date" value={newTrip.start_date} onChange={e => setNewTrip({ ...newTrip, start_date: e.target.value })} className="form-input w-full bg-[var(--color-bg-primary)] border-[var(--color-border)] text-[var(--color-text-primary)] px-4 py-2.5 rounded-xl outline-none focus:border-indigo-500 transition-colors" />
+                        <form onSubmit={handleCreateTrip}>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">Trip Name/Event</label>
+                                    <input required autoFocus placeholder="e.g. Summer Vacation" value={newTrip.name} onChange={e => setNewTrip({ ...newTrip, name: e.target.value })} className="input" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">End Date</label>
-                                    <input required type="date" value={newTrip.end_date} onChange={e => setNewTrip({ ...newTrip, end_date: e.target.value })} className="form-input w-full bg-[var(--color-bg-primary)] border-[var(--color-border)] text-[var(--color-text-primary)] px-4 py-2.5 rounded-xl outline-none focus:border-indigo-500 transition-colors" />
+                                <div className="form-group">
+                                    <label className="form-label">Destination</label>
+                                    <input required placeholder="e.g. Hawaii, Denver CO" value={newTrip.destination} onChange={e => setNewTrip({ ...newTrip, destination: e.target.value })} className="input" />
+                                </div>
+                                <div className="grid grid-2" style={{ gap: 'var(--space-md)' }}>
+                                    <div className="form-group">
+                                        <label className="form-label">Start Date</label>
+                                        <input required type="date" value={newTrip.start_date} onChange={e => setNewTrip({ ...newTrip, start_date: e.target.value })} className="input" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">End Date</label>
+                                        <input required type="date" value={newTrip.end_date} onChange={e => setNewTrip({ ...newTrip, end_date: e.target.value })} className="input" />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="pt-4 border-t border-[var(--color-border)] flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-bg-tertiary)] transition-colors">
+                            <div className="modal-footer">
+                                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-secondary">
                                     Cancel
                                 </button>
-                                <button type="submit" className="btn-primary px-6 py-2.5 rounded-xl text-sm font-semibold">
+                                <button type="submit" className="btn btn-primary">
                                     Create Trip
                                 </button>
                             </div>

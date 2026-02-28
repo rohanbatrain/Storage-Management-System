@@ -19,7 +19,8 @@ import {
     MessageSquare,
     RefreshCw,
     BarChart3,
-    Plane
+    Plane,
+    Mic
 } from 'lucide-react';
 import { locationApi } from '../services/api';
 import ServerInfo from './ServerInfo';
@@ -397,6 +398,13 @@ function Sidebar() {
                         label="Ask SMS (Chat)"
                         color="#8b5cf6"
                         isActive={location.pathname === '/chat'}
+                    />
+                    <NavItem
+                        to="/voice"
+                        icon={Mic}
+                        label="Voice Assistant"
+                        color="#ec4899"
+                        isActive={location.pathname === '/voice'}
                     />
                     <NavItem
                         to="/wardrobe"

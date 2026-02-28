@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy.orm import relationship
 from app.database import Base
 from app.models.compatibility import GUID, JSONCompatible, ArrayCompatible
 
@@ -29,6 +30,7 @@ class Outfit(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     device_id = Column(String(64), nullable=True, index=True)  # Sync: which device last modified this
+    wear_history = relationship("WearHistory", back_populates="outfit", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Outfit(name='{self.name}', items={len(self.item_ids or [])})>"

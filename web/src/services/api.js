@@ -238,5 +238,10 @@ export const tripsApi = {
     markInactive: (tripId) => api.post(`/trips/${tripId}/inactive`),
 };
 
+// Voice / LiveKit API
+export const voiceApi = {
+    getLiveKitToken: () => api.get('/voice/livekit-token'),
+};
+
 export default api;
 

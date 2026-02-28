@@ -9,7 +9,7 @@ from pydantic.json_schema import SkipJsonSchema
 from app.database import get_db
 from app.models.trip import Trip
 from app.models.item import Item
-from app.models.compatibility import GUIDType
+import uuid
 
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
@@ -21,7 +21,7 @@ class TripCreate(BaseModel):
     end_date: Optional[datetime] = None
 
 class TripResponse(BaseModel):
-    id: GUIDType
+    id: uuid.UUID
     name: str
     description: Optional[str]
     destination: Optional[str]

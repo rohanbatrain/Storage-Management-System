@@ -3,6 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Download, Upload, Printer, Archive, RefreshCw, AlertTriangle, CheckCircle, Eye, Cpu, Trash2, X, Wifi, Sparkles, Search, ImageOff, ChevronDown } from 'lucide-react';
 import { exportApi, identifyApi, chatApi, locationApi, testBackend } from '../services/api';
 
+const inputStyle = {
+    width: '100%',
+    padding: 'var(--space-sm) var(--space-md)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    background: 'var(--color-bg-tertiary)',
+    color: 'var(--color-text-primary)',
+    fontSize: 'var(--font-size-sm)',
+    outline: 'none',
+};
+
 function Settings() {
     const navigate = useNavigate();
     const [summary, setSummary] = useState(null);
@@ -39,6 +50,7 @@ function Settings() {
 
     // Ollama installed models (for dropdown)
     const [ollamaInstalledModels, setOllamaInstalledModels] = useState([]);
+    const [ollamaPresets, setOllamaPresets] = useState([]);
     const [showAdvancedAi, setShowAdvancedAi] = useState(false);
 
     // Ollama model download
@@ -221,12 +233,19 @@ function Settings() {
             setExportingArchive(true);
             const res = await exportApi.exportArchive();
 
-            const url = URL.createObjectURL(res.data);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `sms-archive-${new Date().toISOString().split('T')[0]}.zip`;
-            a.click();
-            URL.revokeObjectURL(url);
+            if (window.electron?.saveArchive) {
+                const arrayBuffer = await res.data.arrayBuffer();
+                const result = await window.electron.saveArchive(arrayBuffer);
+                if (result.canceled) return;
+                alert(`Archive saved successfully to ${result.filePath}`);
+            } else {
+                const url = URL.createObjectURL(res.data);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sms-archive-${new Date().toISOString().split('T')[0]}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
         } catch (error) {
             console.error('Failed to export archive:', error);
             alert('Failed to export archive');
@@ -235,9 +254,44 @@ function Settings() {
         }
     };
 
-    const handleImportClick = () => {
-        if (fileInputRef.current) {
-            fileInputRef.current.click();
+    const handleImportClick = async () => {
+        if (window.electron?.openArchive) {
+            try {
+                const result = await window.electron.openArchive();
+                if (result.canceled) return;
+
+                const confirmed = window.confirm(
+                    '⚠️ WARNING: Importing will REPLACE all existing data (locations, items, outfits, history, and uploaded images).\n\n' +
+                    'This action cannot be undone.\n\n' +
+                    'Are you sure you want to proceed?'
+                );
+                if (!confirmed) return;
+
+                setImporting(true);
+                setImportResult(null);
+
+                const blob = new Blob([result.data], { type: 'application/zip' });
+                const file = new File([blob], result.fileName, { type: 'application/zip' });
+
+                const res = await exportApi.importArchive(file);
+                setImportResult({
+                    success: true,
+                    data: res.data.restored,
+                });
+                loadSummary();
+            } catch (error) {
+                console.error('Failed to import:', error);
+                setImportResult({
+                    success: false,
+                    error: error.response?.data?.detail || error.message || 'Import failed',
+                });
+            } finally {
+                setImporting(false);
+            }
+        } else {
+            if (fileInputRef.current) {
+                fileInputRef.current.click();
+            }
         }
     };
 
@@ -1039,14 +1093,3 @@ function Settings() {
 }
 
 export default Settings;
-
-const inputStyle = {
-    width: '100%',
-    padding: 'var(--space-sm) var(--space-md)',
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--color-border)',
-    background: 'var(--color-bg-tertiary)',
-    color: 'var(--color-text-primary)',
-    fontSize: 'var(--font-size-sm)',
-    outline: 'none',
-};

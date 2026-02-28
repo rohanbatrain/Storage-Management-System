@@ -14,6 +14,7 @@ import LostItems from './pages/LostItems';
 import Chat from './pages/Chat';
 import Analytics from './pages/Analytics';
 import Trips from './pages/Trips';
+import VoiceAgent from './pages/VoiceAgent';
 import ChatDrawer from './components/ChatDrawer';
 import GlobalErrorBanner from './components/GlobalErrorBanner';
 
@@ -40,9 +41,10 @@ function App() {
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/trips" element={<Trips />} />
+                    <Route path="/voice" element={<VoiceAgent />} />
                 </Routes>
             </main>
-            {location.pathname !== '/chat' && <ChatDrawer />}
+            {location.pathname !== '/chat' && location.pathname !== '/voice' && <ChatDrawer />}
         </div>
     );
 }

@@ -1,3 +1,6 @@
+import { registerGlobals } from '@livekit/react-native';
+registerGlobals();
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';

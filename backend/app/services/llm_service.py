@@ -418,6 +418,79 @@ TOOLS = [
             }
         }
     },
+    # ---- Trips & Packing ----
+    {
+        "type": "function",
+        "function": {
+            "name": "list_active_trips",
+            "description": "List all currently active packing trips and the items packed in them.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_trip",
+            "description": "Create a new trip for packing items.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the trip (e.g., 'Hawaii Vacation')"},
+                    "destination": {"type": "string", "description": "Optional destination"},
+                    "start_date": {"type": "string", "description": "Optional start date in YYYY-MM-DD"},
+                    "end_date": {"type": "string", "description": "Optional end date in YYYY-MM-DD"}
+                },
+                "required": ["name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "pack_item_for_trip",
+            "description": "Pack a specific item into a specific trip.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "trip_id": {"type": "string", "description": "UUID of the trip"},
+                    "item_id": {"type": "string", "description": "UUID of the item to pack"}
+                },
+                "required": ["trip_id", "item_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "unpack_item_from_trip",
+            "description": "Unpack a specific item from a trip.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "trip_id": {"type": "string", "description": "UUID of the trip"},
+                    "item_id": {"type": "string", "description": "UUID of the item to unpack"}
+                },
+                "required": ["trip_id", "item_id"]
+            }
+        }
+    },
+    # ---- Analytics ----
+    {
+        "type": "function",
+        "function": {
+            "name": "get_cost_per_wear_analytics",
+            "description": "Get analytics on cost-per-wear and total wardrobe value.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_declutter_suggestions",
+            "description": "Get a list of items suggested for decluttering (unworn for over a year).",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -560,6 +633,24 @@ async def execute_tool(tool_name: str, arguments: dict, api_base: str) -> dict:
                     f"{api_base}/items/{arguments['item_id']}/found",
                     params=params
                 )
+            # ---- Trips & Packing ----
+            elif tool_name == "list_active_trips":
+                r = await client.get(f"{api_base}/trips", params={"active_only": "true"})
+            elif tool_name == "create_trip":
+                payload = {"name": arguments["name"]}
+                if arguments.get("destination"): payload["destination"] = arguments["destination"]
+                if arguments.get("start_date"): payload["start_date"] = arguments["start_date"]
+                if arguments.get("end_date"): payload["end_date"] = arguments["end_date"]
+                r = await client.post(f"{api_base}/trips", json=payload)
+            elif tool_name == "pack_item_for_trip":
+                r = await client.post(f"{api_base}/trips/{arguments['trip_id']}/pack/{arguments['item_id']}")
+            elif tool_name == "unpack_item_from_trip":
+                r = await client.post(f"{api_base}/trips/{arguments['trip_id']}/unpack/{arguments['item_id']}")
+            # ---- Analytics ----
+            elif tool_name == "get_cost_per_wear_analytics":
+                r = await client.get(f"{api_base}/analytics/cost-per-wear")
+            elif tool_name == "get_declutter_suggestions":
+                r = await client.get(f"{api_base}/analytics/declutter", params={"days": 365})
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
 
